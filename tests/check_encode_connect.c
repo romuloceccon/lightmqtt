@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <check.h>
 
 #include "check_lightmqtt.h"
@@ -188,7 +187,7 @@ START_TEST(should_encode_connect_clean_session)
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
-    ck_assert_uint_eq(10, buf[1]);
+    ck_assert_uint_eq(12, buf[1]);
 
     res = encode_connect_variable_header(&connect, 0, buf + 2,
         sizeof(buf) - 2, &bytes_w);

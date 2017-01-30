@@ -64,11 +64,44 @@ static int calc_connect_payload_field_length(LMqttString *str)
 static int calc_connect_remaining_legth(LMqttConnect *connect)
 {
     return LMQTT_CONNECT_HEADER_SIZE +
-        calc_connect_payload_field_length(&connect->client_id) +
+        /* client_id is always present in payload */
+        LMQTT_STRING_LEN_SIZE + connect->client_id.len +
         calc_connect_payload_field_length(&connect->will_topic) +
         calc_connect_payload_field_length(&connect->will_message) +
         calc_connect_payload_field_length(&connect->user_name) +
         calc_connect_payload_field_length(&connect->password);
+}
+
+static int validate_payload_field_length(LMqttString *str)
+{
+    return str->len >= 0 && str->len <= 0xffff;
+}
+
+static int validate_connect(LMqttConnect *connect)
+{
+    if (!validate_payload_field_length(&connect->client_id) ||
+            !validate_payload_field_length(&connect->will_topic) ||
+            !validate_payload_field_length(&connect->will_message) ||
+            !validate_payload_field_length(&connect->user_name) ||
+            !validate_payload_field_length(&connect->password))
+        return 0;
+
+    if (connect->will_topic.len == 0 ^ connect->will_message.len == 0)
+        return 0;
+
+    if (connect->will_topic.len == 0 && connect->will_retain)
+        return 0;
+
+    if (connect->client_id.len == 0 && !connect->clean_session)
+        return 0;
+
+    if (connect->user_name.len == 0 && connect->password.len != 0)
+        return 0;
+
+    if (connect->qos < 0 || connect->qos > 2)
+        return 0;
+
+    return 1;
 }
 
 static int encode_connect_fixed_header(LMqttConnect *connect, int offset,
