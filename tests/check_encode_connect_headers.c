@@ -243,9 +243,9 @@ START_TEST(should_not_encode_connect_with_insufficient_buffer)
 }
 END_TEST
 
-TCase *tcase_encode_connect(void)
+TCase *tcase_encode_connect_headers(void)
 {
-    TCase *result = tcase_create("Encode connect");
+    TCase *result = tcase_create("Encode connect headers");
 
     tcase_add_test(result, should_encode_connect_fixed_header_with_single_byte_remaining_len);
     tcase_add_test(result, should_not_encode_connect_fixed_header_with_insufficient_buffer);

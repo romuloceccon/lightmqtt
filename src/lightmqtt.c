@@ -36,6 +36,8 @@ typedef struct _LMqttConnect {
 
 #define LMQTT_CONNECT_HEADER_SIZE 10
 
+#define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
+
 static int encode_remaining_length(int len, u8 *buf, int buf_len,
     int *bytes_written)
 {
@@ -109,7 +111,7 @@ static int encode_connect_fixed_header(LMqttConnect *connect, int offset,
 {
     int remain_len_size;
 
-    assert(offset == 0);
+    assert(offset == 0 && buf_len > 0);
 
     if (encode_remaining_length(calc_connect_remaining_legth(connect), buf + 1,
             buf_len - 1, &remain_len_size) != LMQTT_ENCODE_FINISHED)
@@ -124,10 +126,9 @@ static int encode_connect_fixed_header(LMqttConnect *connect, int offset,
 static int encode_connect_variable_header(LMqttConnect *connect, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    u16 ka;
     u8 flags;
 
-    assert(offset == 0);
+    assert(offset == 0 && buf_len > 0);
 
     if (buf_len < LMQTT_CONNECT_HEADER_SIZE)
         return LMQTT_ENCODE_ERROR;
@@ -154,10 +155,41 @@ static int encode_connect_variable_header(LMqttConnect *connect, int offset,
         flags |= LMQTT_FLAG_PASSWORD_FLAG;
     buf[7] = flags;
 
-    ka = connect->keep_alive;
-    buf[8] = (ka >> 8) & 0xff;
-    buf[9] = (ka >> 0) & 0xff;
+    buf[8] = STRING_LEN_BYTE(connect->keep_alive, 1);
+    buf[9] = STRING_LEN_BYTE(connect->keep_alive, 0);
 
     *bytes_written = LMQTT_CONNECT_HEADER_SIZE;
     return LMQTT_ENCODE_FINISHED;
+}
+
+static int encode_connect_payload_client_id(LMqttConnect *connect, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    int len = connect->client_id.len;
+    int result;
+    int pos = 0;
+    int offset_str;
+    int i;
+
+    assert(offset < buf_len && buf_len > 0);
+
+    for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
+        if (offset <= i)
+            buf[pos++] = STRING_LEN_BYTE(len, LMQTT_STRING_LEN_SIZE - i - 1);
+    }
+
+    offset_str = offset <= LMQTT_STRING_LEN_SIZE ? 0 :
+        offset - LMQTT_STRING_LEN_SIZE;
+    len -= offset_str;
+
+    if (len > buf_len - pos) {
+        len = buf_len - pos;
+        result = LMQTT_ENCODE_AGAIN;
+    } else {
+        result = LMQTT_ENCODE_FINISHED;
+    }
+
+    memcpy(buf + pos, connect->client_id.buf + offset_str, len);
+    *bytes_written = pos + len;
+    return result;
 }

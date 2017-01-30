@@ -8,7 +8,8 @@ Suite* lightmqtt_suite(void)
     Suite *result = suite_create("Light MQTT");
 
     suite_add_tcase(result, tcase_validate_connect());
-    suite_add_tcase(result, tcase_encode_connect());
+    suite_add_tcase(result, tcase_encode_connect_headers());
+    suite_add_tcase(result, tcase_encode_connect_payload());
     suite_add_tcase(result, tcase_encode_remaining_length());
 
     return result;

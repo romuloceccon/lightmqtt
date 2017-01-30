@@ -3,6 +3,7 @@
 
 TCase *tcase_encode_remaining_length(void);
 TCase *tcase_validate_connect(void);
-TCase *tcase_encode_connect(void);
+TCase *tcase_encode_connect_headers(void);
+TCase *tcase_encode_connect_payload(void);
 
 #endif
