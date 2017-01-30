@@ -4,6 +4,7 @@
 *.lo
 *.log
 *.trs
+.bin
 .deps
 .libs
 Makefile
