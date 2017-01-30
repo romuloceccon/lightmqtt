@@ -7,6 +7,8 @@ AM_PROG_AR
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
+AX_APPEND_COMPILE_FLAGS([-std=c89 -pedantic])
+
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.10])
 AC_CHECK_HEADERS([stdint.h])
 
