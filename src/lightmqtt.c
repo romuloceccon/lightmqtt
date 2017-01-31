@@ -58,6 +58,49 @@ static int encode_remaining_length(int len, u8 *buf, int buf_len,
     return LMQTT_ENCODE_FINISHED;
 }
 
+static int encode_string(LMqttString *str, int encode_if_empty, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    int len = str->len;
+    int result;
+    int pos = 0;
+    int offset_str;
+    int i;
+
+    assert(offset < buf_len && buf_len > 0);
+
+    if (len == 0 && !encode_if_empty) {
+        *bytes_written = 0;
+        return LMQTT_ENCODE_FINISHED;
+    }
+
+    for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
+        if (offset <= i) {
+            buf[pos++] = STRING_LEN_BYTE(len, LMQTT_STRING_LEN_SIZE - i - 1);
+            if (pos >= buf_len) {
+                *bytes_written = pos;
+                return pos >= LMQTT_STRING_LEN_SIZE && len == 0 ?
+                    LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_AGAIN;
+            }
+        }
+    }
+
+    offset_str = offset <= LMQTT_STRING_LEN_SIZE ? 0 :
+        offset - LMQTT_STRING_LEN_SIZE;
+    len -= offset_str;
+
+    if (len > buf_len - pos) {
+        len = buf_len - pos;
+        result = LMQTT_ENCODE_AGAIN;
+    } else {
+        result = LMQTT_ENCODE_FINISHED;
+    }
+
+    memcpy(buf + pos, str->buf + offset_str, len);
+    *bytes_written = pos + len;
+    return result;
+}
+
 static int calc_connect_payload_field_length(LMqttString *str)
 {
     return str->len > 0 ? LMQTT_STRING_LEN_SIZE + str->len : 0;
@@ -165,31 +208,34 @@ static int encode_connect_variable_header(LMqttConnect *connect, int offset,
 static int encode_connect_payload_client_id(LMqttConnect *connect, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    int len = connect->client_id.len;
-    int result;
-    int pos = 0;
-    int offset_str;
-    int i;
+    return encode_string(&connect->client_id, 1, offset, buf, buf_len,
+        bytes_written);
+}
 
-    assert(offset < buf_len && buf_len > 0);
+static int encode_connect_payload_will_topic(LMqttConnect *connect, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_string(&connect->will_topic, 0, offset, buf, buf_len,
+        bytes_written);
+}
 
-    for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
-        if (offset <= i)
-            buf[pos++] = STRING_LEN_BYTE(len, LMQTT_STRING_LEN_SIZE - i - 1);
-    }
+static int encode_connect_payload_will_message(LMqttConnect *connect, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_string(&connect->will_message, 0, offset, buf, buf_len,
+        bytes_written);
+}
 
-    offset_str = offset <= LMQTT_STRING_LEN_SIZE ? 0 :
-        offset - LMQTT_STRING_LEN_SIZE;
-    len -= offset_str;
+static int encode_connect_payload_user_name(LMqttConnect *connect, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_string(&connect->user_name, 0, offset, buf, buf_len,
+        bytes_written);
+}
 
-    if (len > buf_len - pos) {
-        len = buf_len - pos;
-        result = LMQTT_ENCODE_AGAIN;
-    } else {
-        result = LMQTT_ENCODE_FINISHED;
-    }
-
-    memcpy(buf + pos, connect->client_id.buf + offset_str, len);
-    *bytes_written = pos + len;
-    return result;
+static int encode_connect_payload_password(LMqttConnect *connect, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_string(&connect->password, 0, offset, buf, buf_len,
+        bytes_written);
 }
