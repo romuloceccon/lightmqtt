@@ -19,6 +19,16 @@ typedef struct _LMqttConnect {
     LMqttString password;
 } LMqttConnect;
 
+typedef int (*LMqttEncodeFunction)(void *data, int offset, u8 *buf, int buf_len,
+    int *bytes_written);
+
+typedef struct _LMqttTxBufferState {
+    LMqttEncodeFunction *recipe;
+    int recipe_pos;
+    int recipe_offset;
+    void *data;
+} LMqttTxBufferState;
+
 #define LMQTT_ENCODE_FINISHED 0
 #define LMQTT_ENCODE_AGAIN 1
 #define LMQTT_ENCODE_ERROR 2
@@ -58,6 +68,14 @@ static int encode_remaining_length(int len, u8 *buf, int buf_len,
     return LMQTT_ENCODE_FINISHED;
 }
 
+/*
+ * TODO: encode_string() should accept a zero-length buffer, returning
+ * LMQTT_ENCODE_FINISHED if zero bytes would be written, and LMQTT_ENCODE_AGAIN
+ * otherwise. That way, if the tx buffer builder finds the buffer full after
+ * some random recipe, but the remaining ones would all result in zero bytes
+ * written, it can return LMQTT_ENCODE_FINISHED and avoid another call which
+ * would not produce any new bytes.
+ */
 static int encode_string(LMqttString *str, int encode_if_empty, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
@@ -238,4 +256,35 @@ static int encode_connect_payload_password(LMqttConnect *connect, int offset,
 {
     return encode_string(&connect->password, 0, offset, buf, buf_len,
         bytes_written);
+}
+
+static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    int offset = 0;
+    *bytes_written = 0;
+
+    while (1) {
+        int result;
+        int cur_bytes;
+        LMqttEncodeFunction recipe = state->recipe[state->recipe_pos];
+
+        if (!recipe)
+            break;
+
+        result = recipe(state->data, state->recipe_offset, buf + offset,
+            buf_len - offset, &cur_bytes);
+        if (result == LMQTT_ENCODE_AGAIN)
+            state->recipe_offset += cur_bytes;
+        if (result == LMQTT_ENCODE_AGAIN || result == LMQTT_ENCODE_FINISHED)
+            *bytes_written += cur_bytes;
+        if (result != LMQTT_ENCODE_FINISHED)
+            return result;
+
+        offset += cur_bytes;
+        state->recipe_pos += 1;
+        state->recipe_offset = 0;
+    }
+
+    return LMQTT_ENCODE_FINISHED;
 }
