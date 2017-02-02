@@ -12,6 +12,8 @@ Suite* lightmqtt_suite(void)
     suite_add_tcase(result, tcase_encode_connect_payload());
     suite_add_tcase(result, tcase_encode_remaining_length());
     suite_add_tcase(result, tcase_build_tx_buffer());
+    suite_add_tcase(result, tcase_decode_connack());
+    suite_add_tcase(result, tcase_decode_fixed_header());
 
     return result;
 }

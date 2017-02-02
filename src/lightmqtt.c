@@ -7,6 +7,19 @@ typedef struct _LMqttString {
     char* buf;
 } LMqttString;
 
+typedef struct _LMqttFixedHeader {
+    int type;
+    int dup;
+    int qos;
+    int retain;
+    int remaining_length;
+    int bytes_read;
+    int failed;
+    int remain_len_multiplier;
+    int remain_len_accumulator;
+    int remain_len_finished;
+} LMqttFixedHeader;
+
 typedef struct _LMqttConnect {
     u16 keep_alive;
     int clean_session;
@@ -18,6 +31,13 @@ typedef struct _LMqttConnect {
     LMqttString user_name;
     LMqttString password;
 } LMqttConnect;
+
+typedef struct _LMqttConnack {
+    int session_present;
+    int return_code;
+    int bytes_read;
+    int failed;
+} LMqttConnack;
 
 typedef int (*LMqttEncodeFunction)(void *data, int offset, u8 *buf, int buf_len,
     int *bytes_written);
@@ -33,7 +53,12 @@ typedef struct _LMqttTxBufferState {
 #define LMQTT_ENCODE_AGAIN 1
 #define LMQTT_ENCODE_ERROR 2
 
-#define LMQTT_TYPE_CONNECT 0x10
+#define LMQTT_DECODE_FINISHED 0
+#define LMQTT_DECODE_AGAIN 1
+#define LMQTT_DECODE_ERROR 2
+
+#define LMQTT_TYPE_CONNECT 1
+#define LMQTT_TYPE_CONNACK 2
 
 #define LMQTT_FLAG_CLEAN_SESSION 0x02
 #define LMQTT_FLAG_WILL_FLAG 0x04
@@ -42,9 +67,18 @@ typedef struct _LMqttTxBufferState {
 #define LMQTT_FLAG_USER_NAME_FLAG 0x80
 #define LMQTT_OFFSET_FLAG_QOS 3
 
+#define LMQTT_CONNACK_RC_ACCEPTED 0
+#define LMQTT_CONNACK_RC_UNACCEPTABLE_PROTOCOL_VERSION 1
+#define LMQTT_CONNACK_RC_IDENTIFIER_REJECTED 2
+#define LMQTT_CONNACK_RC_SERVER_UNAVAILABLE 3
+#define LMQTT_CONNACK_RC_BAD_USER_NAME_OR_PASSWORD 4
+#define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
+#define LMQTT_CONNACK_RC_MAX 5
+
 #define LMQTT_STRING_LEN_SIZE 2
 
 #define LMQTT_CONNECT_HEADER_SIZE 10
+#define LMQTT_CONNACK_HEADER_SIZE 2
 
 #define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
 
@@ -178,7 +212,7 @@ static int encode_connect_fixed_header(LMqttConnect *connect, int offset,
             buf_len - 1, &remain_len_size) != LMQTT_ENCODE_FINISHED)
         return LMQTT_ENCODE_ERROR;
 
-    buf[0] = LMQTT_TYPE_CONNECT;
+    buf[0] = LMQTT_TYPE_CONNECT << 4;
 
     *bytes_written = 1 + remain_len_size;
     return LMQTT_ENCODE_FINISHED;
@@ -256,6 +290,87 @@ static int encode_connect_payload_password(LMqttConnect *connect, int offset,
 {
     return encode_string(&connect->password, 0, offset, buf, buf_len,
         bytes_written);
+}
+
+/*
+ * TODO: Validate each packet type against a valid remaining length. Otherwise
+ * there's no way of detecting a malformed packet with a valid type and zero
+ * remaining length.
+ */
+static int decode_fixed_header(LMqttFixedHeader *header, u8 b)
+{
+    int result = LMQTT_DECODE_ERROR;
+
+    if (header->failed)
+        return LMQTT_DECODE_ERROR;
+
+    if (header->bytes_read == 0) {
+        if (b != 0x20) {
+            result = LMQTT_DECODE_ERROR;
+        } else {
+            header->type = b >> 4;
+            header->remain_len_multiplier = 1;
+            header->remain_len_accumulator = 0;
+            header->remain_len_finished = 0;
+            result = LMQTT_DECODE_AGAIN;
+        }
+    } else {
+        if (header->remain_len_multiplier > 128 * 128 && (b & 128) ||
+                header->remain_len_finished) {
+            result = LMQTT_DECODE_ERROR;
+        } else {
+            header->remain_len_accumulator += (b & 127) *
+                header->remain_len_multiplier;
+            header->remain_len_multiplier *= 128;
+
+            if (b & 128) {
+                result = LMQTT_DECODE_AGAIN;
+            } else {
+                header->remaining_length = header->remain_len_accumulator;
+                header->remain_len_finished = 1;
+                result = LMQTT_DECODE_FINISHED;
+            }
+        }
+    }
+
+    if (result == LMQTT_DECODE_ERROR)
+        header->failed = 1;
+    else
+        header->bytes_read += 1;
+    return result;
+}
+
+static int decode_connack(LMqttConnack *connack, u8 b)
+{
+    int result = LMQTT_DECODE_ERROR;
+
+    if (connack->failed)
+        return LMQTT_DECODE_ERROR;
+
+    switch (connack->bytes_read) {
+    case 0:
+        if (b & ~1) {
+            result = LMQTT_DECODE_ERROR;
+        } else {
+            connack->session_present = b != 0;
+            result = LMQTT_DECODE_AGAIN;
+        }
+        break;
+    case 1:
+        if (b > LMQTT_CONNACK_RC_MAX) {
+            result = LMQTT_DECODE_ERROR;
+        } else {
+            connack->return_code = b;
+            result = LMQTT_DECODE_FINISHED;
+        }
+        break;
+    }
+
+    if (result == LMQTT_DECODE_ERROR)
+        connack->failed = 1;
+    else
+        connack->bytes_read += 1;
+    return result;
 }
 
 static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
