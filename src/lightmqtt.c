@@ -57,8 +57,22 @@ typedef struct _LMqttTxBufferState {
 #define LMQTT_DECODE_AGAIN 1
 #define LMQTT_DECODE_ERROR 2
 
+#define LMQTT_TYPE_MIN 1
 #define LMQTT_TYPE_CONNECT 1
 #define LMQTT_TYPE_CONNACK 2
+#define LMQTT_TYPE_PUBLISH 3
+#define LMQTT_TYPE_PUBACK 4
+#define LMQTT_TYPE_PUBREC 5
+#define LMQTT_TYPE_PUBREL 6
+#define LMQTT_TYPE_PUBCOMP 7
+#define LMQTT_TYPE_SUBSCRIBE 8
+#define LMQTT_TYPE_SUBACK 9
+#define LMQTT_TYPE_UNSUBSCRIBE 10
+#define LMQTT_TYPE_UNSUBACK 11
+#define LMQTT_TYPE_PINGREQ 12
+#define LMQTT_TYPE_PINGRESP 13
+#define LMQTT_TYPE_DISCONNECT 14
+#define LMQTT_TYPE_MAX 14
 
 #define LMQTT_FLAG_CLEAN_SESSION 0x02
 #define LMQTT_FLAG_WILL_FLAG 0x04
@@ -305,17 +319,44 @@ static int decode_fixed_header(LMqttFixedHeader *header, u8 b)
         return LMQTT_DECODE_ERROR;
 
     if (header->bytes_read == 0) {
-        if (b != 0x20) {
+        int type = b >> 4;
+        int flags = b & 0x0f;
+        int bad_flags;
+
+        switch (type) {
+            case LMQTT_TYPE_PUBREL:
+            case LMQTT_TYPE_SUBSCRIBE:
+            case LMQTT_TYPE_UNSUBSCRIBE:
+                bad_flags = flags != 2;
+                break;
+            case LMQTT_TYPE_PUBLISH:
+                bad_flags = (flags & 6) == 6;
+                break;
+            default:
+                bad_flags = flags != 0;
+        }
+
+        if (type < LMQTT_TYPE_MIN || type > LMQTT_TYPE_MAX || bad_flags) {
             result = LMQTT_DECODE_ERROR;
         } else {
-            header->type = b >> 4;
+            header->type = type;
             header->remain_len_multiplier = 1;
             header->remain_len_accumulator = 0;
             header->remain_len_finished = 0;
+            if (type == LMQTT_TYPE_PUBLISH) {
+                header->dup = (flags & 8) >> 3;
+                header->qos = (flags & 6) >> 1;
+                header->retain = flags & 1;
+            } else {
+                header->dup = 0;
+                header->qos = 0;
+                header->retain = 0;
+            }
             result = LMQTT_DECODE_AGAIN;
         }
     } else {
-        if (header->remain_len_multiplier > 128 * 128 && (b & 128) ||
+        if (header->remain_len_multiplier > 128 * 128 && (b & 128) != 0 ||
+                header->remain_len_multiplier > 1 && b == 0 ||
                 header->remain_len_finished) {
             result = LMQTT_DECODE_ERROR;
         } else {
