@@ -49,6 +49,17 @@ typedef struct _LMqttTxBufferState {
     void *data;
 } LMqttTxBufferState;
 
+typedef void (*LMqttCallback)(void *data);
+
+typedef struct _LMqttRxBufferState {
+    LMqttCallback connect_callback;
+    void *connect_data;
+    LMqttFixedHeader header;
+    LMqttConnack connack;
+    int header_finished;
+    int failed;
+} LMqttRxBufferState;
+
 #define LMQTT_ENCODE_FINISHED 0
 #define LMQTT_ENCODE_AGAIN 1
 #define LMQTT_ENCODE_ERROR 2
@@ -443,4 +454,70 @@ static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     }
 
     return LMQTT_ENCODE_FINISHED;
+}
+
+/*
+ * TODO: process_rx_buffer() should be able to handle cases where the buffer
+ * cannot be completely read (for example, if a callback which is being invoked
+ * to write the incoming data to a file would block) and return
+ * LMQTT_DECODE_AGAIN. Otherwise it should return LMQTT_DECODE_FINISHED, even if
+ * the incoming packet is not yet complete. (That may look confusing. Should we
+ * have different return codes for process_rx_buffer() and the other decoding
+ * functions?)
+ */
+static int process_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
+    int *bytes_read)
+{
+    int i;
+
+    *bytes_read = 0;
+
+    if (state->failed)
+        return LMQTT_DECODE_ERROR;
+
+    for (i = 0; i < buf_len; i++) {
+        *bytes_read += 1;
+
+        if (!state->header_finished) {
+            int res = decode_fixed_header(&state->header, buf[i]);
+            if (res == LMQTT_DECODE_FINISHED) {
+                if (state->header.remaining_length == 0) {
+                    switch (state->header.type) {
+                    case LMQTT_TYPE_PINGREQ:
+                    case LMQTT_TYPE_PINGRESP:
+                    case LMQTT_TYPE_DISCONNECT:
+                        memset(&state->header, 0, sizeof(state->header));
+                        memset(&state->connack, 0, sizeof(state->connack));
+                        break;
+                    default:
+                        state->failed = 1;
+                        return LMQTT_DECODE_ERROR;
+                    }
+                } else {
+                    state->header_finished = 1;
+                }
+            } else if (res == LMQTT_DECODE_ERROR) {
+                state->failed = 1;
+                return LMQTT_DECODE_ERROR;
+            }
+        } else {
+            /*
+             * TODO: return error if remaining length is not zero and type is
+             * one of (PINGREQ, PINGRESP, DISCONNECT).
+             * TODO: call correct decode function for each packet type.
+             */
+            int res = decode_connack(&state->connack, buf[i]);
+            if (res == LMQTT_DECODE_FINISHED) {
+                state->connect_callback(state->connect_data);
+                memset(&state->header, 0, sizeof(state->header));
+                memset(&state->connack, 0, sizeof(state->connack));
+                state->header_finished = 0;
+            } else if (res == LMQTT_DECODE_ERROR) {
+                state->failed = 1;
+                return LMQTT_DECODE_ERROR;
+            }
+        }
+    }
+
+    return LMQTT_DECODE_FINISHED;
 }
