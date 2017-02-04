@@ -8,6 +8,7 @@ _bin_check_lightmqtt_SOURCES = check_lightmqtt.c \
     check_build_tx_buffer.c \
     check_decode_connack.c \
     check_decode_fixed_header.c \
-    check_process_rx_buffer.c
+    check_process_rx_buffer.c \
+    check_process_input.c
 _bin_check_lightmqtt_CFLAGS = -I$(top_builddir) @CHECK_CFLAGS@
 _bin_check_lightmqtt_LDADD = $(top_builddir)/src/liblightmqtt.la @CHECK_LIBS@

@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <lightmqtt/base.h>
 
+#define LMQTT_RX_BUFFER_SIZE 512
+
 typedef struct _LMqttString {
     int len;
     char* buf;
@@ -60,6 +62,15 @@ typedef struct _LMqttRxBufferState {
     int failed;
 } LMqttRxBufferState;
 
+typedef int (*LMqttReadFunction)(void *, u8 *, int, int *);
+
+typedef struct _LMqttClient {
+    void *data;
+    LMqttReadFunction read;
+    u8 read_buf[LMQTT_RX_BUFFER_SIZE];
+    int read_buf_pos;
+} LMqttClient;
+
 #define LMQTT_ENCODE_FINISHED 0
 #define LMQTT_ENCODE_AGAIN 1
 #define LMQTT_ENCODE_ERROR 2
@@ -67,6 +78,9 @@ typedef struct _LMqttRxBufferState {
 #define LMQTT_DECODE_FINISHED 0
 #define LMQTT_DECODE_AGAIN 1
 #define LMQTT_DECODE_ERROR 2
+
+#define LMQTT_ERR_FINISHED 0
+#define LMQTT_ERR_AGAIN 1
 
 #define LMQTT_TYPE_MIN 1
 #define LMQTT_TYPE_CONNECT 1
