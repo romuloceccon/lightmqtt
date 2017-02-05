@@ -29,13 +29,50 @@ static void process_input(LMqttClient *client)
         }
 
         if (process_allowed && client->read_buf_pos > 0) {
-            res = process_rx_buffer(0, client->read_buf, client->read_buf_pos,
-                &bytes_read);
+            res = process_rx_buffer(&client->rx_state, client->read_buf,
+                client->read_buf_pos, &bytes_read);
             memmove(&client->read_buf[0], &client->read_buf[bytes_read],
                 client->read_buf_pos - bytes_read);
             client->read_buf_pos -= bytes_read;
             if (res == LMQTT_DECODE_AGAIN)
                 process_allowed = 0;
+        }
+    }
+}
+
+/*
+ * TODO: review how build_tx_buffer() should handle cases where some read
+ * would block, cases where there's no data to encode and cases where the buffer
+ * is not enough to encode the whole command.
+ */
+static void process_output(LMqttClient *client)
+{
+    int build_allowed = 1;
+    int write_allowed = 1;
+
+    while (build_allowed && client->write_buf_pos < sizeof(client->write_buf) ||
+        write_allowed && client->write_buf_pos > 0) {
+        int res;
+        int bytes_written;
+
+        if (build_allowed && client->write_buf_pos < sizeof(client->write_buf)) {
+            res = build_tx_buffer(&client->tx_state,
+                &client->write_buf[client->write_buf_pos],
+                sizeof(client->write_buf) - client->write_buf_pos,
+                &bytes_written);
+            client->write_buf_pos += bytes_written;
+            if (res == LMQTT_ENCODE_AGAIN)
+                build_allowed = 0;
+        }
+
+        if (write_allowed && client->write_buf_pos > 0) {
+            res = client->write(client->data, client->write_buf,
+                client->write_buf_pos, &bytes_written);
+            memmove(&client->write_buf[0], &client->write_buf[bytes_written],
+                client->write_buf_pos - bytes_written);
+            client->write_buf_pos -= bytes_written;
+            if (res == LMQTT_ERR_AGAIN)
+                write_allowed = 0;
         }
     }
 }

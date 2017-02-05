@@ -3,6 +3,7 @@
 #include <lightmqtt/base.h>
 
 #define LMQTT_RX_BUFFER_SIZE 512
+#define LMQTT_TX_BUFFER_SIZE 512
 
 typedef struct _LMqttString {
     int len;
@@ -63,12 +64,18 @@ typedef struct _LMqttRxBufferState {
 } LMqttRxBufferState;
 
 typedef int (*LMqttReadFunction)(void *, u8 *, int, int *);
+typedef int (*LMqttWriteFunction)(void *, u8 *, int, int *);
 
 typedef struct _LMqttClient {
     void *data;
     LMqttReadFunction read;
+    LMqttWriteFunction write;
+    LMqttRxBufferState rx_state;
+    LMqttTxBufferState tx_state;
     u8 read_buf[LMQTT_RX_BUFFER_SIZE];
     int read_buf_pos;
+    u8 write_buf[LMQTT_TX_BUFFER_SIZE];
+    int write_buf_pos;
 } LMqttClient;
 
 #define LMQTT_ENCODE_FINISHED 0
@@ -439,6 +446,10 @@ static int decode_connack(LMqttConnack *connack, u8 b)
     return result;
 }
 
+/*
+ * TODO: maybe build_tx_buffer(), like build_tx_buffer(), should return
+ * LMQTT_ENCODE_AGAIN only when building it would block?
+ */
 static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     int *bytes_written)
 {

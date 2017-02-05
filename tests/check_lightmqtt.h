@@ -10,5 +10,6 @@ TCase *tcase_decode_connack(void);
 TCase *tcase_decode_fixed_header(void);
 TCase *tcase_process_rx_buffer(void);
 TCase *tcase_process_input(void);
+TCase *tcase_process_output(void);
 
 #endif
