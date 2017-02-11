@@ -78,14 +78,6 @@ static int encode_remaining_length(int len, u8 *buf, int buf_len,
     return LMQTT_ENCODE_FINISHED;
 }
 
-/*
- * TODO: encode_string() should accept a zero-length buffer, returning
- * LMQTT_ENCODE_FINISHED if zero bytes would be written, and LMQTT_ENCODE_AGAIN
- * otherwise. That way, if the tx buffer builder finds the buffer full after
- * some random recipe, but the remaining ones would all result in zero bytes
- * written, it can return LMQTT_ENCODE_FINISHED and avoid another call which
- * would not produce any new bytes.
- */
 static int encode_string(LMqttString *str, int encode_if_empty, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
@@ -95,12 +87,12 @@ static int encode_string(LMqttString *str, int encode_if_empty, int offset,
     int offset_str;
     int i;
 
-    assert(offset < buf_len && buf_len > 0);
-
     if (len == 0 && !encode_if_empty) {
         *bytes_written = 0;
         return LMQTT_ENCODE_FINISHED;
     }
+
+    assert(offset < buf_len && buf_len > 0);
 
     for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
         if (offset <= i) {

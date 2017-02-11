@@ -225,6 +225,19 @@ START_TEST(should_encode_non_empty_user_name)
 }
 END_TEST
 
+START_TEST(should_encode_empty_user_name_at_zero_byte_buffer)
+{
+    PREPARE;
+
+    res = encode_connect_payload_user_name(&connect, 0, buf, 0, &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(0, bytes_w);
+
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[0]);
+}
+END_TEST
+
 START_TCASE("Encode connect payload")
 {
     ADD_TEST(should_encode_empty_client_id);
@@ -239,5 +252,6 @@ START_TCASE("Encode connect payload")
     ADD_TEST(should_encode_client_id_starting_at_offset_2);
     ADD_TEST(should_encode_empty_user_name);
     ADD_TEST(should_encode_non_empty_user_name);
+    ADD_TEST(should_encode_empty_user_name_at_zero_byte_buffer);
 }
 END_TCASE
