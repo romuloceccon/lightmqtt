@@ -2,6 +2,12 @@
 #include <string.h>
 #include <assert.h>
 
+#define LMQTT_FIXED_HEADER_MAX_SIZE 5
+#define LMQTT_CONNECT_HEADER_SIZE 10
+#define LMQTT_CONNACK_HEADER_SIZE 2
+
+#define LMQTT_MAX(a, b) ((a) >= (b) ? (a) : (b))
+
 typedef struct _LMqttString {
     int len;
     char* buf;
@@ -17,7 +23,11 @@ typedef struct _LMqttConnect {
     LMqttString will_message;
     LMqttString user_name;
     LMqttString password;
+    int buf_len;
+    u8 buf[LMQTT_MAX(LMQTT_FIXED_HEADER_MAX_SIZE, LMQTT_CONNECT_HEADER_SIZE)];
 } LMqttConnect;
+
+typedef int (*LMqttConnectEncodeFunction)(LMqttConnect *connect);
 
 #define LMQTT_TYPE_MIN 1
 #define LMQTT_TYPE_CONNECT 1
@@ -53,18 +63,14 @@ typedef struct _LMqttConnect {
 
 #define LMQTT_STRING_LEN_SIZE 2
 
-#define LMQTT_CONNECT_HEADER_SIZE 10
-#define LMQTT_CONNACK_HEADER_SIZE 2
-
 #define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
 
-static int encode_remaining_length(int len, u8 *buf, int buf_len,
-    int *bytes_written)
+/* caller must guarantee buf is at least 4-bytes long! */
+static int encode_remaining_length(int len, u8 *buf, int *bytes_written)
 {
     int pos;
 
-    if (len < 0 || len > 0x0fffffff || buf_len < 1 || buf_len < 2 && len > 0x7f
-            || buf_len < 3 && len > 0x3fff || buf_len < 4 && len > 0x1fffff)
+    if (len < 0 || len > 0x0fffffff)
         return LMQTT_ENCODE_ERROR;
 
     pos = 0;
@@ -169,41 +175,68 @@ static int validate_connect(LMqttConnect *connect)
     return 1;
 }
 
-static int encode_connect_fixed_header(LMqttConnect *connect, int offset,
-    u8 *buf, int buf_len, int *bytes_written)
+static int encode_from_temp_buffer(LMqttConnectEncodeFunction func,
+    LMqttConnect *connect, int offset, u8 *buf, int buf_len, int *bytes_written)
 {
-    int remain_len_size;
+    int cnt;
+    int result;
 
-    assert(offset == 0 && buf_len > 0);
+    assert(buf_len >= 0);
+    assert(offset == 0 || connect->buf_len > 0 && offset < connect->buf_len);
 
-    if (encode_remaining_length(calc_connect_remaining_legth(connect), buf + 1,
-            buf_len - 1, &remain_len_size) != LMQTT_ENCODE_FINISHED)
+    if (offset == 0 && func(connect) != LMQTT_ENCODE_FINISHED)
         return LMQTT_ENCODE_ERROR;
 
-    buf[0] = LMQTT_TYPE_CONNECT << 4;
+    cnt = connect->buf_len - offset;
+    result = LMQTT_ENCODE_FINISHED;
 
-    *bytes_written = 1 + remain_len_size;
+    if (cnt > buf_len) {
+        cnt = buf_len;
+        result = LMQTT_ENCODE_AGAIN;
+    }
+
+    memcpy(buf, &connect->buf[offset], cnt);
+    *bytes_written = cnt;
+
+    if (result == LMQTT_ENCODE_FINISHED) {
+        connect->buf_len = 0;
+        memset(connect->buf, 0, sizeof(connect->buf));
+    }
+
+    return result;
+}
+
+static int encode_connect_fixed_header_builder(LMqttConnect *connect)
+{
+    int remain_len_size;
+    int res;
+
+    assert(sizeof(connect->buf) >= LMQTT_FIXED_HEADER_MAX_SIZE);
+
+    res = encode_remaining_length(calc_connect_remaining_legth(connect),
+        connect->buf + 1, &remain_len_size);
+    if (res != LMQTT_ENCODE_FINISHED)
+        return LMQTT_ENCODE_ERROR;
+
+    connect->buf[0] = LMQTT_TYPE_CONNECT << 4;
+    connect->buf_len = 1 + remain_len_size;
     return LMQTT_ENCODE_FINISHED;
 }
 
-static int encode_connect_variable_header(LMqttConnect *connect, int offset,
+static int encode_connect_fixed_header(LMqttConnect *connect, int offset,
     u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_from_temp_buffer(encode_connect_fixed_header_builder,
+        connect, offset, buf, buf_len, bytes_written);
+}
+
+static int encode_connect_variable_header_builder(LMqttConnect *connect)
 {
     u8 flags;
 
-    assert(offset == 0 && buf_len > 0);
+    assert(sizeof(connect->buf) >= LMQTT_CONNECT_HEADER_SIZE);
 
-    if (buf_len < LMQTT_CONNECT_HEADER_SIZE)
-        return LMQTT_ENCODE_ERROR;
-
-    buf[0] = 0x00;
-    buf[1] = 0x04;
-    buf[2] = 'M';
-    buf[3] = 'Q';
-    buf[4] = 'T';
-    buf[5] = 'T';
-
-    buf[6] = 0x04;
+    memcpy(connect->buf, "\x00\x04MQTT\x04", 7);
 
     flags = connect->qos << LMQTT_OFFSET_FLAG_QOS;
     if (connect->clean_session)
@@ -216,13 +249,19 @@ static int encode_connect_variable_header(LMqttConnect *connect, int offset,
         flags |= LMQTT_FLAG_USER_NAME_FLAG;
     if (connect->password.len > 0)
         flags |= LMQTT_FLAG_PASSWORD_FLAG;
-    buf[7] = flags;
+    connect->buf[7] = flags;
 
-    buf[8] = STRING_LEN_BYTE(connect->keep_alive, 1);
-    buf[9] = STRING_LEN_BYTE(connect->keep_alive, 0);
-
-    *bytes_written = LMQTT_CONNECT_HEADER_SIZE;
+    connect->buf[8] = STRING_LEN_BYTE(connect->keep_alive, 1);
+    connect->buf[9] = STRING_LEN_BYTE(connect->keep_alive, 0);
+    connect->buf_len = 10;
     return LMQTT_ENCODE_FINISHED;
+}
+
+static int encode_connect_variable_header(LMqttConnect *connect, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_from_temp_buffer(encode_connect_variable_header_builder,
+        connect, offset, buf, buf_len, bytes_written);
 }
 
 static int encode_connect_payload_client_id(LMqttConnect *connect, int offset,

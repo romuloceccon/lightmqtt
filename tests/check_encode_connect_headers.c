@@ -48,19 +48,38 @@ START_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len)
 }
 END_TEST
 
-START_TEST(should_not_encode_connect_fixed_header_with_insufficient_buffer)
+START_TEST(should_encode_connect_fixed_header_with_offset)
 {
     PREPARE;
 
-    connect.client_id.len = 116;
+    res = encode_connect_fixed_header(&connect, 0, buf, 1, &bytes_w);
 
-    res = encode_connect_fixed_header(&connect, 0, buf, 2, &bytes_w);
+    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(1, bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
-    ck_assert_int_eq(BYTES_W_PLACEHOLDER, bytes_w);
+    ck_assert_uint_eq(0x10, buf[0]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
+
+    res = encode_connect_fixed_header(&connect, 1, buf, sizeof(buf), &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(1, bytes_w);
+
+    ck_assert_uint_eq(13, buf[0]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
+}
+END_TEST
+
+START_TEST(should_encode_connect_fixed_header_at_zero_length_buffer)
+{
+    PREPARE;
+
+    res = encode_connect_fixed_header(&connect, 0, buf, 0, &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(0, bytes_w);
 
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[0]);
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
 }
 END_TEST
 
@@ -86,6 +105,9 @@ START_TEST(should_encode_simple_connect)
     ck_assert_uint_eq(0x00,  buf[9]);
 
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[10]);
+
+    ck_assert_int_eq(0, connect.buf_len);
+    ck_assert_uint_eq(0, connect.buf[0]);
 }
 END_TEST
 
@@ -229,23 +251,42 @@ START_TEST(should_encode_connect_qos)
 }
 END_TEST
 
-START_TEST(should_not_encode_connect_with_insufficient_buffer)
+START_TEST(should_encode_connect_with_offset)
 {
     PREPARE;
 
-    res = encode_connect_variable_header(&connect, 0, buf, 9, &bytes_w);
+    res = encode_connect_variable_header(&connect, 0, buf, 3, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
-    ck_assert_int_eq(BYTES_W_PLACEHOLDER, bytes_w);
+    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(3, bytes_w);
 
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[0]);
+    ck_assert_uint_eq(0x00, buf[0]);
+    ck_assert_uint_eq(0x04, buf[1]);
+    ck_assert_uint_eq('M',  buf[2]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[3]);
+
+    res = encode_connect_variable_header(&connect, 3, buf, sizeof(buf), &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(7, bytes_w);
+
+    ck_assert_uint_eq('Q',  buf[0]);
+    ck_assert_uint_eq('T',  buf[1]);
+    ck_assert_uint_eq('T',  buf[2]);
+
+    ck_assert_uint_eq(0x04,  buf[3]);
+    ck_assert_uint_eq(0x00,  buf[4]);
+    ck_assert_uint_eq(0x00,  buf[5]);
+    ck_assert_uint_eq(0x00,  buf[6]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[7]);
 }
 END_TEST
 
 START_TCASE("Encode connect headers")
 {
     ADD_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len);
-    ADD_TEST(should_not_encode_connect_fixed_header_with_insufficient_buffer);
+    ADD_TEST(should_encode_connect_fixed_header_with_offset);
+    ADD_TEST(should_encode_connect_fixed_header_at_zero_length_buffer);
     ADD_TEST(should_encode_simple_connect);
     ADD_TEST(should_encode_connect_keep_alive);
     ADD_TEST(should_encode_connect_will_topic_and_message);
@@ -254,6 +295,6 @@ START_TCASE("Encode connect headers")
     ADD_TEST(should_encode_connect_clean_session);
     ADD_TEST(should_encode_connect_will_retain);
     ADD_TEST(should_encode_connect_qos);
-    ADD_TEST(should_not_encode_connect_with_insufficient_buffer);
+    ADD_TEST(should_encode_connect_with_offset);
 }
 END_TCASE
