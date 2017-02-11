@@ -1,6 +1,6 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lightmqtt.c"
+#include "../src/lmqtt_packet.c"
 
 START_TEST(should_decode_connack_valid_first_byte)
 {

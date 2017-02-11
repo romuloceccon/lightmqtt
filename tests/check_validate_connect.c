@@ -1,6 +1,6 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lightmqtt.c"
+#include "../src/lmqtt_packet.c"
 
 START_TEST(should_validate_good_connect)
 {

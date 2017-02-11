@@ -1,8 +1,6 @@
 #include "check_lightmqtt.h"
 
-#define decode_rx_buffer _original_decode_rx_buffer
-#include "../src/lightmqtt.c"
-#undef decode_rx_buffer
+#include "../src/lmqtt_io.c"
 
 typedef struct _TestConnection {
     u8 buf[LMQTT_RX_BUFFER_SIZE * 2];
@@ -33,7 +31,7 @@ static int read_test_buf(void *data, u8 *buf, int buf_len, int *bytes_read)
     return cnt > 0 ? LMQTT_ERR_FINISHED : LMQTT_ERR_AGAIN;
 }
 
-static int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
+int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
     int *bytes_read)
 {
     int cnt = buf_len;
@@ -45,8 +43,6 @@ static int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
     rx_buffer.call_count += 1;
     return cnt >= buf_len ? LMQTT_DECODE_FINISHED : LMQTT_DECODE_AGAIN;
 }
-
-#include "../src/lightmqtt_client.c"
 
 START_TEST(should_process_input_without_data)
 {

@@ -1,3 +1,5 @@
+#include <lightmqtt/core.h>
+
 /*
  * TODO: somehow we should tell the user which handle she should select() on. If
  * (a) decode_rx_buffer() returns LMQTT_DECODE_AGAIN (meaning a write operation

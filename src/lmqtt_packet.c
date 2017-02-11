@@ -1,27 +1,11 @@
+#include <lightmqtt/core.h>
 #include <string.h>
 #include <assert.h>
-#include <lightmqtt/base.h>
-
-#define LMQTT_RX_BUFFER_SIZE 512
-#define LMQTT_TX_BUFFER_SIZE 512
 
 typedef struct _LMqttString {
     int len;
     char* buf;
 } LMqttString;
-
-typedef struct _LMqttFixedHeader {
-    int type;
-    int dup;
-    int qos;
-    int retain;
-    int remaining_length;
-    int bytes_read;
-    int failed;
-    int remain_len_multiplier;
-    int remain_len_accumulator;
-    int remain_len_finished;
-} LMqttFixedHeader;
 
 typedef struct _LMqttConnect {
     u16 keep_alive;
@@ -34,60 +18,6 @@ typedef struct _LMqttConnect {
     LMqttString user_name;
     LMqttString password;
 } LMqttConnect;
-
-typedef struct _LMqttConnack {
-    int session_present;
-    int return_code;
-    int bytes_read;
-    int failed;
-} LMqttConnack;
-
-typedef int (*LMqttEncodeFunction)(void *data, int offset, u8 *buf, int buf_len,
-    int *bytes_written);
-
-typedef struct _LMqttTxBufferState {
-    LMqttEncodeFunction *recipe;
-    int recipe_pos;
-    int recipe_offset;
-    void *data;
-} LMqttTxBufferState;
-
-typedef void (*LMqttCallback)(void *data);
-
-typedef struct _LMqttRxBufferState {
-    LMqttCallback connect_callback;
-    void *connect_data;
-    LMqttFixedHeader header;
-    LMqttConnack connack;
-    int header_finished;
-    int failed;
-} LMqttRxBufferState;
-
-typedef int (*LMqttReadFunction)(void *, u8 *, int, int *);
-typedef int (*LMqttWriteFunction)(void *, u8 *, int, int *);
-
-typedef struct _LMqttClient {
-    void *data;
-    LMqttReadFunction read;
-    LMqttWriteFunction write;
-    LMqttRxBufferState rx_state;
-    LMqttTxBufferState tx_state;
-    u8 read_buf[LMQTT_RX_BUFFER_SIZE];
-    int read_buf_pos;
-    u8 write_buf[LMQTT_TX_BUFFER_SIZE];
-    int write_buf_pos;
-} LMqttClient;
-
-#define LMQTT_ENCODE_FINISHED 0
-#define LMQTT_ENCODE_AGAIN 1
-#define LMQTT_ENCODE_ERROR 2
-
-#define LMQTT_DECODE_FINISHED 0
-#define LMQTT_DECODE_AGAIN 1
-#define LMQTT_DECODE_ERROR 2
-
-#define LMQTT_ERR_FINISHED 0
-#define LMQTT_ERR_AGAIN 1
 
 #define LMQTT_TYPE_MIN 1
 #define LMQTT_TYPE_CONNECT 1
@@ -450,7 +380,7 @@ static int decode_connack(LMqttConnack *connack, u8 b)
  * TODO: maybe encode_tx_buffer(), like encode_tx_buffer(), should return
  * LMQTT_ENCODE_AGAIN only when building it would block?
  */
-static int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     int *bytes_written)
 {
     int offset = 0;
@@ -490,7 +420,7 @@ static int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
  * have different return codes for decode_rx_buffer() and the other decoding
  * functions?)
  */
-static int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
+int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
     int *bytes_read)
 {
     int i;

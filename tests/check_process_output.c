@@ -1,8 +1,6 @@
 #include "check_lightmqtt.h"
 
-#define encode_tx_buffer _original_encode_tx_buffer
-#include "../src/lightmqtt.c"
-#undef encode_tx_buffer
+#include "../src/lmqtt_io.c"
 
 typedef struct _TestConnection {
     u8 buf[LMQTT_TX_BUFFER_SIZE * 2];
@@ -41,7 +39,7 @@ static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
  * (connection.call_count is 2 varios tests below, but should be 1 to respect
  * symetry).
  */
-static int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     int *bytes_written)
 {
     int cnt = tx_buffer.len - tx_buffer.pos;
@@ -53,8 +51,6 @@ static int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     tx_buffer.call_count += 1;
     return cnt > 0 ? LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_AGAIN;
 }
-
-#include "../src/lightmqtt_client.c"
 
 START_TEST(should_process_output_without_data)
 {

@@ -1,6 +1,6 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lightmqtt.c"
+#include "../src/lmqtt_packet.c"
 
 #define BYTES_R_PLACEHOLDER -12345
 
