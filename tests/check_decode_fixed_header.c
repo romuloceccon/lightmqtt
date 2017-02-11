@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 START_TEST(should_decode_fixed_header_valid_connack)
@@ -170,21 +169,18 @@ START_TEST(should_not_decode_after_error)
 }
 END_TEST
 
-TCase *tcase_decode_fixed_header(void)
+START_TCASE("Decode fixed header")
 {
-    TCase *result = tcase_create("Decode fixed header");
-
-    tcase_add_test(result, should_decode_fixed_header_valid_connack);
-    tcase_add_test(result, should_decode_fixed_header_invalid_connack);
-    tcase_add_test(result, should_decode_fixed_header_pubrel);
-    tcase_add_test(result, should_decode_fixed_header_publish);
-    tcase_add_test(result, should_decode_fixed_header_single_byte_remaining_len);
-    tcase_add_test(result, should_decode_fixed_header_four_byte_remaining_len);
-    tcase_add_test(result, should_decode_fixed_header_invalid_fourth_byte);
-    tcase_add_test(result, should_decode_fixed_header_valid_zero_representation);
-    tcase_add_test(result, should_decode_fixed_header_invalid_zero_representation);
-    tcase_add_test(result, should_not_decode_after_remaining_length);
-    tcase_add_test(result, should_not_decode_after_error);
-
-    return result;
+    ADD_TEST(should_decode_fixed_header_valid_connack);
+    ADD_TEST(should_decode_fixed_header_invalid_connack);
+    ADD_TEST(should_decode_fixed_header_pubrel);
+    ADD_TEST(should_decode_fixed_header_publish);
+    ADD_TEST(should_decode_fixed_header_single_byte_remaining_len);
+    ADD_TEST(should_decode_fixed_header_four_byte_remaining_len);
+    ADD_TEST(should_decode_fixed_header_invalid_fourth_byte);
+    ADD_TEST(should_decode_fixed_header_valid_zero_representation);
+    ADD_TEST(should_decode_fixed_header_invalid_zero_representation);
+    ADD_TEST(should_not_decode_after_remaining_length);
+    ADD_TEST(should_not_decode_after_error);
 }
+END_TCASE

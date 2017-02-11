@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 START_TEST(should_validate_good_connect)
@@ -120,18 +119,15 @@ START_TEST(should_validate_qos)
 }
 END_TEST
 
-TCase *tcase_validate_connect(void)
+START_TCASE("Validate connect")
 {
-    TCase *result = tcase_create("Validate connect");
-
-    tcase_add_test(result, should_validate_good_connect);
-    tcase_add_test(result, should_not_validate_continued_session_without_client_id);
-    tcase_add_test(result, should_validate_clean_session_without_client_id);
-    tcase_add_test(result, should_validate_string_length);
-    tcase_add_test(result, should_validate_will_topic_and_will_message);
-    tcase_add_test(result, should_validate_will_retain_flag);
-    tcase_add_test(result, should_validate_user_name_and_password);
-    tcase_add_test(result, should_validate_qos);
-
-    return result;
+    ADD_TEST(should_validate_good_connect);
+    ADD_TEST(should_not_validate_continued_session_without_client_id);
+    ADD_TEST(should_validate_clean_session_without_client_id);
+    ADD_TEST(should_validate_string_length);
+    ADD_TEST(should_validate_will_topic_and_will_message);
+    ADD_TEST(should_validate_will_retain_flag);
+    ADD_TEST(should_validate_user_name_and_password);
+    ADD_TEST(should_validate_qos);
 }
+END_TCASE

@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 #define BYTES_W_PLACEHOLDER -12345
@@ -195,16 +194,13 @@ START_TEST(should_continue_buffer_twice_with_the_same_recipe_entry)
 }
 END_TEST
 
-TCase *tcase_build_tx_buffer(void)
+START_TCASE("Build tx buffer")
 {
-    TCase *result = tcase_create("Build tx buffer");
-
-    tcase_add_test(result, should_build_tx_buffer_with_one_encoding_function);
-    tcase_add_test(result, should_build_tx_buffer_with_two_encoding_functions);
-    tcase_add_test(result, should_stop_recipe_after_buffer_fills_up);
-    tcase_add_test(result, should_return_actual_bytes_written_after_error);
-    tcase_add_test(result, should_continue_buffer_where_previous_call_stopped);
-    tcase_add_test(result, should_continue_buffer_twice_with_the_same_recipe_entry);
-
-    return result;
+    ADD_TEST(should_build_tx_buffer_with_one_encoding_function);
+    ADD_TEST(should_build_tx_buffer_with_two_encoding_functions);
+    ADD_TEST(should_stop_recipe_after_buffer_fills_up);
+    ADD_TEST(should_return_actual_bytes_written_after_error);
+    ADD_TEST(should_continue_buffer_where_previous_call_stopped);
+    ADD_TEST(should_continue_buffer_twice_with_the_same_recipe_entry);
 }
+END_TCASE

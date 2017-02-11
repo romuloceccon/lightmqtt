@@ -1,5 +1,3 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
 
 #define process_rx_buffer _original_process_rx_buffer
@@ -193,14 +191,11 @@ START_TEST(should_process_remaining_input_from_previous_call)
 }
 END_TEST
 
-TCase *tcase_process_input(void)
+START_TCASE("Process input")
 {
-    TCase *result = tcase_create("Process input");
-
-    tcase_add_test(result, should_process_input_without_data);
-    tcase_add_test(result, should_consume_read_buffer_if_process_interrupts);
-    tcase_add_test(result, should_fill_read_buffer_if_process_interrupts);
-    tcase_add_test(result, should_process_remaining_input_from_previous_call);
-
-    return result;
+    ADD_TEST(should_process_input_without_data);
+    ADD_TEST(should_consume_read_buffer_if_process_interrupts);
+    ADD_TEST(should_fill_read_buffer_if_process_interrupts);
+    ADD_TEST(should_process_remaining_input_from_previous_call);
 }
+END_TCASE

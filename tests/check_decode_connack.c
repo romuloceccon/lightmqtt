@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 START_TEST(should_decode_connack_valid_first_byte)
@@ -84,16 +83,13 @@ START_TEST(should_not_decode_after_error)
 }
 END_TEST
 
-TCase *tcase_decode_connack(void)
+START_TCASE("Decode connack")
 {
-    TCase *result = tcase_create("Decode connack");
-
-    tcase_add_test(result, should_decode_connack_valid_first_byte);
-    tcase_add_test(result, should_decode_connack_invalid_first_byte);
-    tcase_add_test(result, should_decode_connack_valid_second_byte);
-    tcase_add_test(result, should_decode_connack_invalid_second_byte);
-    tcase_add_test(result, should_not_decode_third_byte);
-    tcase_add_test(result, should_not_decode_after_error);
-
-    return result;
+    ADD_TEST(should_decode_connack_valid_first_byte);
+    ADD_TEST(should_decode_connack_invalid_first_byte);
+    ADD_TEST(should_decode_connack_valid_second_byte);
+    ADD_TEST(should_decode_connack_invalid_second_byte);
+    ADD_TEST(should_not_decode_third_byte);
+    ADD_TEST(should_not_decode_after_error);
 }
+END_TCASE

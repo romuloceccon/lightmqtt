@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 #define BYTES_W_PLACEHOLDER -12345
@@ -226,22 +225,19 @@ START_TEST(should_encode_non_empty_user_name)
 }
 END_TEST
 
-TCase *tcase_encode_connect_payload(void)
+START_TCASE("Encode connect payload")
 {
-    TCase *result = tcase_create("Encode connect payload");
-
-    tcase_add_test(result, should_encode_empty_client_id);
-    tcase_add_test(result, should_encode_non_empty_client_id);
-    tcase_add_test(result, should_encode_client_id_longer_than_buffer_size);
-    tcase_add_test(result, should_encode_client_id_at_one_byte_buffer);
-    tcase_add_test(result, should_encode_empty_client_id_at_two_byte_buffer);
-    tcase_add_test(result, should_encode_non_empty_client_id_at_two_byte_buffer);
-    tcase_add_test(result, should_encode_client_id_starting_at_offset);
-    tcase_add_test(result, should_encode_client_id_longer_than_buffer_size_with_offset);
-    tcase_add_test(result, should_encode_client_id_starting_at_offset_1);
-    tcase_add_test(result, should_encode_client_id_starting_at_offset_2);
-    tcase_add_test(result, should_encode_empty_user_name);
-    tcase_add_test(result, should_encode_non_empty_user_name);
-
-    return result;
+    ADD_TEST(should_encode_empty_client_id);
+    ADD_TEST(should_encode_non_empty_client_id);
+    ADD_TEST(should_encode_client_id_longer_than_buffer_size);
+    ADD_TEST(should_encode_client_id_at_one_byte_buffer);
+    ADD_TEST(should_encode_empty_client_id_at_two_byte_buffer);
+    ADD_TEST(should_encode_non_empty_client_id_at_two_byte_buffer);
+    ADD_TEST(should_encode_client_id_starting_at_offset);
+    ADD_TEST(should_encode_client_id_longer_than_buffer_size_with_offset);
+    ADD_TEST(should_encode_client_id_starting_at_offset_1);
+    ADD_TEST(should_encode_client_id_starting_at_offset_2);
+    ADD_TEST(should_encode_empty_user_name);
+    ADD_TEST(should_encode_non_empty_user_name);
 }
+END_TCASE

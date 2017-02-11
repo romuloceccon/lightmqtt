@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 #define BUF_PLACEHOLDER 0xcc
@@ -111,17 +110,14 @@ START_TEST(should_not_encode_remaining_len_greater_than_allowed_by_buffer_len)
 }
 END_TEST
 
-TCase *tcase_encode_remaining_length(void)
+START_TCASE("Encode remaining length")
 {
-    TCase *result = tcase_create("Encode remaining length");
-
-    tcase_add_test(result, should_encode_minimum_single_byte_remaining_len);
-    tcase_add_test(result, should_encode_maximum_single_byte_remaining_len);
-    tcase_add_test(result, should_encode_minimum_two_byte_remaining_len);
-    tcase_add_test(result, should_encode_maximum_four_byte_remaining_len);
-    tcase_add_test(result, should_not_encode_negative_remaining_len);
-    tcase_add_test(result, should_not_encode_remaining_len_greater_than_maximum);
-    tcase_add_test(result, should_not_encode_remaining_len_greater_than_allowed_by_buffer_len);
-
-    return result;
+    ADD_TEST(should_encode_minimum_single_byte_remaining_len);
+    ADD_TEST(should_encode_maximum_single_byte_remaining_len);
+    ADD_TEST(should_encode_minimum_two_byte_remaining_len);
+    ADD_TEST(should_encode_maximum_four_byte_remaining_len);
+    ADD_TEST(should_not_encode_negative_remaining_len);
+    ADD_TEST(should_not_encode_remaining_len_greater_than_maximum);
+    ADD_TEST(should_not_encode_remaining_len_greater_than_allowed_by_buffer_len);
 }
+END_TCASE

@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 #define BUF_PLACEHOLDER 0xcc
@@ -243,21 +242,18 @@ START_TEST(should_not_encode_connect_with_insufficient_buffer)
 }
 END_TEST
 
-TCase *tcase_encode_connect_headers(void)
+START_TCASE("Encode connect headers")
 {
-    TCase *result = tcase_create("Encode connect headers");
-
-    tcase_add_test(result, should_encode_connect_fixed_header_with_single_byte_remaining_len);
-    tcase_add_test(result, should_not_encode_connect_fixed_header_with_insufficient_buffer);
-    tcase_add_test(result, should_encode_simple_connect);
-    tcase_add_test(result, should_encode_connect_keep_alive);
-    tcase_add_test(result, should_encode_connect_will_topic_and_message);
-    tcase_add_test(result, should_encode_connect_user_name);
-    tcase_add_test(result, should_encode_connect_password);
-    tcase_add_test(result, should_encode_connect_clean_session);
-    tcase_add_test(result, should_encode_connect_will_retain);
-    tcase_add_test(result, should_encode_connect_qos);
-    tcase_add_test(result, should_not_encode_connect_with_insufficient_buffer);
-
-    return result;
+    ADD_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len);
+    ADD_TEST(should_not_encode_connect_fixed_header_with_insufficient_buffer);
+    ADD_TEST(should_encode_simple_connect);
+    ADD_TEST(should_encode_connect_keep_alive);
+    ADD_TEST(should_encode_connect_will_topic_and_message);
+    ADD_TEST(should_encode_connect_user_name);
+    ADD_TEST(should_encode_connect_password);
+    ADD_TEST(should_encode_connect_clean_session);
+    ADD_TEST(should_encode_connect_will_retain);
+    ADD_TEST(should_encode_connect_qos);
+    ADD_TEST(should_not_encode_connect_with_insufficient_buffer);
 }
+END_TCASE

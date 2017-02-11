@@ -1,6 +1,5 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
+
 #include "../src/lightmqtt.c"
 
 #define BYTES_R_PLACEHOLDER -12345
@@ -193,20 +192,17 @@ START_TEST(should_process_rx_buffer_with_disallowed_null_data)
 }
 END_TEST
 
-TCase *tcase_process_rx_buffer(void)
+START_TCASE("Process rx buffer")
 {
-    TCase *result = tcase_create("Process rx buffer");
-
-    tcase_add_test(result, should_process_complete_rx_buffer);
-    tcase_add_test(result, should_process_partial_rx_buffer);
-    tcase_add_test(result, should_process_rx_buffer_continuation);
-    tcase_add_test(result, should_process_rx_buffer_with_invalid_header);
-    tcase_add_test(result, should_process_rx_buffer_with_invalid_data);
-    tcase_add_test(result, should_not_process_rx_buffer_after_error);
-    tcase_add_test(result, should_reset_rx_buffer_after_successful_processing);
-    tcase_add_test(result, should_process_rx_buffer_with_two_packets);
-    tcase_add_test(result, should_process_rx_buffer_with_allowed_null_data);
-    tcase_add_test(result, should_process_rx_buffer_with_disallowed_null_data);
-
-    return result;
+    ADD_TEST(should_process_complete_rx_buffer);
+    ADD_TEST(should_process_partial_rx_buffer);
+    ADD_TEST(should_process_rx_buffer_continuation);
+    ADD_TEST(should_process_rx_buffer_with_invalid_header);
+    ADD_TEST(should_process_rx_buffer_with_invalid_data);
+    ADD_TEST(should_not_process_rx_buffer_after_error);
+    ADD_TEST(should_reset_rx_buffer_after_successful_processing);
+    ADD_TEST(should_process_rx_buffer_with_two_packets);
+    ADD_TEST(should_process_rx_buffer_with_allowed_null_data);
+    ADD_TEST(should_process_rx_buffer_with_disallowed_null_data);
 }
+END_TCASE

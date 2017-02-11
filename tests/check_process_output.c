@@ -1,5 +1,3 @@
-#include <check.h>
-
 #include "check_lightmqtt.h"
 
 #define build_tx_buffer _original_build_tx_buffer
@@ -13,7 +11,7 @@ typedef struct _TestConnection {
     int call_count;
 } TestConnection;
 
-typedef struct _TesTxBuffer {
+typedef struct _TestTxBuffer {
     u8 buf[LMQTT_TX_BUFFER_SIZE * 2];
     int pos;
     int len;
@@ -197,15 +195,12 @@ START_TEST(should_process_remaining_output_from_previous_call)
 }
 END_TEST
 
-TCase *tcase_process_output(void)
+START_TCASE("Process output")
 {
-    TCase *result = tcase_create("Process output");
-
-    tcase_add_test(result, should_process_output_without_data);
-    tcase_add_test(result, should_process_output_with_complete_build_and_complete_write);
-    tcase_add_test(result, should_consume_write_buffer_if_build_interrupts);
-    tcase_add_test(result, should_fill_write_buffer_if_build_interrupts);
-    tcase_add_test(result, should_process_remaining_output_from_previous_call);
-
-    return result;
+    ADD_TEST(should_process_output_without_data);
+    ADD_TEST(should_process_output_with_complete_build_and_complete_write);
+    ADD_TEST(should_consume_write_buffer_if_build_interrupts);
+    ADD_TEST(should_fill_write_buffer_if_build_interrupts);
+    ADD_TEST(should_process_remaining_output_from_previous_call);
 }
+END_TCASE
