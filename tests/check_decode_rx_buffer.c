@@ -27,7 +27,7 @@ START_TEST(should_process_complete_rx_buffer)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(4, bytes_r);
@@ -43,7 +43,7 @@ START_TEST(should_process_partial_rx_buffer)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = process_rx_buffer(&state, buf, 3, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 3, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_r);
@@ -52,32 +52,32 @@ START_TEST(should_process_partial_rx_buffer)
 }
 END_TEST
 
-START_TEST(should_process_rx_buffer_continuation)
+START_TEST(should_decode_rx_buffer_continuation)
 {
     PREPARE;
 
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = process_rx_buffer(&state, buf, 1, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 1, &bytes_r);
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(1, bytes_r);
     ck_assert_int_eq(0, data);
 
-    res = process_rx_buffer(&state, buf + 1, 3, &bytes_r);
+    res = decode_rx_buffer(&state, buf + 1, 3, &bytes_r);
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_r);
     ck_assert_int_eq(1, data);
 }
 END_TEST
 
-START_TEST(should_process_rx_buffer_with_invalid_header)
+START_TEST(should_decode_rx_buffer_with_invalid_header)
 {
     PREPARE;
 
     buf[1] = 2;
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(1, bytes_r);
@@ -86,7 +86,7 @@ START_TEST(should_process_rx_buffer_with_invalid_header)
 }
 END_TEST
 
-START_TEST(should_process_rx_buffer_with_invalid_data)
+START_TEST(should_decode_rx_buffer_with_invalid_data)
 {
     PREPARE;
 
@@ -94,7 +94,7 @@ START_TEST(should_process_rx_buffer_with_invalid_data)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(3, bytes_r);
@@ -103,7 +103,7 @@ START_TEST(should_process_rx_buffer_with_invalid_data)
 }
 END_TEST
 
-START_TEST(should_not_process_rx_buffer_after_error)
+START_TEST(should_not_decode_rx_buffer_after_error)
 {
     PREPARE;
 
@@ -111,14 +111,14 @@ START_TEST(should_not_process_rx_buffer_after_error)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(3, bytes_r);
 
     buf[2] = 0;
 
-    res = process_rx_buffer(&state, buf + 2, 2, &bytes_r);
+    res = decode_rx_buffer(&state, buf + 2, 2, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(0, bytes_r);
@@ -132,19 +132,19 @@ START_TEST(should_reset_rx_buffer_after_successful_processing)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(1, data);
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(2, data);
 }
 END_TEST
 
-START_TEST(should_process_rx_buffer_with_two_packets)
+START_TEST(should_decode_rx_buffer_with_two_packets)
 {
     PREPARE;
 
@@ -153,7 +153,7 @@ START_TEST(should_process_rx_buffer_with_two_packets)
     buf[4] = 0x20;
     buf[5] = 2;
 
-    res = process_rx_buffer(&state, buf, 8, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 8, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(8, bytes_r);
@@ -162,7 +162,7 @@ START_TEST(should_process_rx_buffer_with_two_packets)
 }
 END_TEST
 
-START_TEST(should_process_rx_buffer_with_allowed_null_data)
+START_TEST(should_decode_rx_buffer_with_allowed_null_data)
 {
     PREPARE;
 
@@ -170,14 +170,14 @@ START_TEST(should_process_rx_buffer_with_allowed_null_data)
     buf[2] = 0xd0;
     buf[4] = 0xd0;
 
-    res = process_rx_buffer(&state, buf, 6, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 6, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(6, bytes_r);
 }
 END_TEST
 
-START_TEST(should_process_rx_buffer_with_disallowed_null_data)
+START_TEST(should_decode_rx_buffer_with_disallowed_null_data)
 {
     PREPARE;
 
@@ -185,7 +185,7 @@ START_TEST(should_process_rx_buffer_with_disallowed_null_data)
     buf[1] = 0;
     buf[2] = 0xd0;
 
-    res = process_rx_buffer(&state, buf, 4, &bytes_r);
+    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(2, bytes_r);
@@ -196,13 +196,13 @@ START_TCASE("Process rx buffer")
 {
     ADD_TEST(should_process_complete_rx_buffer);
     ADD_TEST(should_process_partial_rx_buffer);
-    ADD_TEST(should_process_rx_buffer_continuation);
-    ADD_TEST(should_process_rx_buffer_with_invalid_header);
-    ADD_TEST(should_process_rx_buffer_with_invalid_data);
-    ADD_TEST(should_not_process_rx_buffer_after_error);
+    ADD_TEST(should_decode_rx_buffer_continuation);
+    ADD_TEST(should_decode_rx_buffer_with_invalid_header);
+    ADD_TEST(should_decode_rx_buffer_with_invalid_data);
+    ADD_TEST(should_not_decode_rx_buffer_after_error);
     ADD_TEST(should_reset_rx_buffer_after_successful_processing);
-    ADD_TEST(should_process_rx_buffer_with_two_packets);
-    ADD_TEST(should_process_rx_buffer_with_allowed_null_data);
-    ADD_TEST(should_process_rx_buffer_with_disallowed_null_data);
+    ADD_TEST(should_decode_rx_buffer_with_two_packets);
+    ADD_TEST(should_decode_rx_buffer_with_allowed_null_data);
+    ADD_TEST(should_decode_rx_buffer_with_disallowed_null_data);
 }
 END_TCASE

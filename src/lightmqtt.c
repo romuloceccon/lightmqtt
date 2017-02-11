@@ -447,10 +447,10 @@ static int decode_connack(LMqttConnack *connack, u8 b)
 }
 
 /*
- * TODO: maybe build_tx_buffer(), like build_tx_buffer(), should return
+ * TODO: maybe encode_tx_buffer(), like encode_tx_buffer(), should return
  * LMQTT_ENCODE_AGAIN only when building it would block?
  */
-static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+static int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     int *bytes_written)
 {
     int offset = 0;
@@ -482,15 +482,15 @@ static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
 }
 
 /*
- * TODO: process_rx_buffer() should be able to handle cases where the buffer
+ * TODO: decode_rx_buffer() should be able to handle cases where the buffer
  * cannot be completely read (for example, if a callback which is being invoked
  * to write the incoming data to a file would block) and return
  * LMQTT_DECODE_AGAIN. Otherwise it should return LMQTT_DECODE_FINISHED, even if
  * the incoming packet is not yet complete. (That may look confusing. Should we
- * have different return codes for process_rx_buffer() and the other decoding
+ * have different return codes for decode_rx_buffer() and the other decoding
  * functions?)
  */
-static int process_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
+static int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
     int *bytes_read)
 {
     int i;

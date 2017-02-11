@@ -63,13 +63,13 @@ static int encode_test_fail(int *data, int offset, u8 *buf, int buf_len,
     return LMQTT_ENCODE_ERROR;
 }
 
-START_TEST(should_build_tx_buffer_with_one_encoding_function)
+START_TEST(should_encode_tx_buffer_with_one_encoding_function)
 {
     PREPARE;
 
     recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
 
-    res = build_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
+    res = encode_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(10, bytes_w);
@@ -80,14 +80,14 @@ START_TEST(should_build_tx_buffer_with_one_encoding_function)
 }
 END_TEST
 
-START_TEST(should_build_tx_buffer_with_two_encoding_functions)
+START_TEST(should_encode_tx_buffer_with_two_encoding_functions)
 {
     PREPARE;
 
     recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
     recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
 
-    res = build_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
+    res = encode_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(15, bytes_w);
@@ -107,7 +107,7 @@ START_TEST(should_stop_recipe_after_buffer_fills_up)
     recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
     recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
 
-    res = build_tx_buffer(&state, buf, 5, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 5, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_int_eq(5, bytes_w);
@@ -126,7 +126,7 @@ START_TEST(should_return_actual_bytes_written_after_error)
     recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
     recipe[2] = (LMqttEncodeFunction) encode_test_fail;
 
-    res = build_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
+    res = encode_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
     ck_assert_int_eq(15, bytes_w);
@@ -144,7 +144,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
     recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
     recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
 
-    res = build_tx_buffer(&state, buf, 6, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 6, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_int_eq(6, bytes_w);
@@ -153,7 +153,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
     ck_assert_uint_eq(5, buf[5]);
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[6]);
 
-    res = build_tx_buffer(&state, buf, 6, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 6, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_int_eq(6, bytes_w);
@@ -162,7 +162,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
     ck_assert_uint_eq(51, buf[5]);
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[6]);
 
-    res = build_tx_buffer(&state, buf, 6, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 6, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_w);
@@ -178,15 +178,15 @@ START_TEST(should_continue_buffer_twice_with_the_same_recipe_entry)
 
     recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
 
-    res = build_tx_buffer(&state, buf, 2, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 2, &bytes_w);
 
-    res = build_tx_buffer(&state, buf, 2, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_uint_eq(2, buf[0]);
     ck_assert_uint_eq(3, buf[1]);
 
-    res = build_tx_buffer(&state, buf, 2, &bytes_w);
+    res = encode_tx_buffer(&state, buf, 2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_uint_eq(4, buf[0]);
@@ -196,8 +196,8 @@ END_TEST
 
 START_TCASE("Build tx buffer")
 {
-    ADD_TEST(should_build_tx_buffer_with_one_encoding_function);
-    ADD_TEST(should_build_tx_buffer_with_two_encoding_functions);
+    ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
+    ADD_TEST(should_encode_tx_buffer_with_two_encoding_functions);
     ADD_TEST(should_stop_recipe_after_buffer_fills_up);
     ADD_TEST(should_return_actual_bytes_written_after_error);
     ADD_TEST(should_continue_buffer_where_previous_call_stopped);

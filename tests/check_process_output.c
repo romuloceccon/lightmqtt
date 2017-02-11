@@ -1,8 +1,8 @@
 #include "check_lightmqtt.h"
 
-#define build_tx_buffer _original_build_tx_buffer
+#define encode_tx_buffer _original_encode_tx_buffer
 #include "../src/lightmqtt.c"
-#undef build_tx_buffer
+#undef encode_tx_buffer
 
 typedef struct _TestConnection {
     u8 buf[LMQTT_TX_BUFFER_SIZE * 2];
@@ -35,13 +35,13 @@ static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
 
 /*
  * TODO: this implementation is not returning in the same way as
- * process_rx_buffer() (or the original implementation of build_tx_buffer()).
+ * decode_rx_buffer() (or the original implementation of encode_tx_buffer()).
  * This should be better clarified because this prevents the following test-
  * cases to be perfectly symetric with check_process_input.c
  * (connection.call_count is 2 varios tests below, but should be 1 to respect
  * symetry).
  */
-static int build_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+static int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
     int *bytes_written)
 {
     int cnt = tx_buffer.len - tx_buffer.pos;
