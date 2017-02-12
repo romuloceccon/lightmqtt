@@ -18,7 +18,8 @@ typedef struct _TestRxBuffer {
 
 static TestRxBuffer rx_buffer;
 
-static int read_test_buf(void *data, u8 *buf, int buf_len, int *bytes_read)
+static lmqtt_io_result_t read_test_buf(void *data, u8 *buf, int buf_len,
+    int *bytes_read)
 {
     TestConnection *connection = (TestConnection *) data;
     int cnt = connection->len - connection->pos;
@@ -28,11 +29,11 @@ static int read_test_buf(void *data, u8 *buf, int buf_len, int *bytes_read)
     *bytes_read = cnt;
     connection->pos += cnt;
     connection->call_count += 1;
-    return cnt > 0 ? LMQTT_ERR_FINISHED : LMQTT_ERR_AGAIN;
+    return cnt > 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
 }
 
-int lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf, int buf_len,
-    int *bytes_read)
+lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
+    int buf_len, int *bytes_read)
 {
     int cnt = buf_len;
     if (cnt > rx_buffer.len - rx_buffer.pos)
@@ -41,7 +42,7 @@ int lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf, int buf_len,
     *bytes_read = cnt;
     rx_buffer.pos += cnt;
     rx_buffer.call_count += 1;
-    return cnt >= buf_len ? LMQTT_DECODE_FINISHED : LMQTT_DECODE_AGAIN;
+    return cnt >= buf_len ? LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
 }
 
 START_TEST(should_process_input_without_data)

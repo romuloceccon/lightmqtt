@@ -27,8 +27,8 @@
  * the buffer is filled with (18, 19).
  */
 
-static int encode_test_range(int *data, int offset, u8 *buf, int buf_len,
-     int *bytes_written, int begin, int end)
+static lmqtt_encode_result_t encode_test_range(int *data, int offset, u8 *buf,
+    int buf_len, int *bytes_written, int begin, int end)
 {
     int i;
     int pos = 0;
@@ -38,27 +38,27 @@ static int encode_test_range(int *data, int offset, u8 *buf, int buf_len,
     *bytes_written = 0;
     for (i = begin + offset; i <= end; i++) {
         if (pos >= buf_len)
-            return LMQTT_ENCODE_AGAIN;
+            return LMQTT_ENCODE_CONTINUE;
         buf[pos++] = *data + i;
         *bytes_written += 1;
     }
     return LMQTT_ENCODE_FINISHED;
 }
 
-static int encode_test_0_9(int *data, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+static lmqtt_encode_result_t encode_test_0_9(int *data, int offset, u8 *buf,
+    int buf_len, int *bytes_written)
 {
     return encode_test_range(data, offset, buf, buf_len, bytes_written, 0, 9);
 }
 
-static int encode_test_50_54(int *data, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+static lmqtt_encode_result_t encode_test_50_54(int *data, int offset, u8 *buf,
+    int buf_len, int *bytes_written)
 {
     return encode_test_range(data, offset, buf, buf_len, bytes_written, 50, 54);
 }
 
-static int encode_test_fail(int *data, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+static lmqtt_encode_result_t encode_test_fail(int *data, int offset, u8 *buf,
+    int buf_len, int *bytes_written)
 {
     return LMQTT_ENCODE_ERROR;
 }
@@ -71,7 +71,7 @@ START_TEST(should_encode_tx_buffer_with_one_encoding_function)
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(10, bytes_w);
 
     ck_assert_uint_eq(0, buf[0]);
@@ -89,7 +89,7 @@ START_TEST(should_encode_tx_buffer_with_two_encoding_functions)
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(15, bytes_w);
 
     ck_assert_uint_eq(0, buf[0]);
@@ -109,7 +109,7 @@ START_TEST(should_stop_recipe_after_buffer_fills_up)
 
     res = lmqtt_tx_buffer_encode(&state, buf, 5, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
     ck_assert_int_eq(5, bytes_w);
 
     ck_assert_uint_eq(0, buf[0]);
@@ -128,7 +128,7 @@ START_TEST(should_return_actual_bytes_written_after_error)
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_int_eq(15, bytes_w);
 
     ck_assert_uint_eq(0, buf[0]);
@@ -146,7 +146,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 
     res = lmqtt_tx_buffer_encode(&state, buf, 6, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
     ck_assert_int_eq(6, bytes_w);
 
     ck_assert_uint_eq(0, buf[0]);
@@ -155,7 +155,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 
     res = lmqtt_tx_buffer_encode(&state, buf, 6, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
     ck_assert_int_eq(6, bytes_w);
 
     ck_assert_uint_eq(6, buf[0]);
@@ -164,7 +164,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 
     res = lmqtt_tx_buffer_encode(&state, buf, 6, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(3, bytes_w);
 
     ck_assert_uint_eq(52, buf[0]);
@@ -182,13 +182,13 @@ START_TEST(should_continue_buffer_twice_with_the_same_recipe_entry)
 
     res = lmqtt_tx_buffer_encode(&state, buf, 2, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
     ck_assert_uint_eq(2, buf[0]);
     ck_assert_uint_eq(3, buf[1]);
 
     res = lmqtt_tx_buffer_encode(&state, buf, 2, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
     ck_assert_uint_eq(4, buf[0]);
     ck_assert_uint_eq(5, buf[1]);
 }

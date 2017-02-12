@@ -10,7 +10,7 @@ START_TEST(should_decode_fixed_header_valid_connack)
 
     res = fixed_header_decode(&header, 0x20);
 
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
     ck_assert_int_eq(LMQTT_TYPE_CONNACK, header.type);
 }
 END_TEST
@@ -35,7 +35,7 @@ START_TEST(should_decode_fixed_header_pubrel)
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0x60));
 
     memset(&header, 0, sizeof(header));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x62));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x62));
     ck_assert_int_eq(LMQTT_TYPE_PUBREL, header.type);
 }
 END_TEST
@@ -48,14 +48,14 @@ START_TEST(should_decode_fixed_header_publish)
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0x3f));
 
     memset(&header, 0, sizeof(header));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x30));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x30));
     ck_assert_int_eq(LMQTT_TYPE_PUBLISH, header.type);
     ck_assert_int_eq(0, header.dup);
     ck_assert_int_eq(0, header.qos);
     ck_assert_int_eq(0, header.retain);
 
     memset(&header, 0, sizeof(header));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x3d));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x3d));
     ck_assert_int_eq(LMQTT_TYPE_PUBLISH, header.type);
     ck_assert_int_eq(1, header.dup);
     ck_assert_int_eq(2, header.qos);
@@ -85,9 +85,9 @@ START_TEST(should_decode_fixed_header_four_byte_remaining_len)
 
     res = fixed_header_decode(&header, 0x20);
 
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0xff));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0xff));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0xff));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0xff));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0xff));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0xff));
 
     res = fixed_header_decode(&header, 0x7f);
 
@@ -104,9 +104,9 @@ START_TEST(should_decode_fixed_header_invalid_fourth_byte)
 
     res = fixed_header_decode(&header, 0x20);
 
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
 
     res = fixed_header_decode(&header, 0x80);
 
@@ -134,7 +134,7 @@ START_TEST(should_decode_fixed_header_invalid_zero_representation)
 
     fixed_header_decode(&header, 0x20);
 
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0));
 }
 END_TEST
@@ -161,9 +161,9 @@ START_TEST(should_not_decode_after_error)
 
     fixed_header_decode(&header, 0x20);
 
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x80));
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0x80));
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 1));
 }

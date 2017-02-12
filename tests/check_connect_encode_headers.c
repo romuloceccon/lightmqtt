@@ -54,7 +54,7 @@ START_TEST(should_encode_connect_fixed_header_with_offset)
 
     res = connect_encode_fixed_header(&connect, 0, buf, 1, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
     ck_assert_int_eq(1, bytes_w);
 
     ck_assert_uint_eq(0x10, buf[0]);
@@ -76,7 +76,7 @@ START_TEST(should_encode_connect_fixed_header_at_zero_length_buffer)
 
     res = connect_encode_fixed_header(&connect, 0, buf, 0, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
     ck_assert_int_eq(0, bytes_w);
 
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[0]);
@@ -257,7 +257,7 @@ START_TEST(should_encode_connect_with_offset)
 
     res = connect_encode_variable_header(&connect, 0, buf, 3, &bytes_w);
 
-    ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
     ck_assert_int_eq(3, bytes_w);
 
     ck_assert_uint_eq(0x00, buf[0]);

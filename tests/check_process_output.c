@@ -18,7 +18,8 @@ typedef struct _TestTxBuffer {
 
 static TestTxBuffer tx_buffer;
 
-static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
+static lmqtt_io_result_t write_test_buf(void *data, u8 *buf, int buf_len,
+    int *bytes_written)
 {
     TestConnection *connection = (TestConnection *) data;
     int cnt = buf_len;
@@ -28,7 +29,7 @@ static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
     *bytes_written = cnt;
     connection->pos += cnt;
     connection->call_count += 1;
-    return cnt > 0 ? LMQTT_ERR_FINISHED : LMQTT_ERR_AGAIN;
+    return cnt > 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
 }
 
 /*
@@ -39,8 +40,8 @@ static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
  * check_process_input.c (connection.call_count is 2 varios tests below, but
  * should be 1 to respect symetry).
  */
-int lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf, int buf_len,
-    int *bytes_written)
+lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
+    int buf_len, int *bytes_written)
 {
     int cnt = tx_buffer.len - tx_buffer.pos;
     if (cnt > buf_len)
@@ -49,7 +50,7 @@ int lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf, int buf_len,
     *bytes_written = cnt;
     tx_buffer.pos += cnt;
     tx_buffer.call_count += 1;
-    return cnt > 0 ? LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_AGAIN;
+    return cnt > 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
 }
 
 START_TEST(should_process_output_without_data)

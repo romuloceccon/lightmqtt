@@ -3,22 +3,23 @@
 
 #include <lightmqtt/core.h>
 
-#define LMQTT_ENCODE_FINISHED 0
-#define LMQTT_ENCODE_AGAIN 1
-#define LMQTT_ENCODE_ERROR 2
-
-#define LMQTT_DECODE_FINISHED 0
-#define LMQTT_DECODE_AGAIN 1
-#define LMQTT_DECODE_ERROR 2
-
-#define LMQTT_ERR_FINISHED 0
-#define LMQTT_ERR_AGAIN 1
-
 #define LMQTT_FIXED_HEADER_MAX_SIZE 5
 #define LMQTT_CONNECT_HEADER_SIZE 10
 #define LMQTT_CONNACK_HEADER_SIZE 2
 
 #define LMQTT_MAX(a, b) ((a) >= (b) ? (a) : (b))
+
+typedef enum {
+    LMQTT_ENCODE_FINISHED = 110,
+    LMQTT_ENCODE_CONTINUE,
+    LMQTT_ENCODE_ERROR
+} lmqtt_encode_result_t;
+
+typedef enum {
+    LMQTT_DECODE_FINISHED = 120,
+    LMQTT_DECODE_CONTINUE,
+    LMQTT_DECODE_ERROR
+} lmqtt_decode_result_t;
 
 typedef struct _lmqtt_string_t {
     int len;
@@ -65,8 +66,8 @@ typedef struct _lmqtt_connack_t {
     } internal;
 } lmqtt_connack_t;
 
-typedef int (*lmqtt_encode_t)(void *data, int offset, u8 *buf, int buf_len,
-    int *bytes_written);
+typedef lmqtt_encode_result_t (*lmqtt_encode_t)(void *data, int offset, u8 *buf,
+    int buf_len, int *bytes_written);
 
 typedef struct _lmqtt_tx_buffer_t {
     lmqtt_encode_t *recipe;
@@ -97,10 +98,16 @@ typedef struct _lmqtt_rx_buffer_t {
     } internal;
 } lmqtt_rx_buffer_t;
 
-int lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf, int buf_len,
-    int *bytes_written);
+typedef enum {
+    LMQTT_IO_SUCCESS = 0,
+    LMQTT_IO_AGAIN,
+    LMQTT_IO_ERROR
+} lmqtt_io_result_t;
 
-int lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf, int buf_len,
-    int *bytes_read);
+lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
+    int buf_len, int *bytes_written);
+
+lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
+    int buf_len, int *bytes_read);
 
 #endif

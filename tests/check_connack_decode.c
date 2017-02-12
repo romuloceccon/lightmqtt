@@ -10,7 +10,7 @@ START_TEST(should_decode_connack_valid_first_byte)
 
     res = connack_decode(&connack, 1);
 
-    ck_assert_int_eq(LMQTT_DECODE_AGAIN, res);
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
     ck_assert_int_eq(1, connack.session_present);
 }
 END_TEST

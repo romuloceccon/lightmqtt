@@ -6,9 +6,9 @@
 #define LMQTT_RX_BUFFER_SIZE 512
 #define LMQTT_TX_BUFFER_SIZE 512
 
-typedef int (*lmqtt_read_t)(void *, u8 *, int, int *);
+typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
 
-typedef int (*lmqtt_write_t)(void *, u8 *, int, int *);
+typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
 
 typedef struct _lmqtt_client_t {
     void *data;
