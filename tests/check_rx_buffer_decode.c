@@ -6,7 +6,7 @@
 
 #define PREPARE \
     static TestClient client; \
-    lmqtt_rx_buffer_state_t state; \
+    lmqtt_rx_buffer_t state; \
     u8 buf[64]; \
     int bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
@@ -51,7 +51,7 @@ START_TEST(should_process_complete_rx_buffer)
     buf[2] = 0;
     buf[3] = 5;
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(4, bytes_r);
@@ -69,7 +69,7 @@ START_TEST(should_process_partial_rx_buffer)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = decode_rx_buffer(&state, buf, 3, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_r);
@@ -85,12 +85,12 @@ START_TEST(should_decode_rx_buffer_continuation)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = decode_rx_buffer(&state, buf, 1, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 1, &bytes_r);
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(1, bytes_r);
     ck_assert_int_eq(0, client.count);
 
-    res = decode_rx_buffer(&state, buf + 1, 3, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf + 1, 3, &bytes_r);
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_r);
     ck_assert_int_eq(1, client.count);
@@ -103,7 +103,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_header)
 
     buf[1] = 2;
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(1, bytes_r);
@@ -120,7 +120,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_data)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(3, bytes_r);
@@ -137,14 +137,14 @@ START_TEST(should_not_decode_rx_buffer_after_error)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(3, bytes_r);
 
     buf[2] = 0;
 
-    res = decode_rx_buffer(&state, buf + 2, 2, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf + 2, 2, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(0, bytes_r);
@@ -158,12 +158,12 @@ START_TEST(should_reset_rx_buffer_after_successful_processing)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(1, client.count);
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(2, client.count);
@@ -179,7 +179,7 @@ START_TEST(should_decode_rx_buffer_with_two_packets)
     buf[4] = 0x20;
     buf[5] = 2;
 
-    res = decode_rx_buffer(&state, buf, 8, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(8, bytes_r);
@@ -196,7 +196,7 @@ START_TEST(should_decode_rx_buffer_with_allowed_null_data)
     buf[2] = 0xd0;
     buf[4] = 0xd0;
 
-    res = decode_rx_buffer(&state, buf, 6, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(6, bytes_r);
@@ -214,7 +214,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_null_data)
     buf[1] = 0;
     buf[2] = 0xd0;
 
-    res = decode_rx_buffer(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(2, bytes_r);
@@ -228,7 +228,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_nonnull_data)
     buf[0] = 0xd0;
     buf[1] = 1;
 
-    res = decode_rx_buffer(&state, buf, 3, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(2, bytes_r);
@@ -241,7 +241,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_response_packet)
 
     buf[0] = 0xe0;
 
-    res = decode_rx_buffer(&state, buf, 2, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, buf, 2, &bytes_r);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(2, bytes_r);

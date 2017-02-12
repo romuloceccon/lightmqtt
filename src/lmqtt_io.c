@@ -3,7 +3,7 @@
 
 /*
  * TODO: somehow we should tell the user which handle she should select() on. If
- * (a) decode_rx_buffer() returns LMQTT_DECODE_AGAIN (meaning a write operation
+ * (a) lmqtt_rx_buffer_decode() returns LMQTT_DECODE_AGAIN (meaning a write operation
  * would block), (b) the read handle is still readable and (c) the buffer is
  * full, the user cannot select() on the read handle. Otherwise the program will
  * enter a busy loop because the read handle remains signaled, but
@@ -32,7 +32,7 @@ static void process_input(lmqtt_client_t *client)
         }
 
         if (process_allowed && client->read_buf_pos > 0) {
-            res = decode_rx_buffer(&client->rx_state, client->read_buf,
+            res = lmqtt_rx_buffer_decode(&client->rx_state, client->read_buf,
                 client->read_buf_pos, &bytes_read);
             memmove(&client->read_buf[0], &client->read_buf[bytes_read],
                 client->read_buf_pos - bytes_read);
@@ -44,7 +44,7 @@ static void process_input(lmqtt_client_t *client)
 }
 
 /*
- * TODO: review how encode_tx_buffer() should handle cases where some read
+ * TODO: review how lmqtt_tx_buffer_encode() should handle cases where some read
  * would block, cases where there's no data to encode and cases where the buffer
  * is not enough to encode the whole command.
  */
@@ -59,7 +59,7 @@ static void process_output(lmqtt_client_t *client)
         int bytes_written;
 
         if (build_allowed && client->write_buf_pos < sizeof(client->write_buf)) {
-            res = encode_tx_buffer(&client->tx_state,
+            res = lmqtt_tx_buffer_encode(&client->tx_state,
                 &client->write_buf[client->write_buf_pos],
                 sizeof(client->write_buf) - client->write_buf_pos,
                 &bytes_written);

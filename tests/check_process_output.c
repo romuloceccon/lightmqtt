@@ -33,13 +33,13 @@ static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
 
 /*
  * TODO: this implementation is not returning in the same way as
- * decode_rx_buffer() (or the original implementation of encode_tx_buffer()).
- * This should be better clarified because this prevents the following test-
- * cases to be perfectly symetric with check_process_input.c
- * (connection.call_count is 2 varios tests below, but should be 1 to respect
- * symetry).
+ * lmqtt_rx_buffer_decode() (or the original implementation of
+ * lmqtt_tx_buffer_encode()). This should be better clarified because this
+ * prevents the following test-cases to be perfectly symetric with
+ * check_process_input.c (connection.call_count is 2 varios tests below, but
+ * should be 1 to respect symetry).
  */
-int encode_tx_buffer(lmqtt_tx_buffer_state_t *state, u8 *buf, int buf_len,
+int lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf, int buf_len,
     int *bytes_written)
 {
     int cnt = tx_buffer.len - tx_buffer.pos;

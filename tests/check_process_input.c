@@ -31,7 +31,7 @@ static int read_test_buf(void *data, u8 *buf, int buf_len, int *bytes_read)
     return cnt > 0 ? LMQTT_ERR_FINISHED : LMQTT_ERR_AGAIN;
 }
 
-int decode_rx_buffer(lmqtt_rx_buffer_state_t *state, u8 *buf, int buf_len,
+int lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf, int buf_len,
     int *bytes_read)
 {
     int cnt = buf_len;

@@ -68,21 +68,21 @@ typedef struct _lmqtt_connack_t {
 typedef int (*lmqtt_encode_t)(void *data, int offset, u8 *buf, int buf_len,
     int *bytes_written);
 
-typedef struct _lmqtt_tx_buffer_state_t {
+typedef struct _lmqtt_tx_buffer_t {
     lmqtt_encode_t *recipe;
     void *data;
     struct {
         int recipe_pos;
         int recipe_offset;
     } internal;
-} lmqtt_tx_buffer_state_t;
+} lmqtt_tx_buffer_t;
 
 typedef struct _lmqtt_callbacks_t {
     int (*on_connack)(void *data, lmqtt_connack_t *connack);
     int (*on_pingresp)(void *data);
 } lmqtt_callbacks_t;
 
-typedef struct _lmqtt_rx_buffer_state_t {
+typedef struct _lmqtt_rx_buffer_t {
     lmqtt_callbacks_t *callbacks;
     void *callbacks_data;
 
@@ -95,12 +95,12 @@ typedef struct _lmqtt_rx_buffer_state_t {
 
         int failed;
     } internal;
-} lmqtt_rx_buffer_state_t;
+} lmqtt_rx_buffer_t;
 
-int encode_tx_buffer(lmqtt_tx_buffer_state_t *state, u8 *buf, int buf_len,
+int lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf, int buf_len,
     int *bytes_written);
 
-int decode_rx_buffer(lmqtt_rx_buffer_state_t *state, u8 *buf, int buf_len,
+int lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf, int buf_len,
     int *bytes_read);
 
 #endif

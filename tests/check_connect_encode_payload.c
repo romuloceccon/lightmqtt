@@ -20,7 +20,7 @@ START_TEST(should_encode_empty_client_id)
 {
     PREPARE;
 
-    res = encode_connect_payload_client_id(&connect, 0, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 0, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
@@ -38,7 +38,7 @@ START_TEST(should_encode_non_empty_client_id)
     connect.client_id.len = 1;
     connect.client_id.buf = str;
 
-    res = encode_connect_payload_client_id(&connect, 0, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 0, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_w);
@@ -57,7 +57,7 @@ START_TEST(should_encode_client_id_longer_than_buffer_size)
     connect.client_id.len = 256;
     connect.client_id.buf = str;
 
-    res = encode_connect_payload_client_id(&connect, 0, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 0, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_int_eq(sizeof(buf), bytes_w);
@@ -76,7 +76,7 @@ START_TEST(should_encode_client_id_at_one_byte_buffer)
   connect.client_id.len = 256;
   connect.client_id.buf = str;
 
-  res = encode_connect_payload_client_id(&connect, 0, buf, 1, &bytes_w);
+  res = connect_encode_payload_client_id(&connect, 0, buf, 1, &bytes_w);
 
   ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
   ck_assert_int_eq(1, bytes_w);
@@ -90,7 +90,7 @@ START_TEST(should_encode_empty_client_id_at_two_byte_buffer)
 {
   PREPARE;
 
-  res = encode_connect_payload_client_id(&connect, 0, buf, 2, &bytes_w);
+  res = connect_encode_payload_client_id(&connect, 0, buf, 2, &bytes_w);
 
   ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
   ck_assert_int_eq(2, bytes_w);
@@ -108,7 +108,7 @@ START_TEST(should_encode_non_empty_client_id_at_two_byte_buffer)
   connect.client_id.len = 1;
   connect.client_id.buf = str;
 
-  res = encode_connect_payload_client_id(&connect, 0, buf, 2, &bytes_w);
+  res = connect_encode_payload_client_id(&connect, 0, buf, 2, &bytes_w);
 
   ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
   ck_assert_int_eq(2, bytes_w);
@@ -128,7 +128,7 @@ START_TEST(should_encode_client_id_starting_at_offset)
     str[28] += 1;
     str[28 + 100 - 1] += 1;
 
-    res = encode_connect_payload_client_id(&connect, 30, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 30, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(100, bytes_w);
@@ -148,7 +148,7 @@ START_TEST(should_encode_client_id_longer_than_buffer_size_with_offset)
     str[50]  += 1;
     str[50 + sizeof(buf) - 1] += 1;
 
-    res = encode_connect_payload_client_id(&connect, 52, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 52, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_AGAIN, res);
     ck_assert_int_eq(sizeof(buf), bytes_w);
@@ -165,7 +165,7 @@ START_TEST(should_encode_client_id_starting_at_offset_1)
     connect.client_id.len = 100;
     connect.client_id.buf = str;
 
-    res = encode_connect_payload_client_id(&connect, 1, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 1, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(101, bytes_w);
@@ -183,7 +183,7 @@ START_TEST(should_encode_client_id_starting_at_offset_2)
     connect.client_id.len = 100;
     connect.client_id.buf = str;
 
-    res = encode_connect_payload_client_id(&connect, 2, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 2, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(100, bytes_w);
@@ -197,7 +197,7 @@ START_TEST(should_encode_empty_user_name)
 {
     PREPARE;
 
-    res = encode_connect_payload_user_name(&connect, 0, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(0, bytes_w);
@@ -213,7 +213,7 @@ START_TEST(should_encode_non_empty_user_name)
     connect.user_name.len = 1;
     connect.user_name.buf = str;
 
-    res = encode_connect_payload_user_name(&connect, 0, buf, sizeof(buf), &bytes_w);
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(3, bytes_w);
@@ -229,7 +229,7 @@ START_TEST(should_encode_empty_user_name_at_zero_byte_buffer)
 {
     PREPARE;
 
-    res = encode_connect_payload_user_name(&connect, 0, buf, 0, &bytes_w);
+    res = connect_encode_payload_user_name(&connect, 0, buf, 0, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(0, bytes_w);

@@ -9,7 +9,7 @@ START_TEST(should_validate_good_connect)
 
     connect.client_id.len = 1;
 
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
 }
 END_TEST
 
@@ -18,7 +18,7 @@ START_TEST(should_not_validate_continued_session_without_client_id)
     lmqtt_connect_t connect;
     memset(&connect, 0, sizeof(connect));
 
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 }
 END_TEST
 
@@ -29,7 +29,7 @@ START_TEST(should_validate_clean_session_without_client_id)
 
     connect.clean_session = 1;
 
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
 }
 END_TEST
 
@@ -39,10 +39,10 @@ START_TEST(should_validate_string_length)
     memset(&connect, 0, sizeof(connect));
 
     connect.client_id.len = -1;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 
     connect.client_id.len = 0x10000;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 }
 END_TEST
 
@@ -54,15 +54,15 @@ START_TEST(should_validate_will_topic_and_will_message)
 
     connect.will_topic.len = 1;
     connect.will_message.len = 0;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 
     connect.will_topic.len = 0;
     connect.will_message.len = 1;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 
     connect.will_topic.len = 1;
     connect.will_message.len = 1;
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
 }
 END_TEST
 
@@ -75,11 +75,11 @@ START_TEST(should_validate_will_retain_flag)
     connect.will_retain = 1;
     connect.will_topic.len = 1;
     connect.will_message.len = 1;
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
 
     connect.will_topic.len = 0;
     connect.will_message.len = 0;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 }
 END_TEST
 
@@ -91,11 +91,11 @@ START_TEST(should_validate_user_name_and_password)
 
     connect.user_name.len = 1;
     connect.password.len = 1;
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
 
     connect.user_name.len = 0;
     connect.password.len = 1;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 }
 END_TEST
 
@@ -106,16 +106,16 @@ START_TEST(should_validate_qos)
     connect.client_id.len = 1;
 
     connect.qos = 0;
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
     connect.qos = 1;
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
     connect.qos = 2;
-    ck_assert(validate_connect(&connect));
+    ck_assert(connect_validate(&connect));
 
     connect.qos = -1;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
     connect.qos = 3;
-    ck_assert(!validate_connect(&connect));
+    ck_assert(!connect_validate(&connect));
 }
 END_TEST
 

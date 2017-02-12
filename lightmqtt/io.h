@@ -14,8 +14,8 @@ typedef struct _lmqtt_client_t {
     void *data;
     lmqtt_read_t read;
     lmqtt_write_t write;
-    lmqtt_rx_buffer_state_t rx_state;
-    lmqtt_tx_buffer_state_t tx_state;
+    lmqtt_rx_buffer_t rx_state;
+    lmqtt_tx_buffer_t tx_state;
     u8 read_buf[LMQTT_RX_BUFFER_SIZE];
     int read_buf_pos;
     u8 write_buf[LMQTT_TX_BUFFER_SIZE];
