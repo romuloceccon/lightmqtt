@@ -31,7 +31,7 @@ static int read_test_buf(void *data, u8 *buf, int buf_len, int *bytes_read)
     return cnt > 0 ? LMQTT_ERR_FINISHED : LMQTT_ERR_AGAIN;
 }
 
-int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
+int decode_rx_buffer(lmqtt_rx_buffer_state_t *state, u8 *buf, int buf_len,
     int *bytes_read)
 {
     int cnt = buf_len;
@@ -46,7 +46,7 @@ int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
 
 START_TEST(should_process_input_without_data)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
 
     memset(&client, 0, sizeof(client));
@@ -68,7 +68,7 @@ END_TEST
 
 START_TEST(should_process_input_with_complete_read_and_complete_process)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
 
     memset(&client, 0, sizeof(client));
@@ -92,7 +92,7 @@ END_TEST
 
 START_TEST(should_consume_read_buffer_if_process_interrupts)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
     int i;
 
@@ -123,7 +123,7 @@ END_TEST
 
 START_TEST(should_fill_read_buffer_if_process_interrupts)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
     int i;
 
@@ -154,7 +154,7 @@ END_TEST
 
 START_TEST(should_process_remaining_input_from_previous_call)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
     int i;
     static int s = LMQTT_RX_BUFFER_SIZE / 8;

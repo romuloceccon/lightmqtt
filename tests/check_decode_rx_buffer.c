@@ -6,7 +6,7 @@
 
 #define PREPARE \
     static TestClient client; \
-    LMqttRxBufferState state; \
+    lmqtt_rx_buffer_state_t state; \
     u8 buf[64]; \
     int bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
@@ -22,7 +22,7 @@ typedef struct _TestClient {
     int count;
 } TestClient;
 
-static int on_connack(void *data, LMqttConnack *connack)
+static int on_connack(void *data, lmqtt_connack_t *connack)
 {
     TestClient *client = (TestClient *) data;
     client->count += 1;
@@ -40,7 +40,7 @@ static int on_pingresp(void *data)
     return 0;
 }
 
-static LMqttCallbacks callbacks = { on_connack, on_pingresp };
+static lmqtt_callbacks_t callbacks = { on_connack, on_pingresp };
 
 START_TEST(should_process_complete_rx_buffer)
 {

@@ -5,7 +5,7 @@
 START_TEST(should_decode_connack_valid_first_byte)
 {
     int res;
-    LMqttConnack connack;
+    lmqtt_connack_t connack;
     memset(&connack, 0, sizeof(connack));
 
     res = connack_decode(&connack, 1);
@@ -18,7 +18,7 @@ END_TEST
 START_TEST(should_decode_connack_invalid_first_byte)
 {
     int res;
-    LMqttConnack connack;
+    lmqtt_connack_t connack;
     memset(&connack, 0, sizeof(connack));
 
     res = connack_decode(&connack, 3);
@@ -31,7 +31,7 @@ END_TEST
 START_TEST(should_decode_connack_valid_second_byte)
 {
     int res;
-    LMqttConnack connack;
+    lmqtt_connack_t connack;
     memset(&connack, 0, sizeof(connack));
 
     res = connack_decode(&connack, 1);
@@ -46,7 +46,7 @@ END_TEST
 START_TEST(should_decode_connack_invalid_second_byte)
 {
     int res;
-    LMqttConnack connack;
+    lmqtt_connack_t connack;
     memset(&connack, 0, sizeof(connack));
 
     res = connack_decode(&connack, 1);
@@ -61,7 +61,7 @@ END_TEST
 START_TEST(should_not_decode_third_byte)
 {
     int res;
-    LMqttConnack connack;
+    lmqtt_connack_t connack;
     memset(&connack, 0, sizeof(connack));
 
     res = connack_decode(&connack, 1);
@@ -74,7 +74,7 @@ END_TEST
 START_TEST(should_not_decode_after_error)
 {
     int res;
-    LMqttConnack connack;
+    lmqtt_connack_t connack;
     memset(&connack, 0, sizeof(connack));
 
     res = connack_decode(&connack, 2);

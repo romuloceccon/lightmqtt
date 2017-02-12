@@ -30,23 +30,21 @@
 #define LMQTT_ERR_FINISHED 0
 #define LMQTT_ERR_AGAIN 1
 
-typedef void (*LMqttCallback)(void *data);
-
-typedef int (*LMqttEncodeFunction)(void *data, int offset, u8 *buf, int buf_len,
+typedef int (*lmqtt_encode_t)(void *data, int offset, u8 *buf, int buf_len,
     int *bytes_written);
 
-typedef int (*LMqttReadFunction)(void *, u8 *, int, int *);
+typedef int (*lmqtt_read_t)(void *, u8 *, int, int *);
 
-typedef int (*LMqttWriteFunction)(void *, u8 *, int, int *);
+typedef int (*lmqtt_write_t)(void *, u8 *, int, int *);
 
-typedef struct _LMqttTxBufferState {
-    LMqttEncodeFunction *recipe;
+typedef struct _lmqtt_tx_buffer_state_t {
+    lmqtt_encode_t *recipe;
     int recipe_pos;
     int recipe_offset;
     void *data;
-} LMqttTxBufferState;
+} lmqtt_tx_buffer_state_t;
 
-typedef struct _LMqttFixedHeader {
+typedef struct _lmqtt_fixed_header_t {
     int type;
     int dup;
     int qos;
@@ -57,49 +55,49 @@ typedef struct _LMqttFixedHeader {
     int remain_len_multiplier;
     int remain_len_accumulator;
     int remain_len_finished;
-} LMqttFixedHeader;
+} lmqtt_fixed_header_t;
 
-typedef struct _LMqttConnack {
+typedef struct _lmqtt_connack_t {
     int session_present;
     int return_code;
     int bytes_read;
     int failed;
-} LMqttConnack;
+} lmqtt_connack_t;
 
-typedef struct _LMqttCallbacks {
-    int (*on_connack)(void *data, LMqttConnack *connack);
+typedef struct _lmqtt_callbacks_t {
+    int (*on_connack)(void *data, lmqtt_connack_t *connack);
     int (*on_pingresp)(void *data);
-} LMqttCallbacks;
+} lmqtt_callbacks_t;
 
-typedef struct _LMqttRxBufferState {
-    LMqttCallbacks *callbacks;
+typedef struct _lmqtt_rx_buffer_state_t {
+    lmqtt_callbacks_t *callbacks;
     void *callbacks_data;
 
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     int header_finished;
     union {
-        LMqttConnack connack;
+        lmqtt_connack_t connack;
     } payload;
 
     int failed;
-} LMqttRxBufferState;
+} lmqtt_rx_buffer_state_t;
 
-typedef struct _LMqttClient {
+typedef struct _lmqtt_client_t {
     void *data;
-    LMqttReadFunction read;
-    LMqttWriteFunction write;
-    LMqttRxBufferState rx_state;
-    LMqttTxBufferState tx_state;
+    lmqtt_read_t read;
+    lmqtt_write_t write;
+    lmqtt_rx_buffer_state_t rx_state;
+    lmqtt_tx_buffer_state_t tx_state;
     u8 read_buf[LMQTT_RX_BUFFER_SIZE];
     int read_buf_pos;
     u8 write_buf[LMQTT_TX_BUFFER_SIZE];
     int write_buf_pos;
-} LMqttClient;
+} lmqtt_client_t;
 
-int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+int encode_tx_buffer(lmqtt_tx_buffer_state_t *state, u8 *buf, int buf_len,
     int *bytes_written);
 
-int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
+int decode_rx_buffer(lmqtt_rx_buffer_state_t *state, u8 *buf, int buf_len,
     int *bytes_read);
 
 #endif

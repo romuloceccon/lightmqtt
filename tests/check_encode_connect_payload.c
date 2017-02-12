@@ -7,7 +7,7 @@
 #define STR_PLACEHOLDER 'A'
 
 #define PREPARE \
-    LMqttConnect connect; \
+    lmqtt_connect_t connect; \
     u8 buf[128]; \
     char str[256]; \
     int bytes_w = BYTES_W_PLACEHOLDER; \

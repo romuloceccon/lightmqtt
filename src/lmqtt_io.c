@@ -11,7 +11,7 @@
  * which some callback is writing the input message to if the input buffer is
  * empty.
  */
-static void process_input(LMqttClient *client)
+static void process_input(lmqtt_client_t *client)
 {
     int read_allowed = 1;
     int process_allowed = 1;
@@ -47,7 +47,7 @@ static void process_input(LMqttClient *client)
  * would block, cases where there's no data to encode and cases where the buffer
  * is not enough to encode the whole command.
  */
-static void process_output(LMqttClient *client)
+static void process_output(lmqtt_client_t *client)
 {
     int build_allowed = 1;
     int write_allowed = 1;

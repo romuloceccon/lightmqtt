@@ -39,7 +39,7 @@ static int write_test_buf(void *data, u8 *buf, int buf_len, int *bytes_written)
  * (connection.call_count is 2 varios tests below, but should be 1 to respect
  * symetry).
  */
-int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
+int encode_tx_buffer(lmqtt_tx_buffer_state_t *state, u8 *buf, int buf_len,
     int *bytes_written)
 {
     int cnt = tx_buffer.len - tx_buffer.pos;
@@ -54,7 +54,7 @@ int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
 
 START_TEST(should_process_output_without_data)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
 
     memset(&client, 0, sizeof(client));
@@ -76,7 +76,7 @@ END_TEST
 
 START_TEST(should_process_output_with_complete_build_and_complete_write)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
 
     memset(&client, 0, sizeof(client));
@@ -100,7 +100,7 @@ END_TEST
 
 START_TEST(should_consume_write_buffer_if_build_interrupts)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
     int i;
 
@@ -129,7 +129,7 @@ END_TEST
 
 START_TEST(should_fill_write_buffer_if_build_interrupts)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
     int i;
 
@@ -158,7 +158,7 @@ END_TEST
 
 START_TEST(should_process_remaining_output_from_previous_call)
 {
-    LMqttClient client;
+    lmqtt_client_t client;
     TestConnection connection;
     int i;
     static int s = LMQTT_TX_BUFFER_SIZE / 8;

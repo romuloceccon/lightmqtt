@@ -16,7 +16,7 @@
     memset(field, placeholder, sizeof(field))
 
 #define PREPARE \
-    LMqttConnect connect; \
+    lmqtt_connect_t connect; \
     u8 buf[256]; \
     char client_id[256]; \
     char will_topic[256]; \

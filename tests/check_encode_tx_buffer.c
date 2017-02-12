@@ -10,8 +10,8 @@
     int data = 0; \
     int bytes_w = BYTES_W_PLACEHOLDER; \
     u8 buf[256]; \
-    LMqttEncodeFunction recipe[10]; \
-    LMqttTxBufferState state; \
+    lmqtt_encode_t recipe[10]; \
+    lmqtt_tx_buffer_state_t state; \
     memset(recipe, 0, sizeof(recipe)); \
     memset(&state, 0, sizeof(state)); \
     state.recipe = recipe; \
@@ -67,7 +67,7 @@ START_TEST(should_encode_tx_buffer_with_one_encoding_function)
 {
     PREPARE;
 
-    recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
 
     res = encode_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
 
@@ -84,8 +84,8 @@ START_TEST(should_encode_tx_buffer_with_two_encoding_functions)
 {
     PREPARE;
 
-    recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
-    recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
 
     res = encode_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
 
@@ -104,8 +104,8 @@ START_TEST(should_stop_recipe_after_buffer_fills_up)
 {
     PREPARE;
 
-    recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
-    recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
 
     res = encode_tx_buffer(&state, buf, 5, &bytes_w);
 
@@ -122,9 +122,9 @@ START_TEST(should_return_actual_bytes_written_after_error)
 {
     PREPARE;
 
-    recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
-    recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
-    recipe[2] = (LMqttEncodeFunction) encode_test_fail;
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
+    recipe[2] = (lmqtt_encode_t) encode_test_fail;
 
     res = encode_tx_buffer(&state, buf, sizeof(buf), &bytes_w);
 
@@ -141,8 +141,8 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 {
     PREPARE;
 
-    recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
-    recipe[1] = (LMqttEncodeFunction) encode_test_50_54;
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
 
     res = encode_tx_buffer(&state, buf, 6, &bytes_w);
 
@@ -176,7 +176,7 @@ START_TEST(should_continue_buffer_twice_with_the_same_recipe_entry)
 {
     PREPARE;
 
-    recipe[0] = (LMqttEncodeFunction) encode_test_0_9;
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
 
     res = encode_tx_buffer(&state, buf, 2, &bytes_w);
 

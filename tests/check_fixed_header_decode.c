@@ -5,7 +5,7 @@
 START_TEST(should_decode_fixed_header_valid_connack)
 {
     int res;
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     res = fixed_header_decode(&header, 0x20);
@@ -18,7 +18,7 @@ END_TEST
 START_TEST(should_decode_fixed_header_invalid_connack)
 {
     int res;
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     res = fixed_header_decode(&header, 0x21);
@@ -29,7 +29,7 @@ END_TEST
 
 START_TEST(should_decode_fixed_header_pubrel)
 {
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
 
     memset(&header, 0, sizeof(header));
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0x60));
@@ -42,7 +42,7 @@ END_TEST
 
 START_TEST(should_decode_fixed_header_publish)
 {
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
 
     memset(&header, 0, sizeof(header));
     ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0x3f));
@@ -66,7 +66,7 @@ END_TEST
 START_TEST(should_decode_fixed_header_single_byte_remaining_len)
 {
     int res;
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     res = fixed_header_decode(&header, 0x20);
@@ -80,7 +80,7 @@ END_TEST
 START_TEST(should_decode_fixed_header_four_byte_remaining_len)
 {
     int res;
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     res = fixed_header_decode(&header, 0x20);
@@ -99,7 +99,7 @@ END_TEST
 START_TEST(should_decode_fixed_header_invalid_fourth_byte)
 {
     int res;
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     res = fixed_header_decode(&header, 0x20);
@@ -117,7 +117,7 @@ END_TEST
 
 START_TEST(should_decode_fixed_header_valid_zero_representation)
 {
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     fixed_header_decode(&header, 0x20);
@@ -129,7 +129,7 @@ END_TEST
 
 START_TEST(should_decode_fixed_header_invalid_zero_representation)
 {
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     fixed_header_decode(&header, 0x20);
@@ -142,7 +142,7 @@ END_TEST
 START_TEST(should_not_decode_after_remaining_length)
 {
     int res;
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     res = fixed_header_decode(&header, 0x20);
@@ -156,7 +156,7 @@ END_TEST
 
 START_TEST(should_not_decode_after_error)
 {
-    LMqttFixedHeader header;
+    lmqtt_fixed_header_t header;
     memset(&header, 0, sizeof(header));
 
     fixed_header_decode(&header, 0x20);
