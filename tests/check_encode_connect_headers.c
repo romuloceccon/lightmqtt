@@ -106,8 +106,8 @@ START_TEST(should_encode_simple_connect)
 
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[10]);
 
-    ck_assert_int_eq(0, connect.buf_len);
-    ck_assert_uint_eq(0, connect.buf[0]);
+    ck_assert_int_eq(0, connect.internal.buf_len);
+    ck_assert_uint_eq(0, connect.internal.buf[0]);
 }
 END_TEST
 

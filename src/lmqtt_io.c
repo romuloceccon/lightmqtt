@@ -1,4 +1,5 @@
-#include <lightmqtt/core.h>
+#include <lightmqtt/io.h>
+#include <string.h>
 
 /*
  * TODO: somehow we should tell the user which handle she should select() on. If
