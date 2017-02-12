@@ -304,7 +304,7 @@ static int encode_connect_payload_password(LMqttConnect *connect, int offset,
  * there's no way of detecting a malformed packet with a valid type and zero
  * remaining length.
  */
-static int decode_fixed_header(LMqttFixedHeader *header, u8 b)
+static int fixed_header_decode(LMqttFixedHeader *header, u8 b)
 {
     int result = LMQTT_DECODE_ERROR;
 
@@ -374,7 +374,7 @@ static int decode_fixed_header(LMqttFixedHeader *header, u8 b)
     return result;
 }
 
-static int decode_connack(LMqttConnack *connack, u8 b)
+static int connack_decode(LMqttConnack *connack, u8 b)
 {
     int result = LMQTT_DECODE_ERROR;
 
@@ -472,7 +472,7 @@ static int rx_buffer_state_decode_type(LMqttRxBufferState *state, u8 b)
 {
     switch (state->header.type) {
         case LMQTT_TYPE_CONNACK:
-            return decode_connack(&state->payload.connack, b);
+            return connack_decode(&state->payload.connack, b);
         case LMQTT_TYPE_PUBLISH:
         case LMQTT_TYPE_PUBACK:
         case LMQTT_TYPE_PUBREC:
@@ -547,7 +547,7 @@ int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
         if (!state->header_finished) {
             int actual_is_zero;
             int expected_is_zero;
-            int res = decode_fixed_header(&state->header, buf[i]);
+            int res = fixed_header_decode(&state->header, buf[i]);
 
             if (res == LMQTT_DECODE_ERROR)
                 return rx_buffer_state_fail(state);
