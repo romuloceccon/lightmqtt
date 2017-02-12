@@ -66,12 +66,21 @@ typedef struct _LMqttConnack {
     int failed;
 } LMqttConnack;
 
+typedef struct _LMqttCallbacks {
+    int (*on_connack)(void *data, LMqttConnack *connack);
+    int (*on_pingresp)(void *data);
+} LMqttCallbacks;
+
 typedef struct _LMqttRxBufferState {
-    LMqttCallback connect_callback;
-    void *connect_data;
+    LMqttCallbacks *callbacks;
+    void *callbacks_data;
+
     LMqttFixedHeader header;
-    LMqttConnack connack;
     int header_finished;
+    union {
+        LMqttConnack connack;
+    } payload;
+
     int failed;
 } LMqttRxBufferState;
 

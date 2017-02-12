@@ -443,6 +443,86 @@ int encode_tx_buffer(LMqttTxBufferState *state, u8 *buf, int buf_len,
 }
 
 /*
+ * Return: 1 on success, 0 on failure
+ */
+static int rx_buffer_state_call_callback(LMqttRxBufferState *state)
+{
+    int result = 1;
+
+    switch (state->header.type) {
+        case LMQTT_TYPE_CONNACK:
+            state->callbacks->on_connack(state->callbacks_data,
+                &state->payload.connack);
+            break;
+        case LMQTT_TYPE_PINGRESP:
+            state->callbacks->on_pingresp(state->callbacks_data);
+            break;
+        default:
+            result = 0;
+    }
+
+    state->header_finished = 0;
+    memset(&state->header, 0, sizeof(state->header));
+    memset(&state->payload, 0, sizeof(state->payload));
+
+    return result;
+}
+
+static int rx_buffer_state_decode_type(LMqttRxBufferState *state, u8 b)
+{
+    switch (state->header.type) {
+        case LMQTT_TYPE_CONNACK:
+            return decode_connack(&state->payload.connack, b);
+        case LMQTT_TYPE_PUBLISH:
+        case LMQTT_TYPE_PUBACK:
+        case LMQTT_TYPE_PUBREC:
+        case LMQTT_TYPE_PUBREL:
+        case LMQTT_TYPE_PUBCOMP:
+        case LMQTT_TYPE_SUBACK:
+        case LMQTT_TYPE_UNSUBACK:
+        default:
+            assert(0);
+    }
+}
+
+static int rx_buffer_state_fail(LMqttRxBufferState *state)
+{
+    state->failed = 1;
+    return LMQTT_DECODE_ERROR;
+}
+
+static int rx_buffer_state_is_acceptable_response_packet(
+    LMqttRxBufferState *state)
+{
+    switch (state->header.type) {
+        case LMQTT_TYPE_CONNACK:
+        case LMQTT_TYPE_PUBLISH:
+        case LMQTT_TYPE_PUBACK:
+        case LMQTT_TYPE_PUBREC:
+        case LMQTT_TYPE_PUBREL:
+        case LMQTT_TYPE_PUBCOMP:
+        case LMQTT_TYPE_SUBACK:
+        case LMQTT_TYPE_UNSUBACK:
+        case LMQTT_TYPE_PINGRESP:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+static int rx_buffer_state_is_zero_length_packet(LMqttRxBufferState *state)
+{
+    switch (state->header.type) {
+        case LMQTT_TYPE_PINGREQ:
+        case LMQTT_TYPE_PINGRESP:
+        case LMQTT_TYPE_DISCONNECT:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/*
  * TODO: decode_rx_buffer() should be able to handle cases where the buffer
  * cannot be completely read (for example, if a callback which is being invoked
  * to write the incoming data to a file would block) and return
@@ -465,43 +545,36 @@ int decode_rx_buffer(LMqttRxBufferState *state, u8 *buf, int buf_len,
         *bytes_read += 1;
 
         if (!state->header_finished) {
+            int actual_is_zero;
+            int expected_is_zero;
             int res = decode_fixed_header(&state->header, buf[i]);
-            if (res == LMQTT_DECODE_FINISHED) {
-                if (state->header.remaining_length == 0) {
-                    switch (state->header.type) {
-                    case LMQTT_TYPE_PINGREQ:
-                    case LMQTT_TYPE_PINGRESP:
-                    case LMQTT_TYPE_DISCONNECT:
-                        memset(&state->header, 0, sizeof(state->header));
-                        memset(&state->connack, 0, sizeof(state->connack));
-                        break;
-                    default:
-                        state->failed = 1;
-                        return LMQTT_DECODE_ERROR;
-                    }
-                } else {
-                    state->header_finished = 1;
-                }
-            } else if (res == LMQTT_DECODE_ERROR) {
-                state->failed = 1;
-                return LMQTT_DECODE_ERROR;
-            }
+
+            if (res == LMQTT_DECODE_ERROR)
+                return rx_buffer_state_fail(state);
+            if (res != LMQTT_DECODE_FINISHED)
+                continue;
+
+            state->header_finished = 1;
+
+            if (!rx_buffer_state_is_acceptable_response_packet(state))
+                return rx_buffer_state_fail(state);
+
+            actual_is_zero = state->header.remaining_length == 0;
+            expected_is_zero = rx_buffer_state_is_zero_length_packet(state);
+
+            if (actual_is_zero != expected_is_zero)
+                return rx_buffer_state_fail(state);
+            if (actual_is_zero && expected_is_zero)
+                rx_buffer_state_call_callback(state);
         } else {
-            /*
-             * TODO: return error if remaining length is not zero and type is
-             * one of (PINGREQ, PINGRESP, DISCONNECT).
-             * TODO: call correct decode function for each packet type.
-             */
-            int res = decode_connack(&state->connack, buf[i]);
-            if (res == LMQTT_DECODE_FINISHED) {
-                state->connect_callback(state->connect_data);
-                memset(&state->header, 0, sizeof(state->header));
-                memset(&state->connack, 0, sizeof(state->connack));
-                state->header_finished = 0;
-            } else if (res == LMQTT_DECODE_ERROR) {
-                state->failed = 1;
-                return LMQTT_DECODE_ERROR;
-            }
+            int res = rx_buffer_state_decode_type(state, buf[i]);
+
+            if (res == LMQTT_DECODE_ERROR)
+                return rx_buffer_state_fail(state);
+            if (res != LMQTT_DECODE_FINISHED)
+                continue;
+
+            rx_buffer_state_call_callback(state);
         }
     }
 
