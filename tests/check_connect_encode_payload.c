@@ -71,51 +71,51 @@ END_TEST
 
 START_TEST(should_encode_client_id_at_one_byte_buffer)
 {
-  PREPARE;
+    PREPARE;
 
-  connect.client_id.len = 256;
-  connect.client_id.buf = str;
+    connect.client_id.len = 256;
+    connect.client_id.buf = str;
 
-  res = connect_encode_payload_client_id(&connect, 0, buf, 1, &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 0, buf, 1, &bytes_w);
 
-  ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
-  ck_assert_int_eq(1, bytes_w);
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
+    ck_assert_int_eq(1, bytes_w);
 
-  ck_assert_uint_eq(1, buf[0]);
-  ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
+    ck_assert_uint_eq(1, buf[0]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
 }
 END_TEST
 
 START_TEST(should_encode_empty_client_id_at_two_byte_buffer)
 {
-  PREPARE;
+    PREPARE;
 
-  res = connect_encode_payload_client_id(&connect, 0, buf, 2, &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 0, buf, 2, &bytes_w);
 
-  ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
-  ck_assert_int_eq(2, bytes_w);
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(2, bytes_w);
 
-  ck_assert_uint_eq(0, buf[0]);
-  ck_assert_uint_eq(0, buf[1]);
-  ck_assert_uint_eq(BUF_PLACEHOLDER, buf[2]);
+    ck_assert_uint_eq(0, buf[0]);
+    ck_assert_uint_eq(0, buf[1]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[2]);
 }
 END_TEST
 
 START_TEST(should_encode_non_empty_client_id_at_two_byte_buffer)
 {
-  PREPARE;
+    PREPARE;
 
-  connect.client_id.len = 1;
-  connect.client_id.buf = str;
+    connect.client_id.len = 1;
+    connect.client_id.buf = str;
 
-  res = connect_encode_payload_client_id(&connect, 0, buf, 2, &bytes_w);
+    res = connect_encode_payload_client_id(&connect, 0, buf, 2, &bytes_w);
 
-  ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
-  ck_assert_int_eq(2, bytes_w);
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
+    ck_assert_int_eq(2, bytes_w);
 
-  ck_assert_uint_eq(0, buf[0]);
-  ck_assert_uint_eq(1, buf[1]);
-  ck_assert_uint_eq(BUF_PLACEHOLDER, buf[2]);
+    ck_assert_uint_eq(0, buf[0]);
+    ck_assert_uint_eq(1, buf[1]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[2]);
 }
 END_TEST
 
