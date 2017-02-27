@@ -20,13 +20,6 @@
     memset(&read_buf, 0, sizeof(read_buf)); \
     memset(&read_buf.buf, STR_CB_PLACEHOLDER, sizeof(read_buf.buf))
 
-typedef struct {
-    int len;
-    int available_len;
-    int pos;
-    u8 buf[512];
-} test_buffer_t;
-
 static lmqtt_read_result_t string_read(void *data, u8 *buf, int buf_len,
     int *bytes_written)
 {

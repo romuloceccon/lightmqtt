@@ -2,193 +2,169 @@
 
 #include "../src/lmqtt_io.c"
 
-typedef struct _TestConnection {
-    u8 buf[LMQTT_TX_BUFFER_SIZE * 2];
-    int pos;
-    int len;
-    int call_count;
-} TestConnection;
-
-typedef struct _TestTxBuffer {
-    u8 buf[LMQTT_TX_BUFFER_SIZE * 2];
-    int pos;
-    int len;
-    int call_count;
-} TestTxBuffer;
-
-static TestTxBuffer tx_buffer;
+static test_buffer_t test_source;
 
 static lmqtt_io_result_t write_test_buf(void *data, u8 *buf, int buf_len,
     int *bytes_written)
 {
-    TestConnection *connection = (TestConnection *) data;
-    int cnt = buf_len;
-    if (cnt > connection->len - connection->pos)
-        cnt = connection->len - connection->pos;
-    memcpy(&connection->buf[connection->pos], buf, cnt);
-    *bytes_written = cnt;
-    connection->pos += cnt;
-    connection->call_count += 1;
-    return cnt > 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
+    test_buffer_t *destination = (test_buffer_t *) data;
+
+    return move_buf(destination, &destination->buf[destination->pos], buf,
+        buf_len, bytes_written);
 }
 
-/*
- * TODO: this implementation is not returning in the same way as
- * lmqtt_rx_buffer_decode() (or the original implementation of
- * lmqtt_tx_buffer_encode()). This should be better clarified because this
- * prevents the following test-cases to be perfectly symetric with
- * check_process_input.c (connection.call_count is 2 varios tests below, but
- * should be 1 to respect symetry).
- */
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
-    int cnt = tx_buffer.len - tx_buffer.pos;
-    if (cnt > buf_len)
-        cnt = buf_len;
-    memcpy(buf, &tx_buffer.buf[tx_buffer.pos], cnt);
-    *bytes_written = cnt;
-    tx_buffer.pos += cnt;
-    tx_buffer.call_count += 1;
-    return cnt > 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
+    return move_buf(&test_source, buf, &test_source.buf[test_source.pos],
+        buf_len, bytes_written);
 }
 
 START_TEST(should_process_output_without_data)
 {
     lmqtt_client_t client;
-    TestConnection connection;
+    test_buffer_t destination;
 
     memset(&client, 0, sizeof(client));
-    memset(&connection, 0, sizeof(connection));
-    memset(&tx_buffer, 0, sizeof(tx_buffer));
+    memset(&destination, 0, sizeof(destination));
+    memset(&test_source, 0, sizeof(test_source));
 
-    client.data = &connection;
+    client.data = &destination;
     client.write = write_test_buf;
-    connection.len = sizeof(connection.buf);
+    destination.len = sizeof(destination.buf);
+    destination.available_len = destination.len;
 
     process_output(&client);
 
-    ck_assert_int_eq(0, connection.pos);
-    ck_assert_int_eq(0, connection.call_count);
-    ck_assert_int_eq(0, tx_buffer.pos);
-    ck_assert_int_eq(1, tx_buffer.call_count);
+    ck_assert_int_eq(0, destination.pos);
+    ck_assert_int_eq(0, destination.call_count);
+    ck_assert_int_eq(0, test_source.pos);
+    ck_assert_int_eq(1, test_source.call_count);
 }
 END_TEST
 
 START_TEST(should_process_output_with_complete_build_and_complete_write)
 {
     lmqtt_client_t client;
-    TestConnection connection;
+    test_buffer_t destination;
 
     memset(&client, 0, sizeof(client));
-    memset(&connection, 0, sizeof(connection));
-    memset(&tx_buffer, 0, sizeof(tx_buffer));
+    memset(&destination, 0, sizeof(destination));
+    memset(&test_source, 0, sizeof(test_source));
 
-    client.data = &connection;
+    client.data = &destination;
     client.write = write_test_buf;
-    connection.len = sizeof(connection.buf);
-    memset(&tx_buffer.buf, 0xf, 5);
-    tx_buffer.len = 5;
+    destination.len = sizeof(destination.buf);
+    destination.available_len = destination.len;
+    memset(&test_source.buf, 0xf, 5);
+    test_source.len = 5;
+    test_source.available_len = test_source.len;
 
     process_output(&client);
 
-    ck_assert_int_eq(5, connection.pos);
-    ck_assert_int_eq(1, connection.call_count);
-    ck_assert_int_eq(5, tx_buffer.pos);
-    ck_assert_int_eq(2, tx_buffer.call_count);
+    ck_assert_int_eq(5, destination.pos);
+    ck_assert_int_eq(1, destination.call_count);
+    ck_assert_int_eq(5, test_source.pos);
+    ck_assert_int_eq(2, test_source.call_count);
 }
 END_TEST
 
 START_TEST(should_consume_write_buffer_if_build_interrupts)
 {
     lmqtt_client_t client;
-    TestConnection connection;
+    test_buffer_t destination;
     int i;
 
     memset(&client, 0, sizeof(client));
-    memset(&connection, 0, sizeof(connection));
-    memset(&tx_buffer, 0, sizeof(tx_buffer));
+    memset(&destination, 0, sizeof(destination));
+    memset(&test_source, 0, sizeof(test_source));
 
-    client.data = &connection;
+    client.data = &destination;
     client.write = write_test_buf;
-    connection.len = LMQTT_TX_BUFFER_SIZE / 2;
-    tx_buffer.len = LMQTT_TX_BUFFER_SIZE / 4 * 5;
+    destination.len = LMQTT_TX_BUFFER_SIZE / 2;
+    destination.available_len = destination.len;
+    test_source.len = LMQTT_TX_BUFFER_SIZE / 4 * 5;
+    test_source.available_len = test_source.len;
     for (i = 0; i < LMQTT_TX_BUFFER_SIZE / 4 * 5; i++)
-        tx_buffer.buf[i] = i % 199;
+        test_source.buf[i] = i % 199;
 
     process_output(&client);
 
-    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 2, connection.pos);
-    ck_assert_int_eq(2, connection.call_count);
-    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 4 * 5, tx_buffer.pos);
-    ck_assert_int_eq(3, tx_buffer.call_count);
-    ck_assert_uint_eq(0 % 199, connection.buf[0]);
+    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 2, destination.pos);
+    ck_assert_int_eq(2, destination.call_count);
+    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 4 * 5, test_source.pos);
+    ck_assert_int_eq(3, test_source.call_count);
+    ck_assert_uint_eq(0 % 199, destination.buf[0]);
     ck_assert_uint_eq((LMQTT_TX_BUFFER_SIZE / 2 - 1) % 199,
-        connection.buf[LMQTT_TX_BUFFER_SIZE / 2 - 1]);
+        destination.buf[LMQTT_TX_BUFFER_SIZE / 2 - 1]);
 }
 END_TEST
 
 START_TEST(should_fill_write_buffer_if_build_interrupts)
 {
     lmqtt_client_t client;
-    TestConnection connection;
+    test_buffer_t destination;
     int i;
 
     memset(&client, 0, sizeof(client));
-    memset(&connection, 0, sizeof(connection));
-    memset(&tx_buffer, 0, sizeof(tx_buffer));
+    memset(&destination, 0, sizeof(destination));
+    memset(&test_source, 0, sizeof(test_source));
 
-    client.data = &connection;
+    client.data = &destination;
     client.write = write_test_buf;
-    connection.len = LMQTT_TX_BUFFER_SIZE / 2;
-    tx_buffer.len = sizeof(tx_buffer.buf);
-    for (i = 0; i < sizeof(tx_buffer.buf); i++)
-        tx_buffer.buf[i] = i % 199;
+    destination.len = LMQTT_TX_BUFFER_SIZE / 2;
+    destination.available_len = destination.len;
+    test_source.len = sizeof(test_source.buf);
+    test_source.available_len = test_source.len;
+    for (i = 0; i < sizeof(test_source.buf); i++)
+        test_source.buf[i] = i % 199;
 
     process_output(&client);
 
-    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 2, connection.pos);
-    ck_assert_int_eq(2, connection.call_count);
-    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 2 * 3, tx_buffer.pos);
-    ck_assert_int_eq(2, tx_buffer.call_count);
-    ck_assert_uint_eq(0 % 199, connection.buf[0]);
+    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 2, destination.pos);
+    ck_assert_int_eq(2, destination.call_count);
+    ck_assert_int_eq(LMQTT_TX_BUFFER_SIZE / 2 * 3, test_source.pos);
+    ck_assert_int_eq(2, test_source.call_count);
+    ck_assert_uint_eq(0 % 199, destination.buf[0]);
     ck_assert_uint_eq((LMQTT_TX_BUFFER_SIZE / 2 - 1) % 199,
-        connection.buf[LMQTT_TX_BUFFER_SIZE / 2 - 1]);
+        destination.buf[LMQTT_TX_BUFFER_SIZE / 2 - 1]);
 }
 END_TEST
 
 START_TEST(should_process_remaining_output_from_previous_call)
 {
     lmqtt_client_t client;
-    TestConnection connection;
+    test_buffer_t destination;
     int i;
     static int s = LMQTT_TX_BUFFER_SIZE / 8;
 
     memset(&client, 0, sizeof(client));
-    memset(&connection, 0, sizeof(connection));
-    memset(&tx_buffer, 0, sizeof(tx_buffer));
+    memset(&destination, 0, sizeof(destination));
+    memset(&test_source, 0, sizeof(test_source));
 
-    client.data = &connection;
+    client.data = &destination;
     client.write = write_test_buf;
-    connection.len = s;
-    tx_buffer.len = sizeof(tx_buffer.buf);
-    for (i = 0; i < sizeof(tx_buffer.buf); i++)
-        tx_buffer.buf[i] = i % 199;
+    destination.len = s;
+    destination.available_len = destination.len;
+    test_source.len = sizeof(test_source.buf);
+    test_source.available_len = test_source.len;
+    for (i = 0; i < sizeof(test_source.buf); i++)
+        test_source.buf[i] = i % 199;
 
     process_output(&client);
 
-    ck_assert_int_eq(s, connection.pos);
-    ck_assert_int_eq(2, connection.call_count);
-    ck_assert_uint_eq(0 % 199, connection.buf[0]);
-    ck_assert_uint_eq((s - 1) % 199, connection.buf[s - 1]);
+    ck_assert_int_eq(s, destination.pos);
+    ck_assert_int_eq(2, destination.call_count);
+    ck_assert_uint_eq(0 % 199, destination.buf[0]);
+    ck_assert_uint_eq((s - 1) % 199, destination.buf[s - 1]);
 
-    connection.pos = 0;
+    destination.pos = 0;
     process_output(&client);
 
-    ck_assert_int_eq(s, connection.pos);
-    ck_assert_int_eq(4, connection.call_count);
-    ck_assert_uint_eq(s % 199, connection.buf[0]);
-    ck_assert_uint_eq((s + s - 1) % 199, connection.buf[s - 1]);
+    ck_assert_int_eq(s, destination.pos);
+    ck_assert_int_eq(4, destination.call_count);
+    ck_assert_uint_eq(s % 199, destination.buf[0]);
+    ck_assert_uint_eq((s + s - 1) % 199, destination.buf[s - 1]);
 }
 END_TEST
 

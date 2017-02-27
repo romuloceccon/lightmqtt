@@ -15,30 +15,33 @@
 static void process_input(lmqtt_client_t *client)
 {
     int read_allowed = 1;
-    int process_allowed = 1;
+    int decode_allowed = 1;
 
-    while (read_allowed && client->read_buf_pos < sizeof(client->read_buf) ||
-        process_allowed && client->read_buf_pos > 0) {
-        int res;
+    while (read_allowed || decode_allowed) {
         int bytes_read;
 
-        if (read_allowed && client->read_buf_pos < sizeof(client->read_buf)) {
-            res = client->read(client->data,
+        read_allowed = read_allowed && client->read_buf_pos <
+            sizeof(client->read_buf);
+
+        if (read_allowed) {
+            client->read(client->data,
                 &client->read_buf[client->read_buf_pos],
                 sizeof(client->read_buf) - client->read_buf_pos, &bytes_read);
             client->read_buf_pos += bytes_read;
-            if (res == LMQTT_IO_AGAIN)
+            if (bytes_read == 0)
                 read_allowed = 0;
         }
 
-        if (process_allowed && client->read_buf_pos > 0) {
-            res = lmqtt_rx_buffer_decode(&client->rx_state, client->read_buf,
+        decode_allowed = decode_allowed && client->read_buf_pos > 0;
+
+        if (decode_allowed) {
+            lmqtt_rx_buffer_decode(&client->rx_state, client->read_buf,
                 client->read_buf_pos, &bytes_read);
             memmove(&client->read_buf[0], &client->read_buf[bytes_read],
                 client->read_buf_pos - bytes_read);
             client->read_buf_pos -= bytes_read;
-            if (res == LMQTT_IO_AGAIN)
-                process_allowed = 0;
+            if (bytes_read == 0)
+                decode_allowed = 0;
         }
     }
 }
@@ -50,31 +53,34 @@ static void process_input(lmqtt_client_t *client)
  */
 static void process_output(lmqtt_client_t *client)
 {
-    int build_allowed = 1;
+    int encode_allowed = 1;
     int write_allowed = 1;
 
-    while (build_allowed && client->write_buf_pos < sizeof(client->write_buf) ||
-        write_allowed && client->write_buf_pos > 0) {
-        int res;
+    while (encode_allowed || write_allowed) {
         int bytes_written;
 
-        if (build_allowed && client->write_buf_pos < sizeof(client->write_buf)) {
-            res = lmqtt_tx_buffer_encode(&client->tx_state,
+        encode_allowed = encode_allowed && client->write_buf_pos <
+            sizeof(client->write_buf);
+
+        if (encode_allowed) {
+            lmqtt_tx_buffer_encode(&client->tx_state,
                 &client->write_buf[client->write_buf_pos],
                 sizeof(client->write_buf) - client->write_buf_pos,
                 &bytes_written);
             client->write_buf_pos += bytes_written;
-            if (res == LMQTT_IO_AGAIN)
-                build_allowed = 0;
+            if (bytes_written == 0)
+                encode_allowed = 0;
         }
 
-        if (write_allowed && client->write_buf_pos > 0) {
-            res = client->write(client->data, client->write_buf,
+        write_allowed = write_allowed && client->write_buf_pos > 0;
+
+        if (write_allowed) {
+            client->write(client->data, client->write_buf,
                 client->write_buf_pos, &bytes_written);
             memmove(&client->write_buf[0], &client->write_buf[bytes_written],
                 client->write_buf_pos - bytes_written);
             client->write_buf_pos -= bytes_written;
-            if (res == LMQTT_IO_AGAIN)
+            if (bytes_written == 0)
                 write_allowed = 0;
         }
     }
