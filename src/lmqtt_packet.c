@@ -445,10 +445,6 @@ static lmqtt_decode_result_t connack_decode(lmqtt_connack_t *connack, u8 b)
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
 
-/*
- * TODO: maybe lmqtt_tx_buffer_encode(), like lmqtt_tx_buffer_encode(), should
- * return LMQTT_IO_AGAIN only when building it would block?
- */
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
@@ -465,12 +461,14 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 
         result = recipe(state->data, state->internal.recipe_offset,
             buf + offset, buf_len - offset, &cur_bytes);
+        if (result == LMQTT_ENCODE_WOULD_BLOCK)
+            return LMQTT_IO_AGAIN;
         if (result == LMQTT_ENCODE_CONTINUE)
             state->internal.recipe_offset += cur_bytes;
         if (result == LMQTT_ENCODE_CONTINUE || result == LMQTT_ENCODE_FINISHED)
             *bytes_written += cur_bytes;
         if (result == LMQTT_ENCODE_CONTINUE)
-            return LMQTT_IO_AGAIN;
+            return LMQTT_IO_SUCCESS;
         if (result == LMQTT_ENCODE_ERROR)
             return LMQTT_IO_ERROR;
 
