@@ -5,16 +5,57 @@
 #define BYTES_W_PLACEHOLDER -12345
 #define BUF_PLACEHOLDER 0xcc
 #define STR_PLACEHOLDER 'A'
+#define STR_CB_PLACEHOLDER 'B'
 
 #define PREPARE \
     lmqtt_connect_t connect; \
     u8 buf[128]; \
     char str[256]; \
+    test_buffer_t read_buf; \
     int bytes_w = BYTES_W_PLACEHOLDER; \
     int res; \
     memset(&connect, 0, sizeof(connect)); \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf)); \
-    memset(str, STR_PLACEHOLDER, sizeof(str))
+    memset(str, STR_PLACEHOLDER, sizeof(str)); \
+    memset(&read_buf, 0, sizeof(read_buf)); \
+    memset(&read_buf.buf, STR_CB_PLACEHOLDER, sizeof(read_buf.buf))
+
+typedef struct {
+    int len;
+    int available_len;
+    int pos;
+    u8 buf[512];
+} test_buffer_t;
+
+static lmqtt_read_result_t string_read(void *data, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    test_buffer_t *test_buffer = (test_buffer_t *) data;
+    int count = test_buffer->available_len - test_buffer->pos;
+    if (count > buf_len)
+        count = buf_len;
+
+    memcpy(buf, test_buffer->buf + test_buffer->pos, count);
+    test_buffer->pos += count;
+    *bytes_written = count;
+
+    return count == 0 && test_buffer->pos < test_buffer->len ?
+        LMQTT_READ_WOULD_BLOCK : LMQTT_READ_SUCCESS;
+}
+
+static lmqtt_read_result_t string_read_fail_again(void *data, u8 *buf,
+    int buf_len, int *bytes_written)
+{
+    *bytes_written = 1;
+    return LMQTT_READ_WOULD_BLOCK;
+}
+
+static lmqtt_read_result_t string_read_fail_error(void *data, u8 *buf,
+    int buf_len, int *bytes_written)
+{
+    *bytes_written = 1;
+    return LMQTT_READ_ERROR;
+}
 
 START_TEST(should_encode_empty_client_id)
 {
@@ -238,6 +279,157 @@ START_TEST(should_encode_empty_user_name_at_zero_byte_buffer)
 }
 END_TEST
 
+START_TEST(should_encode_user_name_with_callback)
+{
+    PREPARE;
+
+    connect.user_name.len = 10;
+    connect.user_name.data = &read_buf;
+    connect.user_name.read = string_read;
+
+    read_buf.len = 10;
+    read_buf.available_len = 10;
+
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(12, bytes_w);
+
+    ck_assert_uint_eq(0, buf[0]);
+    ck_assert_uint_eq(10, buf[1]);
+    ck_assert_uint_eq(STR_CB_PLACEHOLDER, buf[11]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[12]);
+}
+END_TEST
+
+START_TEST(should_encode_user_name_with_read_buf_longer_than_buffer_size)
+{
+    PREPARE;
+
+    connect.user_name.len = sizeof(buf);
+    connect.user_name.data = &read_buf;
+    connect.user_name.read = string_read;
+
+    read_buf.len = sizeof(buf);
+    read_buf.available_len = sizeof(buf);
+
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
+    ck_assert_int_eq(sizeof(buf), bytes_w);
+
+    ck_assert_uint_eq(0, buf[0]);
+    ck_assert_uint_eq(sizeof(buf), buf[1]);
+    ck_assert_uint_eq(STR_CB_PLACEHOLDER, buf[sizeof(buf) - 1]);
+
+    res = connect_encode_payload_user_name(&connect, sizeof(buf), buf,
+        sizeof(buf), &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(2, bytes_w);
+
+    ck_assert_uint_eq(STR_CB_PLACEHOLDER, buf[0]);
+    ck_assert_uint_eq(STR_CB_PLACEHOLDER, buf[1]);
+}
+END_TEST
+
+START_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size)
+{
+    PREPARE;
+
+    connect.user_name.len = 10;
+    connect.user_name.data = &read_buf;
+    connect.user_name.read = string_read;
+
+    read_buf.len = 10;
+    read_buf.available_len = 5;
+
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
+    ck_assert_int_eq(7, bytes_w);
+
+    ck_assert_uint_eq(0, buf[0]);
+    ck_assert_uint_eq(10, buf[1]);
+    ck_assert_uint_eq(STR_CB_PLACEHOLDER, buf[6]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[7]);
+
+    res = connect_encode_payload_user_name(&connect, 7, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_WOULD_BLOCK, res);
+    ck_assert_int_eq(0, bytes_w);
+
+    read_buf.available_len = 10;
+
+    res = connect_encode_payload_user_name(&connect, 7, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(5, bytes_w);
+}
+END_TEST
+
+START_TEST(should_fail_if_read_buf_returns_fewer_bytes_than_expected)
+{
+    PREPARE;
+
+    connect.user_name.len = 10;
+    connect.user_name.data = &read_buf;
+    connect.user_name.read = string_read;
+
+    read_buf.len = 5;
+    read_buf.available_len = 5;
+
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
+    ck_assert_int_eq(7, bytes_w);
+
+    res = connect_encode_payload_user_name(&connect, 7, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
+    ck_assert_int_eq(0, bytes_w);
+}
+END_TEST
+
+START_TEST(should_fail_if_read_buf_returns_again_with_non_zero_byte_count)
+{
+    PREPARE;
+
+    connect.user_name.len = 10;
+    connect.user_name.data = &read_buf;
+    connect.user_name.read = string_read_fail_again;
+
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
+    ck_assert_int_eq(3, bytes_w);
+}
+END_TEST
+
+START_TEST(should_fail_if_read_buf_returns_error_with_non_zero_byte_count)
+{
+    PREPARE;
+
+    connect.user_name.len = 10;
+    connect.user_name.data = &read_buf;
+    connect.user_name.read = string_read_fail_error;
+
+    res = connect_encode_payload_user_name(&connect, 0, buf, sizeof(buf),
+        &bytes_w);
+
+    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
+    ck_assert_int_eq(3, bytes_w);
+}
+END_TEST
+
 START_TCASE("Encode connect payload")
 {
     ADD_TEST(should_encode_empty_client_id);
@@ -253,5 +445,11 @@ START_TCASE("Encode connect payload")
     ADD_TEST(should_encode_empty_user_name);
     ADD_TEST(should_encode_non_empty_user_name);
     ADD_TEST(should_encode_empty_user_name_at_zero_byte_buffer);
+    ADD_TEST(should_encode_user_name_with_callback);
+    ADD_TEST(should_encode_user_name_with_read_buf_longer_than_buffer_size);
+    ADD_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size);
+    ADD_TEST(should_fail_if_read_buf_returns_fewer_bytes_than_expected);
+    ADD_TEST(should_fail_if_read_buf_returns_again_with_non_zero_byte_count);
+    ADD_TEST(should_fail_if_read_buf_returns_error_with_non_zero_byte_count);
 }
 END_TCASE

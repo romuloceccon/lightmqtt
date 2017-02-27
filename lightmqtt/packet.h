@@ -12,6 +12,7 @@
 typedef enum {
     LMQTT_ENCODE_FINISHED = 110,
     LMQTT_ENCODE_CONTINUE,
+    LMQTT_ENCODE_WOULD_BLOCK,
     LMQTT_ENCODE_ERROR
 } lmqtt_encode_result_t;
 
@@ -21,9 +22,17 @@ typedef enum {
     LMQTT_DECODE_ERROR
 } lmqtt_decode_result_t;
 
+typedef enum {
+    LMQTT_READ_SUCCESS = 130,
+    LMQTT_READ_WOULD_BLOCK,
+    LMQTT_READ_ERROR
+} lmqtt_read_result_t;
+
 typedef struct _lmqtt_string_t {
     int len;
-    char* buf;
+    char *buf;
+    void *data;
+    lmqtt_read_result_t (*read)(void *, u8 *, int, int *);
 } lmqtt_string_t;
 
 typedef struct _lmqtt_fixed_header_t {

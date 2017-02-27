@@ -66,6 +66,22 @@ static lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
  * lmqtt_string_t PRIVATE functions
  ******************************************************************************/
 
+static lmqtt_read_result_t string_fetch(lmqtt_string_t *str, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    if (str->read != 0)
+        /* `offset` is not used with the callback. We're actually trusting the
+         * encoding functions and the callback work the same way, i.e. in each
+         * call the offset is equal to the previous offset plus the previous
+         * read byte count. Maybe `offset` could be eliminated and those
+         * expectations documented? */
+        return str->read(str->data, buf, buf_len, bytes_written);
+
+    memcpy(buf, str->buf + offset, buf_len);
+    *bytes_written = buf_len;
+    return LMQTT_READ_SUCCESS;
+}
+
 static lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     int encode_if_empty, int offset, u8 *buf, int buf_len, int *bytes_written)
 {
@@ -75,12 +91,16 @@ static lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     int offset_str;
     int i;
 
+    int read_cnt;
+    int read_res;
+    int remaining;
+
     if (len == 0 && !encode_if_empty) {
         *bytes_written = 0;
         return LMQTT_ENCODE_FINISHED;
     }
 
-    assert(offset < buf_len && buf_len > 0);
+    assert(offset < len + LMQTT_STRING_LEN_SIZE && buf_len > 0);
 
     for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
         if (offset <= i) {
@@ -96,16 +116,25 @@ static lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     offset_str = offset <= LMQTT_STRING_LEN_SIZE ? 0 :
         offset - LMQTT_STRING_LEN_SIZE;
     len -= offset_str;
+    remaining = str->len - offset_str;
 
-    if (len > buf_len - pos) {
+    if (len > buf_len - pos)
         len = buf_len - pos;
+
+    read_res = string_fetch(str, offset_str, buf + pos, len, &read_cnt);
+    assert(read_cnt <= remaining);
+
+    if (read_res == LMQTT_READ_WOULD_BLOCK && read_cnt == 0) {
+        result = LMQTT_ENCODE_WOULD_BLOCK;
+    } else if (read_res == LMQTT_READ_SUCCESS && read_cnt >= remaining) {
+        result = LMQTT_ENCODE_FINISHED;
+    } else if (read_res == LMQTT_READ_SUCCESS && read_cnt > 0) {
         result = LMQTT_ENCODE_CONTINUE;
     } else {
-        result = LMQTT_ENCODE_FINISHED;
+        result = LMQTT_ENCODE_ERROR;
     }
 
-    memcpy(buf + pos, str->buf + offset_str, len);
-    *bytes_written = pos + len;
+    *bytes_written = pos + read_cnt;
     return result;
 }
 
