@@ -14,6 +14,6 @@ AC_CHECK_HEADERS([stdint.h])
 
 AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile examples/Makefile tests/Makefile])
 
 AC_OUTPUT

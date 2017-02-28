@@ -5,8 +5,7 @@ TESTS = \
     .bin/check_connect_validate \
     .bin/check_fixed_header_decode \
     .bin/check_connack_decode \
-    .bin/check_process_input \
-    .bin/check_process_output \
+    .bin/check_process \
     .bin/check_tx_buffer_encode \
     .bin/check_tx_buffer_connect \
     .bin/check_rx_buffer_decode
@@ -20,8 +19,7 @@ _bin_check_connect_encode_payload_SOURCES   = check_connect_encode_payload.c
 _bin_check_connect_validate_SOURCES         = check_connect_validate.c
 _bin_check_fixed_header_decode_SOURCES      = check_fixed_header_decode.c
 _bin_check_connack_decode_SOURCES           = check_connack_decode.c
-_bin_check_process_input_SOURCES            = check_process_input.c
-_bin_check_process_output_SOURCES           = check_process_output.c
+_bin_check_process_SOURCES                  = check_process.c
 _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c
 _bin_check_tx_buffer_connect_SOURCES        = check_tx_buffer_connect.c
 _bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c
