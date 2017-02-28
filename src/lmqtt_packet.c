@@ -442,6 +442,21 @@ static lmqtt_decode_result_t connack_decode(lmqtt_connack_t *connack, u8 b)
 }
 
 /******************************************************************************
+ * lmqtt_tx_buffer_t static data
+ ******************************************************************************/
+
+lmqtt_encode_t recipe_connect[] = {
+    (lmqtt_encode_t) connect_encode_fixed_header,
+    (lmqtt_encode_t) connect_encode_variable_header,
+    (lmqtt_encode_t) connect_encode_payload_client_id,
+    (lmqtt_encode_t) connect_encode_payload_will_topic,
+    (lmqtt_encode_t) connect_encode_payload_will_message,
+    (lmqtt_encode_t) connect_encode_payload_user_name,
+    (lmqtt_encode_t) connect_encode_payload_password,
+    0
+};
+
+/******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
 
@@ -478,6 +493,13 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     }
 
     return LMQTT_IO_SUCCESS;
+}
+
+void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state, lmqtt_connect_t *connect)
+{
+    memset(state, 0, sizeof(*state));
+    state->recipe = recipe_connect;
+    state->data = connect;
 }
 
 /******************************************************************************

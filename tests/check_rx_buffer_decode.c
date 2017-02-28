@@ -248,7 +248,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_response_packet)
 }
 END_TEST
 
-START_TCASE("Process rx buffer")
+START_TCASE("Rx buffer decode")
 {
     ADD_TEST(should_process_complete_rx_buffer);
     ADD_TEST(should_process_partial_rx_buffer);

@@ -229,7 +229,7 @@ START_TEST(should_encode_blocking_buffer)
 }
 END_TEST
 
-START_TCASE("Build tx buffer")
+START_TCASE("Tx buffer encode")
 {
     ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
     ADD_TEST(should_encode_tx_buffer_with_two_encoding_functions);
