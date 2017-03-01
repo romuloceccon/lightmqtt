@@ -43,23 +43,25 @@ static int buffer_check(lmqtt_io_result_t io_res, int *cnt,
     int *failed)
 {
     if (io_res == LMQTT_IO_AGAIN) {
-        *transfer_result = block_status;
-    } else if (io_res == LMQTT_IO_ERROR) {
+        /* if both input and output block prefer LMQTT_IO_STATUS_BLOCK_CONN */
+        if (*transfer_result != LMQTT_IO_STATUS_BLOCK_CONN)
+            *transfer_result = block_status;
+        return 0;
+    }
+
+    if (io_res == LMQTT_IO_ERROR) {
         *transfer_result = LMQTT_IO_STATUS_ERROR;
         *failed = 1;
+        return 0;
     }
+
     return *cnt > 0;
 }
 
-/*
- * TODO: test what happens if both reader and writer block. Behavior should be
- * consistent between input and output, i.e., either LMQTT_IO_STATUS_BLOCK_CONN
- * or LMQTT_IO_STATUS_BLOCK_DATA should be prefered.
- */
-static lmqtt_io_status_t buffer_transfer(lmqtt_read_t reader, void *reader_data,
-    lmqtt_io_status_t reader_block, lmqtt_write_t writer, void *writer_data,
-    lmqtt_io_status_t writer_block, u8 *buf, int *buf_pos, int buf_len,
-    int *failed)
+static lmqtt_io_status_t buffer_transfer(
+    lmqtt_read_t reader, void *reader_data, lmqtt_io_status_t reader_block,
+    lmqtt_write_t writer, void *writer_data, lmqtt_io_status_t writer_block,
+    u8 *buf, int *buf_pos, int buf_len, int *failed)
 {
     int read_allowed = 1;
     int write_allowed = 1;

@@ -250,6 +250,31 @@ START_TEST(should_decode_remaining_buffer_if_read_blocks)
 }
 END_TEST
 
+START_TEST(should_return_block_conn_if_both_read_and_decode_block)
+{
+    lmqtt_client_t client;
+    test_buffer_t source;
+    lmqtt_io_status_t res;
+
+    memset(&client, 0, sizeof(client));
+    memset(&source, 0, sizeof(source));
+    memset(&test_destination, 0, sizeof(test_destination));
+
+    client.data = &source;
+    client.read = read_test_buf;
+    source.len = sizeof(source.buf);
+    source.available_len = 4;
+    test_destination.len = sizeof(test_destination.buf);
+    test_destination.available_len = 2;
+
+    res = process_input(&client);
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
+
+    ck_assert_int_eq(4, source.pos);
+    ck_assert_int_eq(2, test_destination.pos);
+}
+END_TEST
+
 START_TEST(should_not_decode_remaining_buffer_if_read_fails)
 {
     lmqtt_client_t client;
@@ -336,6 +361,31 @@ START_TEST(should_encode_remaining_buffer_if_write_blocks)
 }
 END_TEST
 
+START_TEST(should_return_block_conn_if_both_encode_and_write_block)
+{
+    lmqtt_client_t client;
+    test_buffer_t destination;
+    lmqtt_io_status_t res;
+
+    memset(&client, 0, sizeof(client));
+    memset(&destination, 0, sizeof(destination));
+    memset(&test_source, 0, sizeof(test_source));
+
+    client.data = &destination;
+    client.write = write_test_buf;
+    test_source.len = sizeof(test_source.buf);
+    test_source.available_len = 4;
+    destination.len = sizeof(destination.buf);
+    destination.available_len = 2;
+
+    res = process_output(&client);
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
+
+    ck_assert_int_eq(4, test_source.pos);
+    ck_assert_int_eq(2, destination.pos);
+}
+END_TEST
+
 START_TCASE("Process")
 {
     ADD_TEST(should_process_input_without_data);
@@ -343,8 +393,10 @@ START_TCASE("Process")
     ADD_TEST(should_fill_read_buffer_if_write_interrupts);
     ADD_TEST(should_process_remaining_input_from_previous_call);
     ADD_TEST(should_decode_remaining_buffer_if_read_blocks);
+    ADD_TEST(should_return_block_conn_if_both_read_and_decode_block);
     ADD_TEST(should_not_decode_remaining_buffer_if_read_fails);
     ADD_TEST(should_process_output_with_complete_encode_and_complete_write);
     ADD_TEST(should_encode_remaining_buffer_if_write_blocks);
+    ADD_TEST(should_return_block_conn_if_both_encode_and_write_block);
 }
 END_TCASE
