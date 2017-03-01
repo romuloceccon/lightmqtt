@@ -2,6 +2,43 @@
 
 #include "lightmqtt/packet.h"
 
+#define BYTE_AT(p) ((p) % 199 + 1)
+
+#define PREPARE_READ \
+    do { \
+        int i; \
+        memset(&client, 0, sizeof(client)); \
+        memset(&test_src, 0, sizeof(test_src)); \
+        memset(&test_dst, 0, sizeof(test_dst)); \
+        client.data = &test_src; \
+        client.read = read_test_buf; \
+        test_src.len = sizeof(test_src.buf); \
+        test_dst.len = sizeof(test_dst.buf); \
+        for (i = 0; i < test_src.len; i++) \
+            test_src.buf[i] = BYTE_AT(i); \
+    } while (0)
+
+#define PREPARE_WRITE \
+    do { \
+        int i; \
+        memset(&client, 0, sizeof(client)); \
+        memset(&test_dst, 0, sizeof(test_dst)); \
+        memset(&test_src, 0, sizeof(test_src)); \
+        client.data = &test_dst; \
+        client.write = write_test_buf; \
+        test_src.len = sizeof(test_src.buf); \
+        test_dst.len = sizeof(test_dst.buf); \
+        for (i = 0; i < test_src.len; i++) \
+            test_src.buf[i] = BYTE_AT(i); \
+    } while (0)
+
+#define CHECK_BUF_FILL_AT(test_buf, n) \
+    ck_assert_uint_eq(BYTE_AT(n), test_buf[n])
+
+#define CHECK_BUF_ZERO_AT(test_buf, n) ck_assert_uint_eq(0, test_buf[n])
+
+#define RX_4TH (LMQTT_RX_BUFFER_SIZE / 4)
+
 static lmqtt_io_result_t move_buf(test_buffer_t *test_buffer, u8 *dst, u8 *src,
     int len, int *bytes_written)
 {
@@ -18,8 +55,8 @@ static lmqtt_io_result_t move_buf(test_buffer_t *test_buffer, u8 *dst, u8 *src,
 
 #include "../src/lmqtt_io.c"
 
-static test_buffer_t test_source;
-static test_buffer_t test_destination;
+static test_buffer_t test_src;
+static test_buffer_t test_dst;
 
 static lmqtt_io_result_t read_test_buf(void *data, u8 *buf, int buf_len,
     int *bytes_read)
@@ -42,14 +79,14 @@ static lmqtt_io_result_t write_test_buf(void *data, u8 *buf, int buf_len,
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read)
 {
-    return move_buf(&test_destination,
-        &test_destination.buf[test_destination.pos], buf, buf_len, bytes_read);
+    return move_buf(&test_dst,
+        &test_dst.buf[test_dst.pos], buf, buf_len, bytes_read);
 }
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
-    return move_buf(&test_source, buf, &test_source.buf[test_source.pos],
+    return move_buf(&test_src, buf, &test_src.buf[test_src.pos],
         buf_len, bytes_written);
 }
 
@@ -64,333 +101,299 @@ static lmqtt_io_result_t read_test_buf_fail(void *data, u8 *buf, int buf_len,
 START_TEST(should_process_input_without_data)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = test_destination.len;
+    test_src.len = 0;
+    test_src.available_len = 0;
+    test_dst.available_len = test_dst.len;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, res);
 
-    ck_assert_int_eq(0, source.pos);
-    ck_assert_int_eq(1, source.call_count);
-    ck_assert_int_eq(0, test_destination.pos);
-    ck_assert_int_eq(0, test_destination.call_count);
+    ck_assert_int_eq(0, test_src.pos);
+    ck_assert_int_eq(1, test_src.call_count);
+    ck_assert_int_eq(0, test_dst.pos);
+    ck_assert_int_eq(0, test_dst.call_count);
 }
 END_TEST
 
-START_TEST(should_process_input_with_complete_read_and_complete_process)
+START_TEST(should_process_input_with_complete_read_and_complete_decode)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = test_destination.len;
-    memset(&source.buf, 0xf, 5);
-    source.len = 5;
-    source.available_len = source.len;
+    test_src.len = 5;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = test_dst.len;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, res);
 
-    ck_assert_int_eq(5, source.pos);
-    ck_assert_int_eq(2, source.call_count);
-    ck_assert_int_eq(5, test_destination.pos);
-    ck_assert_int_eq(1, test_destination.call_count);
+    ck_assert_int_eq(5, test_src.pos);
+    ck_assert_int_eq(2, test_src.call_count);
+    ck_assert_int_eq(5, test_dst.pos);
+    ck_assert_int_eq(1, test_dst.call_count);
 }
 END_TEST
 
-START_TEST(should_consume_read_buffer_if_write_interrupts)
+START_TEST(should_consume_read_buffer_after_decode_blocks)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
-    int i;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = LMQTT_RX_BUFFER_SIZE / 2;
-    source.len = LMQTT_RX_BUFFER_SIZE / 4 * 5;
-    source.available_len = source.len;
-    for (i = 0; i < LMQTT_RX_BUFFER_SIZE / 4 * 5; i++)
-        source.buf[i] = i % 199;
+    test_src.len = 5 * RX_4TH;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = 2 * RX_4TH;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
-    /* will process half of a buffer; should read whole input (5/4 of a buffer),
-       and leave 3/4 of a buffer to process next time */
-    ck_assert_int_eq(LMQTT_RX_BUFFER_SIZE / 4 * 5, source.pos);
-    ck_assert_int_eq(3, source.call_count);
-    ck_assert_int_eq(LMQTT_RX_BUFFER_SIZE / 2, test_destination.pos);
-    ck_assert_int_eq(2, test_destination.call_count);
-    ck_assert_uint_eq(0 % 199, test_destination.buf[0]);
-    ck_assert_uint_eq((LMQTT_RX_BUFFER_SIZE / 2 - 1) % 199,
-        test_destination.buf[LMQTT_RX_BUFFER_SIZE / 2 - 1]);
+    /*
+     * Each position in the drawing below represents LMQTT_RX_BUFFER_SIZE / 8
+     * bytes. The flow of bytes between the buffers/streams is shown in 4 steps.
+     *
+     * read buf (stream, open ended):
+     *   **: bytes which can be read without blocking
+     *   ++: bytes not yet available (reading would block)
+     *
+     * rx buf (fixed buf):
+     *   **: bytes used
+     *     : free space
+     *
+     * decoded (stream, open ended):
+     *   ..: bytes which could be written without blocking
+     *     : bytes not yet writable (writing would block)
+     *
+     *     read buf         rx buf           decoded
+     * 1. |**********      |        |        |....
+     * 2. |**              |********|        |....
+     * 3. |**              |****    |        |****
+     * 4. |                |******  |        |****
+     */
+    ck_assert_int_eq(5 * RX_4TH, test_src.pos);
+    ck_assert_int_eq(3, test_src.call_count);
+
+    ck_assert_int_eq(2 * RX_4TH, test_dst.pos);
+    ck_assert_int_eq(2, test_dst.call_count);
+
+    CHECK_BUF_FILL_AT(test_dst.buf,              0);
+    CHECK_BUF_FILL_AT(test_dst.buf, 2 * RX_4TH - 1);
+    CHECK_BUF_ZERO_AT(test_dst.buf,     2 * RX_4TH);
 }
 END_TEST
 
-START_TEST(should_fill_read_buffer_if_write_interrupts)
+START_TEST(should_fill_read_buffer_if_decode_interrupts)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
-    int i;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = LMQTT_RX_BUFFER_SIZE / 2;
-    source.len = sizeof(source.buf);
-    source.available_len = source.len;
-    for (i = 0; i < sizeof(source.buf); i++)
-        source.buf[i] = i % 199;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = 2 * RX_4TH;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
-    /* will process half of a buffer; should read at most one and a half
-       buffer */
-    ck_assert_int_eq(LMQTT_RX_BUFFER_SIZE / 2 * 3, source.pos);
-    ck_assert_int_eq(2, source.call_count);
-    ck_assert_int_eq(LMQTT_RX_BUFFER_SIZE / 2, test_destination.pos);
-    ck_assert_int_eq(2, test_destination.call_count);
-    ck_assert_uint_eq(0 % 199, test_destination.buf[0]);
-    ck_assert_uint_eq((LMQTT_RX_BUFFER_SIZE / 2 - 1) % 199,
-        test_destination.buf[LMQTT_RX_BUFFER_SIZE / 2 - 1]);
+    /*
+     *     read buf           rx buf            decoded
+     * 1. |****************  |        |        |....
+     * 2. |********          |********|        |....
+     * 3. |********          |****    |        |****
+     * 4. |****              |********|        |****
+     */
+    ck_assert_int_eq(6 * RX_4TH, test_src.pos);
+    ck_assert_int_eq(2, test_src.call_count);
+
+    ck_assert_int_eq(2 * RX_4TH, test_dst.pos);
+    ck_assert_int_eq(2, test_dst.call_count);
+
+    CHECK_BUF_FILL_AT(test_dst.buf,              0);
+    CHECK_BUF_FILL_AT(test_dst.buf, 2 * RX_4TH - 1);
+    CHECK_BUF_ZERO_AT(test_dst.buf,     2 * RX_4TH);
 }
 END_TEST
 
 START_TEST(should_process_remaining_input_from_previous_call)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
-    int i;
-    static int s = LMQTT_RX_BUFFER_SIZE / 8;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = s;
-    source.len = sizeof(source.buf);
-    source.available_len = source.len;
-    for (i = 0; i < sizeof(source.buf); i++)
-        source.buf[i] = i % 199;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = RX_4TH / 2;
 
+    /*
+     *     read buf           rx buf            decoded
+     * 1. |****************  |        |        |.
+     * 2. |********          |********|        |.
+     * 3. |********          |******* |        |*
+     * 4. |*******           |********|        |*
+     */
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
-    ck_assert_int_eq(s, test_destination.pos);
-    ck_assert_int_eq(2, test_destination.call_count);
-    ck_assert_uint_eq(0 % 199, test_destination.buf[0]);
-    ck_assert_uint_eq((s - 1) % 199, test_destination.buf[s - 1]);
+    ck_assert_int_eq(RX_4TH / 2, test_dst.pos);
+    ck_assert_int_eq(2, test_dst.call_count);
 
-    test_destination.available_len += s;
+    CHECK_BUF_FILL_AT(test_dst.buf,              0);
+    CHECK_BUF_FILL_AT(test_dst.buf, RX_4TH / 2 - 1);
+    CHECK_BUF_ZERO_AT(test_dst.buf,     RX_4TH / 2);
+
+    test_dst.available_len += RX_4TH / 2;
+
+    /*
+     *     read buf           rx buf            decoded
+     * 1. |*******           |********|        |*.
+     * 2. |*******           |******* |        |**
+     * 3. |******            |********|        |**
+     */
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
-    ck_assert_int_eq(s + s, test_destination.pos);
-    ck_assert_int_eq(4, test_destination.call_count);
-    ck_assert_uint_eq(s % 199, test_destination.buf[s]);
-    ck_assert_uint_eq((s + s - 1) % 199, test_destination.buf[s + s - 1]);
+    ck_assert_int_eq(RX_4TH, test_dst.pos);
+    ck_assert_int_eq(4, test_dst.call_count);
+
+    CHECK_BUF_FILL_AT(test_dst.buf, RX_4TH / 2);
+    CHECK_BUF_FILL_AT(test_dst.buf, RX_4TH - 1);
+    CHECK_BUF_ZERO_AT(test_dst.buf,     RX_4TH);
 }
 END_TEST
 
 START_TEST(should_decode_remaining_buffer_if_read_blocks)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = test_destination.len;
-    memset(&source.buf, 0xf, 5);
-    source.len = 5;
-    source.available_len = 2;
+    test_src.len = 5;
+    test_src.available_len = 2;
+    test_dst.available_len = test_dst.len;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
-    ck_assert_int_eq(2, source.pos);
-    ck_assert_int_eq(2, test_destination.pos);
+    ck_assert_int_eq(2, test_src.pos);
+    ck_assert_int_eq(2, test_dst.pos);
 }
 END_TEST
 
 START_TEST(should_return_block_conn_if_both_read_and_decode_block)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
-    client.read = read_test_buf;
-    source.len = sizeof(source.buf);
-    source.available_len = 4;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = 2;
+    test_src.available_len = 4;
+    test_dst.available_len = 2;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
-    ck_assert_int_eq(4, source.pos);
-    ck_assert_int_eq(2, test_destination.pos);
+    ck_assert_int_eq(4, test_src.pos);
+    ck_assert_int_eq(2, test_dst.pos);
 }
 END_TEST
 
 START_TEST(should_not_decode_remaining_buffer_if_read_fails)
 {
     lmqtt_client_t client;
-    test_buffer_t source;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&source, 0, sizeof(source));
-    memset(&test_destination, 0, sizeof(test_destination));
+    PREPARE_READ;
 
-    client.data = &source;
     client.read = read_test_buf_fail;
-    test_destination.len = sizeof(test_destination.buf);
-    test_destination.available_len = test_destination.len;
-    source.len = sizeof(source.buf);
-    source.available_len = source.len;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = test_dst.len;
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, res);
 
-    ck_assert_int_eq(1, source.call_count);
-    ck_assert_int_eq(0, test_destination.call_count);
+    ck_assert_int_eq(1, test_src.call_count);
+    ck_assert_int_eq(0, test_dst.call_count);
 
     res = process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, res);
 
     /* should not try any other I/O after failure */
-    ck_assert_int_eq(1, source.call_count);
-    ck_assert_int_eq(0, test_destination.call_count);
+    ck_assert_int_eq(1, test_src.call_count);
+    ck_assert_int_eq(0, test_dst.call_count);
 }
 END_TEST
 
 START_TEST(should_process_output_with_complete_encode_and_complete_write)
 {
     lmqtt_client_t client;
-    test_buffer_t destination;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&destination, 0, sizeof(destination));
-    memset(&test_source, 0, sizeof(test_source));
+    PREPARE_WRITE;
 
-    client.data = &destination;
-    client.write = write_test_buf;
-    destination.len = sizeof(destination.buf);
-    destination.available_len = destination.len;
-    memset(&test_source.buf, 0xf, 5);
-    test_source.len = 5;
-    test_source.available_len = test_source.len;
+    test_src.len = 5;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = test_dst.len;
 
     res = process_output(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, res);
 
-    ck_assert_int_eq(5, destination.pos);
-    ck_assert_int_eq(1, destination.call_count);
-    ck_assert_int_eq(5, test_source.pos);
-    ck_assert_int_eq(2, test_source.call_count);
+    ck_assert_int_eq(5, test_dst.pos);
+    ck_assert_int_eq(1, test_dst.call_count);
+    ck_assert_int_eq(5, test_src.pos);
+    ck_assert_int_eq(2, test_src.call_count);
 }
 END_TEST
 
 START_TEST(should_encode_remaining_buffer_if_write_blocks)
 {
     lmqtt_client_t client;
-    test_buffer_t destination;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&destination, 0, sizeof(destination));
-    memset(&test_source, 0, sizeof(test_source));
+    PREPARE_WRITE;
 
-    client.data = &destination;
-    client.write = write_test_buf;
-    destination.len = sizeof(destination.buf);
-    destination.available_len = 2;
-    memset(&test_source.buf, 0xf, 20);
-    test_source.len = 20;
-    test_source.available_len = test_source.len;
+    test_src.len = 20;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = 2;
 
     res = process_output(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
-    ck_assert_int_eq(2, destination.pos);
-    ck_assert_int_eq(20, test_source.pos);
+    ck_assert_int_eq(2, test_dst.pos);
+    ck_assert_int_eq(20, test_src.pos);
 }
 END_TEST
 
 START_TEST(should_return_block_conn_if_both_encode_and_write_block)
 {
     lmqtt_client_t client;
-    test_buffer_t destination;
     lmqtt_io_status_t res;
 
-    memset(&client, 0, sizeof(client));
-    memset(&destination, 0, sizeof(destination));
-    memset(&test_source, 0, sizeof(test_source));
+    PREPARE_WRITE;
 
-    client.data = &destination;
-    client.write = write_test_buf;
-    test_source.len = sizeof(test_source.buf);
-    test_source.available_len = 4;
-    destination.len = sizeof(destination.buf);
-    destination.available_len = 2;
+    test_src.available_len = 4;
+    test_dst.available_len = 2;
 
     res = process_output(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
-    ck_assert_int_eq(4, test_source.pos);
-    ck_assert_int_eq(2, destination.pos);
+    ck_assert_int_eq(4, test_src.pos);
+    ck_assert_int_eq(2, test_dst.pos);
 }
 END_TEST
 
 START_TCASE("Process")
 {
     ADD_TEST(should_process_input_without_data);
-    ADD_TEST(should_consume_read_buffer_if_write_interrupts);
-    ADD_TEST(should_fill_read_buffer_if_write_interrupts);
+    ADD_TEST(should_process_input_with_complete_read_and_complete_decode);
+    ADD_TEST(should_consume_read_buffer_after_decode_blocks);
+    ADD_TEST(should_fill_read_buffer_if_decode_interrupts);
     ADD_TEST(should_process_remaining_input_from_previous_call);
     ADD_TEST(should_decode_remaining_buffer_if_read_blocks);
     ADD_TEST(should_return_block_conn_if_both_read_and_decode_block);
