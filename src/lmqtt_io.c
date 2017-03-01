@@ -38,7 +38,7 @@ static lmqtt_io_result_t buffer_write(lmqtt_write_t writer, void *data, u8 *buf,
     return result;
 }
 
-static int buffer_execute(lmqtt_io_result_t io_res, int *cnt,
+static int buffer_check(lmqtt_io_result_t io_res, int *cnt,
     lmqtt_io_status_t block_status, lmqtt_io_status_t *transfer_result,
     int *failed)
 {
@@ -51,6 +51,11 @@ static int buffer_execute(lmqtt_io_result_t io_res, int *cnt,
     return *cnt > 0;
 }
 
+/*
+ * TODO: test what happens if both reader and writer block. Behavior should be
+ * consistent between input and output, i.e., either LMQTT_IO_STATUS_BLOCK_CONN
+ * or LMQTT_IO_STATUS_BLOCK_DATA should be prefered.
+ */
 static lmqtt_io_status_t buffer_transfer(lmqtt_read_t reader, void *reader_data,
     lmqtt_io_status_t reader_block, lmqtt_write_t writer, void *writer_data,
     lmqtt_io_status_t writer_block, u8 *buf, int *buf_pos, int buf_len,
@@ -58,19 +63,21 @@ static lmqtt_io_status_t buffer_transfer(lmqtt_read_t reader, void *reader_data,
 {
     int read_allowed = 1;
     int write_allowed = 1;
-    lmqtt_io_status_t result = *failed ? LMQTT_IO_STATUS_ERROR :
-        LMQTT_IO_STATUS_READY;
+    lmqtt_io_status_t result = LMQTT_IO_STATUS_READY;
+
+    if (*failed)
+        return LMQTT_IO_STATUS_ERROR;
 
     while (read_allowed || write_allowed) {
         int cnt;
 
         read_allowed = read_allowed && !*failed && *buf_pos < buf_len &&
-            buffer_execute(
+            buffer_check(
                 buffer_read(reader, reader_data, buf, buf_pos, buf_len, &cnt),
                 &cnt, reader_block, &result, failed);
 
         write_allowed = write_allowed && !*failed && *buf_pos > 0 &&
-            buffer_execute(
+            buffer_check(
                 buffer_write(writer, writer_data, buf, buf_pos, &cnt),
                 &cnt, writer_block, &result, failed);
     }
