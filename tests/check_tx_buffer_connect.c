@@ -33,7 +33,7 @@ START_TEST(should_encode_connect)
     lmqtt_tx_buffer_connect(&state, &connect);
 
     ck_assert_ptr_eq(recipe_connect, state.recipe);
-    ck_assert_ptr_eq(&connect, state.data);
+    ck_assert_ptr_eq(&connect, state.recipe_data);
 
     ck_assert_int_eq(0, state.internal.recipe_pos);
     ck_assert_int_eq(0, state.internal.recipe_offset);

@@ -457,14 +457,41 @@ lmqtt_encode_t recipe_connect[] = {
 };
 
 /******************************************************************************
+ * lmqtt_tx_buffer_t PRIVATE functions
+ ******************************************************************************/
+
+static void tx_buffer_call_callback(lmqtt_tx_buffer_t *state)
+{
+    lmqtt_tx_buffer_callback_t callback = state->callback;
+    void *callback_data = state->callback_data;
+
+    /* zero first, then call callback, so that whatever the callback modifies is
+       not overwritten */
+    memset(state, 0, sizeof(*state));
+
+    if (callback)
+        callback(callback_data);
+}
+
+/******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
 
+/*
+ * TODO: after encoding call some function to modify client state:
+ * state->client_state.current->on_send_connect. Do the same when decoding.
+ * Those functions should return a success code. state->client_state.current
+ * should point to a function pointer table representing the current state of
+ * the client (not connected, connected, waiting suback, disconnected etc.)
+ */
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
     int offset = 0;
     *bytes_written = 0;
+
+    if (!state->recipe)
+        return LMQTT_IO_SUCCESS;
 
     while (1) {
         int result;
@@ -474,7 +501,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
         if (!recipe)
             break;
 
-        result = recipe(state->data, state->internal.recipe_offset,
+        result = recipe(state->recipe_data, state->internal.recipe_offset,
             buf + offset, buf_len - offset, &cur_bytes);
         if (result == LMQTT_ENCODE_WOULD_BLOCK)
             return LMQTT_IO_AGAIN;
@@ -492,6 +519,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
         state->internal.recipe_offset = 0;
     }
 
+    tx_buffer_call_callback(state);
     return LMQTT_IO_SUCCESS;
 }
 
@@ -499,7 +527,7 @@ void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state, lmqtt_connect_t *connect)
 {
     memset(state, 0, sizeof(*state));
     state->recipe = recipe_connect;
-    state->data = connect;
+    state->recipe_data = connect;
 }
 
 /******************************************************************************

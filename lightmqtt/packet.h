@@ -78,9 +78,14 @@ typedef struct _lmqtt_connack_t {
 typedef lmqtt_encode_result_t (*lmqtt_encode_t)(void *data, int offset, u8 *buf,
     int buf_len, int *bytes_written);
 
+typedef void (*lmqtt_tx_buffer_callback_t)(void *data);
+
 typedef struct _lmqtt_tx_buffer_t {
     lmqtt_encode_t *recipe;
-    void *data;
+    void *recipe_data;
+    lmqtt_tx_buffer_callback_t callback;
+    void *callback_data;
+
     struct {
         int recipe_pos;
         int recipe_offset;

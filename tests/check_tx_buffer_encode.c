@@ -15,7 +15,7 @@
     memset(recipe, 0, sizeof(recipe)); \
     memset(&state, 0, sizeof(state)); \
     state.recipe = recipe; \
-    state.data = &data; \
+    state.recipe_data = &data; \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf))
 
 /*
@@ -74,6 +74,12 @@ static lmqtt_encode_result_t encode_test_fail(int *data, int offset, u8 *buf,
     int buf_len, int *bytes_written)
 {
     return LMQTT_ENCODE_ERROR;
+}
+
+static void on_encode_connect(void *data)
+{
+    lmqtt_tx_buffer_t *buf = (lmqtt_tx_buffer_t *) data;
+    memset(&buf->internal, -1, sizeof(buf->internal));
 }
 
 START_TEST(should_encode_tx_buffer_with_one_encoding_function)
@@ -229,6 +235,36 @@ START_TEST(should_encode_blocking_buffer)
 }
 END_TEST
 
+START_TEST(should_call_callback_and_cleanup_after_encode)
+{
+    PREPARE;
+
+    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+
+    state.callback = on_encode_connect;
+    state.callback_data = &state;
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_ptr_eq(0, state.recipe);
+    ck_assert_ptr_eq(0, state.recipe_data);
+    /* should not zero data modified by the callback */
+    ck_assert_int_eq(-1, state.internal.recipe_pos);
+}
+END_TEST
+
+START_TEST(should_not_encode_null_recipe)
+{
+    PREPARE;
+
+    memset(&state, 0, sizeof(state));
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+}
+END_TEST
+
 START_TCASE("Tx buffer encode")
 {
     ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
@@ -238,5 +274,7 @@ START_TCASE("Tx buffer encode")
     ADD_TEST(should_continue_buffer_where_previous_call_stopped);
     ADD_TEST(should_continue_buffer_twice_with_the_same_recipe_entry);
     ADD_TEST(should_encode_blocking_buffer);
+    ADD_TEST(should_call_callback_and_cleanup_after_encode);
+    ADD_TEST(should_not_encode_null_recipe);
 }
 END_TCASE
