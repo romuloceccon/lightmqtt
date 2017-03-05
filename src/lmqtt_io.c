@@ -49,7 +49,7 @@ static int buffer_check(lmqtt_io_result_t io_res, int *cnt,
         return 0;
     }
 
-    if (io_res == LMQTT_IO_ERROR) {
+    if (io_res == LMQTT_IO_ERROR || *failed) {
         *transfer_result = LMQTT_IO_STATUS_ERROR;
         *failed = 1;
         return 0;
@@ -121,4 +121,72 @@ lmqtt_io_status_t process_output(lmqtt_client_t *client)
         client->write, client->data, LMQTT_IO_STATUS_BLOCK_CONN,
         client->write_buf, &client->write_buf_pos, sizeof(client->write_buf),
         &client->failed);
+}
+
+/******************************************************************************
+ * lmqtt_client_t PRIVATE functions
+ ******************************************************************************/
+
+static int client_on_connack_fail(void *data, lmqtt_connack_t *connack)
+{
+    lmqtt_client_t *client = (lmqtt_client_t *) data;
+
+    client->failed = 1;
+
+    return 1;
+}
+
+static int client_on_connack(void *data, lmqtt_connack_t *connack)
+{
+    lmqtt_client_t *client = (lmqtt_client_t *) data;
+
+    client->internal.rx_callbacks.on_connack = client_on_connack_fail;
+
+    if (client->on_connect && connack->return_code == LMQTT_CONNACK_RC_ACCEPTED)
+        client->on_connect(client->on_connect_data);
+    else
+        client->failed = 1;
+
+    return 1;
+}
+
+static int client_do_connect_fail(lmqtt_client_t *client,
+    lmqtt_connect_t *connect)
+{
+    return 0;
+}
+
+static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
+{
+    lmqtt_tx_buffer_connect(&client->tx_state, connect);
+    client->internal.connect = client_do_connect_fail;
+    client->internal.rx_callbacks.on_connack = client_on_connack;
+    return 1;
+}
+
+/******************************************************************************
+ * lmqtt_client_t PUBLIC functions
+ ******************************************************************************/
+
+void lmqtt_client_initialize(lmqtt_client_t *client)
+{
+    memset(client, 0, sizeof(*client));
+
+    client->internal.connect = client_do_connect;
+    client->internal.rx_callbacks.on_connack = client_on_connack_fail;
+
+    client->rx_state.callbacks = &client->internal.rx_callbacks;
+    client->rx_state.callbacks_data = client;
+}
+
+int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
+{
+    return client->internal.connect(client, connect);
+}
+
+void lmqtt_client_set_on_connect(lmqtt_client_t *client,
+    lmqtt_client_on_connect_t on_connect, void *on_connect_data)
+{
+    client->on_connect = on_connect;
+    client->on_connect_data = on_connect_data;
 }

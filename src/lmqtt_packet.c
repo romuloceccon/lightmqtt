@@ -26,14 +26,6 @@
 #define LMQTT_FLAG_USER_NAME_FLAG 0x80
 #define LMQTT_OFFSET_FLAG_QOS 3
 
-#define LMQTT_CONNACK_RC_ACCEPTED 0
-#define LMQTT_CONNACK_RC_UNACCEPTABLE_PROTOCOL_VERSION 1
-#define LMQTT_CONNACK_RC_IDENTIFIER_REJECTED 2
-#define LMQTT_CONNACK_RC_SERVER_UNAVAILABLE 3
-#define LMQTT_CONNACK_RC_BAD_USER_NAME_OR_PASSWORD 4
-#define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
-#define LMQTT_CONNACK_RC_MAX 5
-
 #define LMQTT_STRING_LEN_SIZE 2
 
 #define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
@@ -477,13 +469,6 @@ static void tx_buffer_call_callback(lmqtt_tx_buffer_t *state)
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
 
-/*
- * TODO: after encoding call some function to modify client state:
- * state->client_state.current->on_send_connect. Do the same when decoding.
- * Those functions should return a success code. state->client_state.current
- * should point to a function pointer table representing the current state of
- * the client (not connected, connected, waiting suback, disconnected etc.)
- */
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {

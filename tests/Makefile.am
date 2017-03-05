@@ -8,7 +8,8 @@ TESTS = \
     .bin/check_process \
     .bin/check_tx_buffer_encode \
     .bin/check_tx_buffer_connect \
-    .bin/check_rx_buffer_decode
+    .bin/check_rx_buffer_decode \
+    .bin/check_client_initialize
 
 
 check_PROGRAMS = $(TESTS)
@@ -19,10 +20,13 @@ _bin_check_connect_encode_payload_SOURCES   = check_connect_encode_payload.c
 _bin_check_connect_validate_SOURCES         = check_connect_validate.c
 _bin_check_fixed_header_decode_SOURCES      = check_fixed_header_decode.c
 _bin_check_connack_decode_SOURCES           = check_connack_decode.c
-_bin_check_process_SOURCES                  = check_process.c
+_bin_check_process_SOURCES                  = check_process.c \
+    check_lightmqtt.c
 _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c
 _bin_check_tx_buffer_connect_SOURCES        = check_tx_buffer_connect.c
 _bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c
+_bin_check_client_initialize_SOURCES        = check_client_initialize.c \
+    check_lightmqtt.c
 
 AM_CFLAGS = -I$(top_builddir) @CHECK_CFLAGS@
 LDADD = $(top_builddir)/src/liblightmqtt.la @CHECK_LIBS@

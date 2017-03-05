@@ -57,10 +57,9 @@ lmqtt_io_result_t write_data(void *data, u8 *buf, int buf_len,
     return LMQTT_IO_ERROR;
 }
 
-int on_connack(void *data, lmqtt_connack_t *connack)
+void on_connect(void *data)
 {
-    fprintf(stderr, "connected! (%d)\n", connack->return_code);
-    return 1;
+    fprintf(stderr, "connected!\n");
 }
 
 int main()
@@ -70,7 +69,6 @@ int main()
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
-    lmqtt_callbacks_t callbacks = { on_connack, NULL };
 
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);
@@ -88,19 +86,18 @@ int main()
         exit(1);
     }
 
-    memset(&client, 0, sizeof(client));
-    memset(&connect_data, 0, sizeof(connect_data));
-
+    lmqtt_client_initialize(&client);
     client.data = &socket_fd;
     client.read = read_data;
     client.write = write_data;
-    client.rx_state.callbacks = &callbacks;
+    lmqtt_client_set_on_connect(&client, on_connect, NULL);
 
+    memset(&connect_data, 0, sizeof(connect_data));
     connect_data.keep_alive = 0x102;
     connect_data.client_id.buf = "Rômulo";
     connect_data.client_id.len = 6;
 
-    lmqtt_tx_buffer_connect(&client.tx_state, &connect_data);
+    lmqtt_client_connect(&client, &connect_data);
 
     while (1) {
         int max_fd = socket_fd + 1;

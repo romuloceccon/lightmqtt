@@ -39,20 +39,6 @@
 
 #define RX_4TH (LMQTT_RX_BUFFER_SIZE / 4)
 
-static lmqtt_io_result_t move_buf(test_buffer_t *test_buffer, u8 *dst, u8 *src,
-    int len, int *bytes_written)
-{
-    int cnt = test_buffer->available_len - test_buffer->pos;
-    if (cnt > len)
-        cnt = len;
-    memcpy(dst, src, cnt);
-    *bytes_written = cnt;
-    test_buffer->pos += cnt;
-    test_buffer->call_count += 1;
-    return cnt == 0 && test_buffer->available_len < test_buffer->len ?
-        LMQTT_IO_AGAIN : LMQTT_IO_SUCCESS;
-}
-
 #include "../src/lmqtt_io.c"
 
 static test_buffer_t test_src;
@@ -63,7 +49,7 @@ static lmqtt_io_result_t read_test_buf(void *data, u8 *buf, int buf_len,
 {
     test_buffer_t *source = (test_buffer_t *) data;
 
-    return move_buf(source, buf, &source->buf[source->pos], buf_len,
+    return test_buffer_move(source, buf, &source->buf[source->pos], buf_len,
         bytes_read);
 }
 
@@ -72,21 +58,21 @@ static lmqtt_io_result_t write_test_buf(void *data, u8 *buf, int buf_len,
 {
     test_buffer_t *destination = (test_buffer_t *) data;
 
-    return move_buf(destination, &destination->buf[destination->pos], buf,
-        buf_len, bytes_written);
+    return test_buffer_move(destination, &destination->buf[destination->pos],
+        buf, buf_len, bytes_written);
 }
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read)
 {
-    return move_buf(&test_dst,
+    return test_buffer_move(&test_dst,
         &test_dst.buf[test_dst.pos], buf, buf_len, bytes_read);
 }
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
-    return move_buf(&test_src, buf, &test_src.buf[test_src.pos],
+    return test_buffer_move(&test_src, buf, &test_src.buf[test_src.pos],
         buf_len, bytes_written);
 }
 

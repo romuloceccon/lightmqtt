@@ -36,7 +36,7 @@
 
 #define ADD_TEST(method) tcase_add_test(tcase, method)
 
-#include "lightmqtt/core.h"
+#include "lightmqtt/packet.h"
 
 typedef struct {
     u8 buf[4096];
@@ -45,5 +45,8 @@ typedef struct {
     int available_len;
     int call_count;
 } test_buffer_t;
+
+lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
+    int len, int *bytes_written);
 
 #endif
