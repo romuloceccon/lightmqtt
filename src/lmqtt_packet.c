@@ -434,6 +434,26 @@ static lmqtt_decode_result_t connack_decode(lmqtt_connack_t *connack, u8 b)
 }
 
 /******************************************************************************
+ * (pingreq) PUBLIC functions
+ ******************************************************************************/
+
+static lmqtt_encode_result_t pingreq_encode_fixed_header(void *data, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    int pos = 0;
+
+    for (; offset < 2 && pos < buf_len; offset++) {
+        if (offset == 0)
+            buf[pos++] = LMQTT_TYPE_PINGREQ << 4;
+        else if (offset == 1)
+            buf[pos++] = 0;
+    }
+
+    *bytes_written = pos;
+    return offset >= 2 ? LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_CONTINUE;
+}
+
+/******************************************************************************
  * lmqtt_tx_buffer_t static data
  ******************************************************************************/
 
@@ -445,6 +465,11 @@ lmqtt_encode_t recipe_connect[] = {
     (lmqtt_encode_t) connect_encode_payload_will_message,
     (lmqtt_encode_t) connect_encode_payload_user_name,
     (lmqtt_encode_t) connect_encode_payload_password,
+    0
+};
+
+lmqtt_encode_t recipe_pingreq[] = {
+    (lmqtt_encode_t) pingreq_encode_fixed_header,
     0
 };
 
@@ -513,6 +538,12 @@ void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state, lmqtt_connect_t *connect)
     memset(state, 0, sizeof(*state));
     state->recipe = recipe_connect;
     state->recipe_data = connect;
+}
+
+void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
+{
+    memset(state, 0, sizeof(*state));
+    state->recipe = recipe_pingreq;
 }
 
 /******************************************************************************

@@ -6,6 +6,8 @@
 #define LMQTT_RX_BUFFER_SIZE 512
 #define LMQTT_TX_BUFFER_SIZE 512
 
+typedef lmqtt_io_result_t (*lmqtt_get_time_t)(long *, long *);
+
 typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
 
 typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
@@ -16,6 +18,7 @@ struct _lmqtt_client_t;
 
 typedef struct _lmqtt_client_t {
     void *data;
+    lmqtt_get_time_t get_time;
     lmqtt_read_t read;
     lmqtt_write_t write;
 
@@ -33,6 +36,7 @@ typedef struct _lmqtt_client_t {
 
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
+        int (*pingreq)(struct _lmqtt_client_t *);
         lmqtt_callbacks_t rx_callbacks;
     } internal;
 } lmqtt_client_t;

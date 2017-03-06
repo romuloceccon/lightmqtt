@@ -127,6 +127,16 @@ lmqtt_io_status_t process_output(lmqtt_client_t *client)
  * lmqtt_client_t PRIVATE functions
  ******************************************************************************/
 
+static int client_on_connack_fail(void *data, lmqtt_connack_t *connack);
+static int client_on_connack(void *data, lmqtt_connack_t *connack);
+static int client_on_pingresp_fail(void *data);
+static int client_on_pingresp(void *data);
+static int client_do_connect_fail(lmqtt_client_t *client,
+    lmqtt_connect_t *connect);
+static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);
+static int client_do_pingreq_fail(lmqtt_client_t *client);
+static int client_do_pingreq(lmqtt_client_t *client);
+
 static int client_on_connack_fail(void *data, lmqtt_connack_t *connack)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
@@ -142,10 +152,31 @@ static int client_on_connack(void *data, lmqtt_connack_t *connack)
 
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
 
-    if (client->on_connect && connack->return_code == LMQTT_CONNACK_RC_ACCEPTED)
-        client->on_connect(client->on_connect_data);
-    else
+    if (connack->return_code == LMQTT_CONNACK_RC_ACCEPTED) {
+        client->internal.pingreq = client_do_pingreq;
+        client->internal.rx_callbacks.on_pingresp = client_on_pingresp;
+
+        if (client->on_connect)
+            client->on_connect(client->on_connect_data);
+    } else {
         client->failed = 1;
+    }
+
+    return 1;
+}
+
+static int client_on_pingresp_fail(void *data)
+{
+    lmqtt_client_t *client = (lmqtt_client_t *) data;
+
+    client->failed = 1;
+
+    return 1;
+}
+
+static int client_on_pingresp(void *data)
+{
+    lmqtt_client_t *client = (lmqtt_client_t *) data;
 
     return 1;
 }
@@ -159,9 +190,29 @@ static int client_do_connect_fail(lmqtt_client_t *client,
 static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
     lmqtt_tx_buffer_connect(&client->tx_state, connect);
+
     client->internal.connect = client_do_connect_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack;
+
     return 1;
+}
+
+static int client_do_pingreq_fail(lmqtt_client_t *client)
+{
+    return 0;
+}
+
+static int client_do_pingreq(lmqtt_client_t *client)
+{
+    lmqtt_tx_buffer_pingreq(&client->tx_state);
+
+    return 1;
+}
+
+lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
+{
+    client->internal.pingreq(client);
+    return LMQTT_IO_STATUS_READY;
 }
 
 /******************************************************************************
@@ -173,7 +224,9 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
     memset(client, 0, sizeof(*client));
 
     client->internal.connect = client_do_connect;
+    client->internal.pingreq = client_do_pingreq_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
+    client->internal.rx_callbacks.on_pingresp = client_on_pingresp_fail;
 
     client->rx_state.callbacks = &client->internal.rx_callbacks;
     client->rx_state.callbacks_data = client;
