@@ -37,7 +37,16 @@ typedef struct _lmqtt_client_t {
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
         int (*pingreq)(struct _lmqtt_client_t *);
+
         lmqtt_callbacks_t rx_callbacks;
+
+        long keep_alive;
+        long timeout;
+        int resp_pending;
+        struct {
+            long secs;
+            long nsecs;
+        } last_resp;
     } internal;
 } lmqtt_client_t;
 
@@ -50,10 +59,12 @@ typedef enum {
 
 lmqtt_io_status_t process_input(lmqtt_client_t *client);
 lmqtt_io_status_t process_output(lmqtt_client_t *client);
+lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
 
 void lmqtt_client_initialize(lmqtt_client_t *client);
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);
 void lmqtt_client_set_on_connect(lmqtt_client_t *client,
     lmqtt_client_on_connect_t on_connect, void *on_connect_data);
+int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
 
 #endif

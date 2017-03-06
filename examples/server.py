@@ -29,6 +29,10 @@ while True:
                 print('  CONNECT')
                 data = ""
                 conn.send("\x20\x02\x00\x00")
+            elif len(data) >= 2 and data[0] == '\xc0':
+                print('  PINGREQ')
+                data = ""
+                conn.send("\xd0\x00")
     except KeyboardInterrupt:
         if conn:
             conn.close()
