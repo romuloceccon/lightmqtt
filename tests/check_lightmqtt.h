@@ -49,4 +49,7 @@ typedef struct {
 lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
     int len, int *bytes_written);
 
+lmqtt_io_result_t test_time_get(long *secs, long *nsecs);
+void test_time_set(long secs, long nsecs);
+
 #endif

@@ -14,6 +14,11 @@ typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
 
 typedef void (*lmqtt_client_on_connect_t)(void *);
 
+typedef struct _lmqtt_time_t {
+    long secs;
+    long nsecs;
+} lmqtt_time_t;
+
 struct _lmqtt_client_t;
 
 typedef struct _lmqtt_client_t {
@@ -33,6 +38,9 @@ typedef struct _lmqtt_client_t {
     int read_buf_pos;
     u8 write_buf[LMQTT_TX_BUFFER_SIZE];
     int write_buf_pos;
+    /* TODO: there should be one of this for each packet in the send queue (when
+     * the send queue is implemented) */
+    lmqtt_time_t last_req;
 
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
@@ -43,10 +51,7 @@ typedef struct _lmqtt_client_t {
         long keep_alive;
         long timeout;
         int resp_pending;
-        struct {
-            long secs;
-            long nsecs;
-        } last_resp;
+        lmqtt_time_t last_resp;
     } internal;
 } lmqtt_client_t;
 
@@ -65,6 +70,7 @@ void lmqtt_client_initialize(lmqtt_client_t *client);
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);
 void lmqtt_client_set_on_connect(lmqtt_client_t *client,
     lmqtt_client_on_connect_t on_connect, void *on_connect_data);
+void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs);
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
 
 #endif

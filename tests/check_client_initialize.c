@@ -11,24 +11,6 @@ enum {
     TEST_PINGRESP
 } test_type_t;
 
-static struct {
-    long secs;
-    long nsecs;
-} test_time;
-
-static lmqtt_io_result_t test_time_get(long *secs, long *nsecs)
-{
-    *secs = test_time.secs;
-    *nsecs = test_time.nsecs;
-    return LMQTT_IO_SUCCESS;
-}
-
-static void test_time_set(long secs, long nsecs)
-{
-    test_time.secs = secs;
-    test_time.nsecs = nsecs;
-}
-
 typedef struct {
     test_buffer_t read_buf;
     test_buffer_t write_buf;
@@ -173,11 +155,13 @@ static void on_connect(void *data)
     *((int *) data) = 1;
 }
 
-static int prepare_connection(lmqtt_client_t *client, long keep_alive)
+static int do_connect_and_connack(lmqtt_client_t *client, long keep_alive,
+    long timeout)
 {
     lmqtt_connect_t connect;
 
     lmqtt_client_initialize(client);
+    lmqtt_client_set_default_timeout(client, timeout);
     test_socket_init_with_client(client);
 
     memset(&connect, 0, sizeof(connect));
@@ -192,15 +176,22 @@ static int prepare_connection(lmqtt_client_t *client, long keep_alive)
         TEST_CONNECT == test_socket_shift();
 }
 
-static void prepare_keep_alive_test(lmqtt_client_t *client, long keep_alive,
-    long secs, long nsecs)
+static int do_connect(lmqtt_client_t *client, long keep_alive,
+    long timeout)
 {
-    lmqtt_client_initialize(client);
+    lmqtt_connect_t connect;
 
-    client->get_time = test_time_get;
-    client->internal.keep_alive = keep_alive;
-    client->internal.last_resp.secs = secs;
-    client->internal.last_resp.nsecs = nsecs;
+    lmqtt_client_initialize(client);
+    lmqtt_client_set_default_timeout(client, timeout);
+    test_socket_init_with_client(client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.keep_alive = keep_alive;
+
+    lmqtt_client_connect(client, &connect);
+
+    return LMQTT_IO_STATUS_READY == process_output(client) &&
+        TEST_CONNECT == test_socket_shift();
 }
 
 START_TEST(should_initialize_client)
@@ -320,103 +311,13 @@ START_TEST(should_not_receive_connack_before_connect)
 }
 END_TEST
 
-START_TEST(should_get_integral_time_until_keep_alive)
-{
-    lmqtt_client_t client;
-    long secs, nsecs;
-
-    prepare_keep_alive_test(&client, 5, 10, 0);
-
-    test_time_set(14, 0);
-    ck_assert_int_eq(1, client_get_timeout_to(&client, 5, &secs, &nsecs));
-
-    ck_assert_int_eq(1, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_fractional_time_until_keep_alive)
-{
-    lmqtt_client_t client;
-    long secs, nsecs;
-
-    prepare_keep_alive_test(&client, 5, 10, 500e6);
-
-    test_time_set(14, 400e6);
-    ck_assert_int_eq(1, client_get_timeout_to(&client, 5, &secs, &nsecs));
-
-    ck_assert_int_eq(1, secs);
-    ck_assert_int_eq(100e6, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_fractional_time_with_carry_until_keep_alive)
-{
-    lmqtt_client_t client;
-    long secs, nsecs;
-
-    prepare_keep_alive_test(&client, 5, 10, 500e6);
-
-    test_time_set(14, 600e6);
-    ck_assert_int_eq(1, client_get_timeout_to(&client, 5, &secs, &nsecs));
-
-    ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(900e6, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_time_until_expired_keep_alive)
-{
-    lmqtt_client_t client;
-    long secs, nsecs;
-
-    prepare_keep_alive_test(&client, 5, 10, 500e6);
-
-    test_time_set(15, 600e6);
-    ck_assert_int_eq(1, client_get_timeout_to(&client, 5, &secs, &nsecs));
-
-    ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_time_until_keep_alive_at_expiration_time)
-{
-    lmqtt_client_t client;
-    long secs, nsecs;
-
-    prepare_keep_alive_test(&client, 5, 10, 500e6);
-
-    test_time_set(15, 500e6);
-    ck_assert_int_eq(1, client_get_timeout_to(&client, 5, &secs, &nsecs));
-
-    ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_time_with_zeroed_keep_alive)
-{
-    lmqtt_client_t client;
-    long secs, nsecs;
-
-    prepare_keep_alive_test(&client, 0, 10, 0);
-
-    test_time_set(11, 0);
-    ck_assert_int_eq(0, client_get_timeout_to(&client, 0, &secs, &nsecs));
-
-    ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
 START_TEST(should_send_pingreq_after_timeout)
 {
     lmqtt_client_t client;
     long secs, nsecs;
 
     test_time_set(10, 0);
-    ck_assert_int_eq(1, prepare_connection(&client, 5));
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     test_time_set(15, 0);
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
@@ -427,7 +328,7 @@ START_TEST(should_send_pingreq_after_timeout)
     ck_assert_int_eq(TEST_PINGREQ, test_socket_shift());
 
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
-    ck_assert_int_eq(5, secs);
+    ck_assert_int_eq(3, secs);
 }
 END_TEST
 
@@ -437,7 +338,7 @@ START_TEST(should_not_send_pingreq_before_timeout)
     long secs, nsecs;
 
     test_time_set(10, 0);
-    ck_assert_int_eq(1, prepare_connection(&client, 5));
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     test_time_set(14, 0);
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
@@ -458,7 +359,7 @@ START_TEST(should_not_send_pingreq_with_response_pending)
     long secs, nsecs;
 
     test_time_set(10, 0);
-    ck_assert_int_eq(1, prepare_connection(&client, 5));
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     test_time_set(16, 0);
     client_keep_alive(&client);
@@ -478,7 +379,7 @@ START_TEST(should_send_pingreq_after_pingresp)
     long secs, nsecs;
 
     test_time_set(10, 0);
-    ck_assert_int_eq(1, prepare_connection(&client, 5));
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     test_time_set(16, 0);
     client_keep_alive(&client);
@@ -500,7 +401,7 @@ START_TEST(should_fail_client_after_pingreq_timeout)
     long secs, nsecs;
 
     test_time_set(10, 0);
-    ck_assert_int_eq(1, prepare_connection(&client, 5));
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     test_time_set(15, 0);
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
@@ -517,21 +418,12 @@ START_TEST(should_fail_client_after_pingreq_timeout)
 }
 END_TEST
 
-/* TODO: refactor duplicated code in the next 4 tests */
 START_TEST(should_not_send_pingreq_after_failure)
 {
     lmqtt_client_t client;
-    lmqtt_connect_t connect;
 
     test_time_set(10, 0);
-    lmqtt_client_initialize(&client);
-    test_socket_init_with_client(&client);
-
-    memset(&connect, 0, sizeof(connect));
-    connect.keep_alive = 5;
-    lmqtt_client_connect(&client, &connect);
-    process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    do_connect(&client, 5, 0);
 
     test_socket_append(TEST_CONNACK_FAILURE);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, process_input(&client));
@@ -546,17 +438,9 @@ END_TEST
 START_TEST(should_not_send_pingreq_before_connack)
 {
     lmqtt_client_t client;
-    lmqtt_connect_t connect;
 
     test_time_set(10, 0);
-    lmqtt_client_initialize(&client);
-    test_socket_init_with_client(&client);
-
-    memset(&connect, 0, sizeof(connect));
-    connect.keep_alive = 5;
-    lmqtt_client_connect(&client, &connect);
-    process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    do_connect(&client, 5, 0);
 
     test_time_set(16, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
@@ -568,20 +452,26 @@ END_TEST
 START_TEST(should_fail_client_after_connection_timeout)
 {
     lmqtt_client_t client;
-    lmqtt_connect_t connect;
 
     test_time_set(10, 0);
-    lmqtt_client_initialize(&client);
-    test_socket_init_with_client(&client);
+    do_connect(&client, 5, 3);
 
-    memset(&connect, 0, sizeof(connect));
-    connect.keep_alive = 5;
-    lmqtt_client_connect(&client, &connect);
-    process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
-
-    test_time_set(21, 0);
+    test_time_set(14, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
+    process_output(&client);
+    ck_assert_int_eq(-1, test_socket_shift());
+}
+END_TEST
+
+START_TEST(should_not_fail_client_before_connection_timeout)
+{
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_connect(&client, 5, 7);
+
+    test_time_set(16, 0);
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
     process_output(&client);
     ck_assert_int_eq(-1, test_socket_shift());
 }
@@ -590,17 +480,9 @@ END_TEST
 START_TEST(should_not_send_pingreq_with_zeroed_keep_alive)
 {
     lmqtt_client_t client;
-    lmqtt_connect_t connect;
 
     test_time_set(10, 0);
-    lmqtt_client_initialize(&client);
-    test_socket_init_with_client(&client);
-
-    memset(&connect, 0, sizeof(connect));
-    connect.keep_alive = 0;
-    lmqtt_client_connect(&client, &connect);
-    process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    do_connect(&client, 0, 0);
 
     test_socket_append(TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_input(&client));
@@ -621,13 +503,6 @@ START_TCASE("Client initialize")
     ADD_TEST(should_not_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);
 
-    ADD_TEST(should_get_integral_time_until_keep_alive);
-    ADD_TEST(should_get_fractional_time_until_keep_alive);
-    ADD_TEST(should_get_fractional_time_with_carry_until_keep_alive);
-    ADD_TEST(should_get_time_until_expired_keep_alive);
-    ADD_TEST(should_get_time_until_keep_alive_at_expiration_time);
-    ADD_TEST(should_get_time_with_zeroed_keep_alive);
-
     ADD_TEST(should_send_pingreq_after_timeout);
     ADD_TEST(should_not_send_pingreq_before_timeout);
     ADD_TEST(should_not_send_pingreq_with_response_pending);
@@ -636,6 +511,7 @@ START_TCASE("Client initialize")
     ADD_TEST(should_not_send_pingreq_after_failure);
     ADD_TEST(should_not_send_pingreq_before_connack);
     ADD_TEST(should_fail_client_after_connection_timeout);
+    ADD_TEST(should_not_fail_client_before_connection_timeout);
     ADD_TEST(should_not_send_pingreq_with_zeroed_keep_alive);
 }
 END_TCASE

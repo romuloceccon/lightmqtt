@@ -9,8 +9,8 @@ TESTS = \
     .bin/check_tx_buffer_encode \
     .bin/check_tx_buffer_connect \
     .bin/check_rx_buffer_decode \
-    .bin/check_client_initialize
-
+    .bin/check_client_initialize \
+    .bin/check_time
 
 check_PROGRAMS = $(TESTS)
 
@@ -26,6 +26,8 @@ _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c
 _bin_check_tx_buffer_connect_SOURCES        = check_tx_buffer_connect.c
 _bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c
 _bin_check_client_initialize_SOURCES        = check_client_initialize.c \
+    check_lightmqtt.c
+_bin_check_time_SOURCES                     = check_time.c \
     check_lightmqtt.c
 
 AM_CFLAGS = -I$(top_builddir) @CHECK_CFLAGS@

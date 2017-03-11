@@ -110,6 +110,7 @@ int main()
     client.write = write_data;
     client.get_time = get_time;
     lmqtt_client_set_on_connect(&client, on_connect, NULL);
+    lmqtt_client_set_default_timeout(&client, 2);
 
     memset(&connect_data, 0, sizeof(connect_data));
     connect_data.keep_alive = 10;

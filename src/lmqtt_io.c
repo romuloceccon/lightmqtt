@@ -1,6 +1,52 @@
 #include <lightmqtt/io.h>
 #include <string.h>
 
+/******************************************************************************
+ * lmqtt_time_t PRIVATE functions
+ ******************************************************************************/
+
+static int time_get_timeout_to(lmqtt_time_t *tm, lmqtt_get_time_t get_time,
+    long when, long *secs, long *nsecs)
+{
+    long tmo_secs, tmo_nsecs;
+    long cur_secs, cur_nsecs;
+    long diff;
+
+    if (when == 0) {
+        *nsecs = 0;
+        *secs = 0;
+        return 0;
+    }
+
+    tmo_secs = tm->secs + when;
+    tmo_nsecs = tm->nsecs;
+
+    get_time(&cur_secs, &cur_nsecs);
+
+    if (tmo_nsecs < cur_nsecs) {
+        tmo_nsecs += 1e9;
+        tmo_secs -= 1;
+    }
+
+    if (cur_secs <= tmo_secs) {
+        *nsecs = tmo_nsecs - cur_nsecs;
+        *secs = tmo_secs - cur_secs;
+    } else {
+        *nsecs = 0;
+        *secs = 0;
+    }
+    return 1;
+}
+
+static void time_touch(lmqtt_time_t *tm, lmqtt_get_time_t get_time)
+{
+    get_time(&tm->secs, &tm->nsecs);
+}
+
+/******************************************************************************
+ * misc functions (need refactoring)
+ ******************************************************************************/
+
 static lmqtt_io_result_t decode_wrapper(void *data, u8 *buf, int buf_len,
     int *bytes_read)
 {
@@ -127,43 +173,15 @@ lmqtt_io_status_t process_output(lmqtt_client_t *client)
  * lmqtt_client_t PRIVATE functions
  ******************************************************************************/
 
-static int client_get_timeout_to(lmqtt_client_t *client, long when,
-    long *secs, long *nsecs)
+static void client_touch_req(lmqtt_client_t *client)
 {
-    long tmo_secs, tmo_nsecs;
-    long cur_secs, cur_nsecs;
-    long diff;
-
-    if (when == 0) {
-        *nsecs = 0;
-        *secs = 0;
-        return 0;
-    }
-
-    tmo_secs = client->internal.last_resp.secs + when;
-    tmo_nsecs = client->internal.last_resp.nsecs;
-
-    client->get_time(&cur_secs, &cur_nsecs);
-
-    if (tmo_nsecs < cur_nsecs) {
-        tmo_nsecs += 1e9;
-        tmo_secs -= 1;
-    }
-
-    if (cur_secs <= tmo_secs) {
-        *nsecs = tmo_nsecs - cur_nsecs;
-        *secs = tmo_secs - cur_secs;
-    } else {
-        *nsecs = 0;
-        *secs = 0;
-    }
-    return 1;
+    time_touch(&client->last_req, client->get_time);
+    client->internal.resp_pending = 1;
 }
 
-static void client_touch(lmqtt_client_t *client)
+static void client_touch_resp(lmqtt_client_t *client)
 {
-    client->get_time(&client->internal.last_resp.secs,
-        &client->internal.last_resp.nsecs);
+    time_touch(&client->internal.last_resp, client->get_time);
     client->internal.resp_pending = 0;
 }
 
@@ -175,14 +193,14 @@ lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
         return LMQTT_IO_STATUS_ERROR;
 
     if (client->internal.resp_pending) {
-        if (client_get_timeout_to(client, client->internal.timeout, &s, &ns) &&
-                s == 0 && ns == 0) {
+        if (time_get_timeout_to(&client->last_req, client->get_time,
+                client->internal.timeout, &s, &ns) && s == 0 && ns == 0) {
             client->failed = 1;
             return LMQTT_IO_STATUS_ERROR;
         }
     } else {
-        if (client_get_timeout_to(client, client->internal.keep_alive, &s, &ns) &&
-                s == 0 && ns == 0) {
+        if (time_get_timeout_to(&client->internal.last_resp, client->get_time,
+                client->internal.keep_alive, &s, &ns) && s == 0 && ns == 0) {
             client->internal.pingreq(client);
         }
     }
@@ -215,7 +233,7 @@ static int client_on_connack(void *data, lmqtt_connack_t *connack)
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
 
     if (connack->return_code == LMQTT_CONNACK_RC_ACCEPTED) {
-        client_touch(client);
+        client_touch_resp(client);
         client->internal.rx_callbacks.on_pingresp = client_on_pingresp;
 
         if (client->on_connect)
@@ -240,7 +258,7 @@ static int client_on_pingresp(void *data)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client_touch(client);
+    client_touch_resp(client);
 
     return 1;
 }
@@ -255,12 +273,10 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
     lmqtt_tx_buffer_connect(&client->tx_state, connect);
 
-    client_touch(client);
+    client_touch_req(client);
     client->internal.connect = client_do_connect_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack;
     client->internal.keep_alive = connect->keep_alive;
-    client->internal.timeout = 2 * connect->keep_alive;
-    client->internal.resp_pending = 1;
 
     return 1;
 }
@@ -269,7 +285,7 @@ static int client_do_pingreq(lmqtt_client_t *client)
 {
     lmqtt_tx_buffer_pingreq(&client->tx_state);
 
-    client->internal.resp_pending = 1;
+    client_touch_req(client);
 
     return 1;
 }
@@ -303,10 +319,23 @@ void lmqtt_client_set_on_connect(lmqtt_client_t *client,
     client->on_connect_data = on_connect_data;
 }
 
+void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs)
+{
+    client->internal.timeout = secs;
+}
+
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 {
-    long when = client->internal.resp_pending ? client->internal.timeout :
-        client->internal.keep_alive;
+    long when;
+    lmqtt_time_t *tm;
 
-    return client_get_timeout_to(client, when, secs, nsecs);
+    if (client->internal.resp_pending) {
+        tm = &client->last_req;
+        when = client->internal.timeout;
+    } else {
+        tm = &client->internal.last_resp;
+        when = client->internal.keep_alive;
+    }
+
+    return time_get_timeout_to(tm, client->get_time, when, secs, nsecs);
 }
