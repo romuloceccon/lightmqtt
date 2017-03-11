@@ -67,14 +67,14 @@ static lmqtt_encode_result_t encode_buffer_encode(
     int result;
 
     assert(buf_len >= 0);
-    assert(offset == 0 || encode_buffer->buf_len > 0 &&
-        offset < encode_buffer->buf_len);
 
-    if (!encode_buffer->encoded &&
-            builder(data, encode_buffer) != LMQTT_ENCODE_FINISHED)
-        return LMQTT_ENCODE_ERROR;
+    if (!encode_buffer->encoded) {
+        if (builder(data, encode_buffer) != LMQTT_ENCODE_FINISHED)
+            return LMQTT_ENCODE_ERROR;
+        encode_buffer->encoded = 1;
+    }
+    assert(encode_buffer->buf_len > 0 && offset < encode_buffer->buf_len);
 
-    encode_buffer->encoded = 1;
     cnt = encode_buffer->buf_len - offset;
     result = LMQTT_ENCODE_FINISHED;
 

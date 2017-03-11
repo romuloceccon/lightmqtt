@@ -1,5 +1,6 @@
 TESTS = \
     .bin/check_encode_remaining_length \
+    .bin/check_encode_buffer \
     .bin/check_connect_encode_headers \
     .bin/check_connect_encode_payload \
     .bin/check_connect_validate \
@@ -15,6 +16,7 @@ TESTS = \
 check_PROGRAMS = $(TESTS)
 
 _bin_check_encode_remaining_length_SOURCES  = check_encode_remaining_length.c
+_bin_check_encode_buffer_SOURCES            = check_encode_buffer.c
 _bin_check_connect_encode_headers_SOURCES   = check_connect_encode_headers.c
 _bin_check_connect_encode_payload_SOURCES   = check_connect_encode_payload.c
 _bin_check_connect_validate_SOURCES         = check_connect_validate.c

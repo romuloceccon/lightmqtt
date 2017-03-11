@@ -29,6 +29,7 @@
     memset(&connect, 0, sizeof(connect)); \
     memset(&encode_buffer, 0, sizeof(encode_buffer)); \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf)); \
+    memset(&encode_buffer.buf, BUF_PLACEHOLDER, sizeof(encode_buffer.buf)); \
     INIT_LMQTT_STRING(client_id, 1, CLIENT_ID_PLACEHOLDER); \
     INIT_LMQTT_STRING(will_topic, 0, WILL_TOPIC_PLACEHOLDER); \
     INIT_LMQTT_STRING(will_message, 0, WILL_MESSAGE_PLACEHOLDER); \
@@ -39,82 +40,57 @@ START_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len)
 {
     PREPARE;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
-        sizeof(buf), &bytes_w);
+    res = connect_build_fixed_header(&connect, &encode_buffer);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
-    ck_assert_int_eq(2, bytes_w);
 
-    ck_assert_uint_eq(0x10, buf[0]);
-    ck_assert_uint_eq(13,   buf[1]);
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[2]);
+    ck_assert_uint_eq(2,    encode_buffer.buf_len);
+    ck_assert_uint_eq(0x10, encode_buffer.buf[0]);
+    ck_assert_uint_eq(13,   encode_buffer.buf[1]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, encode_buffer.buf[2]);
 }
 END_TEST
 
-START_TEST(should_encode_connect_fixed_header_with_offset)
+START_TEST(should_encode_connect_fixed_header_with_two_byte_remaining_len)
 {
     PREPARE;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
-        1, &bytes_w);
+    connect.client_id.buf = client_id;
+    connect.client_id.len = 256;
 
-    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
-    ck_assert_int_eq(1, bytes_w);
-
-    ck_assert_uint_eq(0x10, buf[0]);
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
-
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 1, buf,
-        sizeof(buf), &bytes_w);
+    res = connect_build_fixed_header(&connect, &encode_buffer);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
-    ck_assert_int_eq(1, bytes_w);
 
-    ck_assert_uint_eq(13, buf[0]);
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[1]);
+    ck_assert_uint_eq(3,    encode_buffer.buf_len);
+    ck_assert_uint_eq(0x10, encode_buffer.buf[0]);
+    ck_assert_uint_eq(140,  encode_buffer.buf[1]);
+    ck_assert_uint_eq(2,    encode_buffer.buf[2]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, encode_buffer.buf[3]);
 }
 END_TEST
 
-START_TEST(should_encode_connect_fixed_header_at_zero_length_buffer)
+START_TEST(should_encode_connect_variable_header)
 {
     PREPARE;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
-        0, &bytes_w);
-
-    ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
-    ck_assert_int_eq(0, bytes_w);
-
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[0]);
-}
-END_TEST
-
-START_TEST(should_encode_simple_connect)
-{
-    PREPARE;
-
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf,
-        sizeof(buf), &bytes_w);
+    res = connect_build_variable_header(&connect, &encode_buffer);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
-    ck_assert_int_eq(10, bytes_w);
 
-    ck_assert_uint_eq(0x00, buf[0]);
-    ck_assert_uint_eq(0x04, buf[1]);
-    ck_assert_uint_eq('M',  buf[2]);
-    ck_assert_uint_eq('Q',  buf[3]);
-    ck_assert_uint_eq('T',  buf[4]);
-    ck_assert_uint_eq('T',  buf[5]);
+    ck_assert_uint_eq(0x00, encode_buffer.buf[0]);
+    ck_assert_uint_eq(0x04, encode_buffer.buf[1]);
+    ck_assert_uint_eq('M',  encode_buffer.buf[2]);
+    ck_assert_uint_eq('Q',  encode_buffer.buf[3]);
+    ck_assert_uint_eq('T',  encode_buffer.buf[4]);
+    ck_assert_uint_eq('T',  encode_buffer.buf[5]);
 
-    ck_assert_uint_eq(0x04,  buf[6]);
-    ck_assert_uint_eq(0x00,  buf[7]);
-    ck_assert_uint_eq(0x00,  buf[8]);
-    ck_assert_uint_eq(0x00,  buf[9]);
+    ck_assert_uint_eq(0x04,  encode_buffer.buf[6]);
+    ck_assert_uint_eq(0x00,  encode_buffer.buf[7]);
+    ck_assert_uint_eq(0x00,  encode_buffer.buf[8]);
+    ck_assert_uint_eq(0x00,  encode_buffer.buf[9]);
 
-    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[10]);
-
-    ck_assert_int_eq(0, encode_buffer.buf_len);
-    ck_assert_uint_eq(0, encode_buffer.buf[0]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, encode_buffer.buf[10]);
 }
 END_TEST
 
@@ -301,9 +277,8 @@ END_TEST
 START_TCASE("Encode connect headers")
 {
     ADD_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len);
-    ADD_TEST(should_encode_connect_fixed_header_with_offset);
-    ADD_TEST(should_encode_connect_fixed_header_at_zero_length_buffer);
-    ADD_TEST(should_encode_simple_connect);
+    ADD_TEST(should_encode_connect_fixed_header_with_two_byte_remaining_len);
+    ADD_TEST(should_encode_connect_variable_header);
     ADD_TEST(should_encode_connect_keep_alive);
     ADD_TEST(should_encode_connect_will_topic_and_message);
     ADD_TEST(should_encode_connect_user_name);
