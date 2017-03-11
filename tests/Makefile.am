@@ -7,8 +7,8 @@ TESTS = \
     .bin/check_connack_decode \
     .bin/check_process \
     .bin/check_tx_buffer_encode \
-    .bin/check_tx_buffer_connect \
     .bin/check_rx_buffer_decode \
+    .bin/check_tx_buffer_recipes \
     .bin/check_client_initialize \
     .bin/check_time
 
@@ -23,8 +23,8 @@ _bin_check_connack_decode_SOURCES           = check_connack_decode.c
 _bin_check_process_SOURCES                  = check_process.c \
     check_lightmqtt.c
 _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c
-_bin_check_tx_buffer_connect_SOURCES        = check_tx_buffer_connect.c
 _bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c
+_bin_check_tx_buffer_recipes_SOURCES        = check_tx_buffer_recipes.c
 _bin_check_client_initialize_SOURCES        = check_client_initialize.c \
     check_lightmqtt.c
 _bin_check_time_SOURCES                     = check_time.c \

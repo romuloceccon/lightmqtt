@@ -52,26 +52,30 @@ static lmqtt_encode_result_t encode_test_range(int *data, int offset, u8 *buf,
     return LMQTT_ENCODE_FINISHED;
 }
 
-static lmqtt_encode_result_t encode_test_0_9(int *data, int offset, u8 *buf,
-    int buf_len, int *bytes_written)
+static lmqtt_encode_result_t encode_test_0_9(int *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
 {
     return encode_test_range(data, offset, buf, buf_len, bytes_written, 0, 9, 10);
 }
 
-static lmqtt_encode_result_t encode_test_50_54(int *data, int offset, u8 *buf,
-    int buf_len, int *bytes_written)
+static lmqtt_encode_result_t encode_test_50_54(int *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
 {
     return encode_test_range(data, offset, buf, buf_len, bytes_written, 50, 54, 55);
 }
 
-static lmqtt_encode_result_t encode_test_10_19_blocking(int *data, int offset,
-    u8 *buf, int buf_len, int *bytes_written)
+static lmqtt_encode_result_t encode_test_10_19_blocking(int *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
 {
     return encode_test_range(data, offset, buf, buf_len, bytes_written, 10, 19, 15);
 }
 
-static lmqtt_encode_result_t encode_test_fail(int *data, int offset, u8 *buf,
-    int buf_len, int *bytes_written)
+static lmqtt_encode_result_t encode_test_fail(int *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
 {
     return LMQTT_ENCODE_ERROR;
 }

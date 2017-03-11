@@ -51,8 +51,36 @@ START_TEST(should_encode_connect)
 }
 END_TEST
 
-START_TCASE("Tx buffer connect")
+START_TEST(should_encode_pingreq)
+{
+    u8 buf[512];
+
+    lmqtt_tx_buffer_t state;
+
+    lmqtt_io_result_t res;
+    int bytes_written;
+
+    memset(buf, 0xcc, sizeof(buf));
+    memset(&state, 0xcc, sizeof(state));
+
+    lmqtt_tx_buffer_pingreq(&state);
+
+    ck_assert_ptr_eq(recipe_pingreq, state.recipe);
+    ck_assert_ptr_eq(0, state.recipe_data);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(2, bytes_written);
+
+    ck_assert_int_eq(0xc0, buf[0]);
+    ck_assert_int_eq(0x00, buf[1]);
+}
+END_TEST
+
+START_TCASE("Tx buffer recipes")
 {
     ADD_TEST(should_encode_connect);
+    ADD_TEST(should_encode_pingreq);
 }
 END_TCASE

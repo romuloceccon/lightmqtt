@@ -15,8 +15,6 @@
 #define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
 #define LMQTT_CONNACK_RC_MAX 5
 
-#define LMQTT_MAX(a, b) ((a) >= (b) ? (a) : (b))
-
 typedef enum {
     LMQTT_ENCODE_FINISHED = 110,
     LMQTT_ENCODE_CONTINUE,
@@ -35,6 +33,15 @@ typedef enum {
     LMQTT_READ_WOULD_BLOCK,
     LMQTT_READ_ERROR
 } lmqtt_read_result_t;
+
+typedef struct _lmqtt_encode_buffer_t {
+    int encoded;
+    int buf_len;
+    u8 buf[16 - sizeof(int)];
+} lmqtt_encode_buffer_t;
+
+typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(void *,
+    lmqtt_encode_buffer_t *);
 
 typedef struct _lmqtt_string_t {
     int len;
@@ -68,10 +75,6 @@ typedef struct _lmqtt_connect_t {
     lmqtt_string_t will_message;
     lmqtt_string_t user_name;
     lmqtt_string_t password;
-    struct {
-        int buf_len;
-        u8 buf[LMQTT_MAX(LMQTT_FIXED_HEADER_MAX_SIZE, LMQTT_CONNECT_HEADER_SIZE)];
-    } internal;
 } lmqtt_connect_t;
 
 typedef struct _lmqtt_connack_t {
@@ -83,8 +86,9 @@ typedef struct _lmqtt_connack_t {
     } internal;
 } lmqtt_connack_t;
 
-typedef lmqtt_encode_result_t (*lmqtt_encode_t)(void *data, int offset, u8 *buf,
-    int buf_len, int *bytes_written);
+typedef lmqtt_encode_result_t (*lmqtt_encode_t)(void *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written);
 
 typedef void (*lmqtt_tx_buffer_callback_t)(void *data);
 
@@ -97,6 +101,7 @@ typedef struct _lmqtt_tx_buffer_t {
     struct {
         int recipe_pos;
         int recipe_offset;
+        lmqtt_encode_buffer_t encode_buffer;
     } internal;
 } lmqtt_tx_buffer_t;
 

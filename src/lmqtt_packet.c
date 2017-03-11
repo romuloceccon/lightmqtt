@@ -55,6 +55,44 @@ static lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
 }
 
 /******************************************************************************
+ * lmqtt_encode_buffer_t PRIVATE functions
+ ******************************************************************************/
+
+static lmqtt_encode_result_t encode_buffer_encode(
+    lmqtt_encode_buffer_t *encode_buffer, void *data,
+    encode_buffer_builder_t builder, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    int cnt;
+    int result;
+
+    assert(buf_len >= 0);
+    assert(offset == 0 || encode_buffer->buf_len > 0 &&
+        offset < encode_buffer->buf_len);
+
+    if (!encode_buffer->encoded &&
+            builder(data, encode_buffer) != LMQTT_ENCODE_FINISHED)
+        return LMQTT_ENCODE_ERROR;
+
+    encode_buffer->encoded = 1;
+    cnt = encode_buffer->buf_len - offset;
+    result = LMQTT_ENCODE_FINISHED;
+
+    if (cnt > buf_len) {
+        cnt = buf_len;
+        result = LMQTT_ENCODE_CONTINUE;
+    }
+
+    memcpy(buf, &encode_buffer->buf[offset], cnt);
+    *bytes_written = cnt;
+
+    if (result == LMQTT_ENCODE_FINISHED)
+        memset(encode_buffer, 0, sizeof(*encode_buffer));
+
+    return result;
+}
+
+/******************************************************************************
  * lmqtt_string_t PRIVATE functions
  ******************************************************************************/
 
@@ -258,75 +296,41 @@ static int connect_validate(lmqtt_connect_t *connect)
     return 1;
 }
 
-static lmqtt_encode_result_t connect_encode_from_temp_buffer(
-    lmqtt_connect_t *connect,
-    lmqtt_encode_result_t (*builder)(lmqtt_connect_t *connect), int offset,
-    u8 *buf, int buf_len, int *bytes_written)
-{
-    int cnt;
-    int result;
-
-    assert(buf_len >= 0);
-    assert(offset == 0 || connect->internal.buf_len > 0 &&
-        offset < connect->internal.buf_len);
-
-    if (offset == 0 && builder(connect) != LMQTT_ENCODE_FINISHED)
-        return LMQTT_ENCODE_ERROR;
-
-    cnt = connect->internal.buf_len - offset;
-    result = LMQTT_ENCODE_FINISHED;
-
-    if (cnt > buf_len) {
-        cnt = buf_len;
-        result = LMQTT_ENCODE_CONTINUE;
-    }
-
-    memcpy(buf, &connect->internal.buf[offset], cnt);
-    *bytes_written = cnt;
-
-    if (result == LMQTT_ENCODE_FINISHED) {
-        connect->internal.buf_len = 0;
-        memset(connect->internal.buf, 0, sizeof(connect->internal.buf));
-    }
-
-    return result;
-}
-
 static lmqtt_encode_result_t connect_build_fixed_header(
-    lmqtt_connect_t *connect)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer)
 {
     int remain_len_size;
     int res;
 
-    assert(sizeof(connect->internal.buf) >= LMQTT_FIXED_HEADER_MAX_SIZE);
+    assert(sizeof(encode_buffer->buf) >= LMQTT_FIXED_HEADER_MAX_SIZE);
 
     res = encode_remaining_length(connect_calc_remaining_length(connect),
-        connect->internal.buf + 1, &remain_len_size);
+        encode_buffer->buf + 1, &remain_len_size);
     if (res != LMQTT_ENCODE_FINISHED)
         return LMQTT_ENCODE_ERROR;
 
-    connect->internal.buf[0] = LMQTT_TYPE_CONNECT << 4;
-    connect->internal.buf_len = 1 + remain_len_size;
+    encode_buffer->buf[0] = LMQTT_TYPE_CONNECT << 4;
+    encode_buffer->buf_len = 1 + remain_len_size;
     return LMQTT_ENCODE_FINISHED;
 }
 
 static lmqtt_encode_result_t connect_encode_fixed_header(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
-    return connect_encode_from_temp_buffer(
-        connect, connect_build_fixed_header,
-        offset, buf, buf_len, bytes_written);
+    return encode_buffer_encode(encode_buffer, connect,
+        (encode_buffer_builder_t) connect_build_fixed_header, offset, buf,
+        buf_len, bytes_written);
 }
 
 static lmqtt_encode_result_t connect_build_variable_header(
-    lmqtt_connect_t *connect)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer)
 {
     u8 flags;
 
-    assert(sizeof(connect->internal.buf) >= LMQTT_CONNECT_HEADER_SIZE);
+    assert(sizeof(encode_buffer->buf) >= LMQTT_CONNECT_HEADER_SIZE);
 
-    memcpy(connect->internal.buf, "\x00\x04MQTT\x04", 7);
+    memcpy(encode_buffer->buf, "\x00\x04MQTT\x04", 7);
 
     flags = connect->qos << LMQTT_OFFSET_FLAG_QOS;
     if (connect->clean_session)
@@ -339,58 +343,58 @@ static lmqtt_encode_result_t connect_build_variable_header(
         flags |= LMQTT_FLAG_USER_NAME_FLAG;
     if (connect->password.len > 0)
         flags |= LMQTT_FLAG_PASSWORD_FLAG;
-    connect->internal.buf[7] = flags;
+    encode_buffer->buf[7] = flags;
 
-    connect->internal.buf[8] = STRING_LEN_BYTE(connect->keep_alive, 1);
-    connect->internal.buf[9] = STRING_LEN_BYTE(connect->keep_alive, 0);
-    connect->internal.buf_len = 10;
+    encode_buffer->buf[8] = STRING_LEN_BYTE(connect->keep_alive, 1);
+    encode_buffer->buf[9] = STRING_LEN_BYTE(connect->keep_alive, 0);
+    encode_buffer->buf_len = 10;
     return LMQTT_ENCODE_FINISHED;
 }
 
 static lmqtt_encode_result_t connect_encode_variable_header(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
-    return connect_encode_from_temp_buffer(
-        connect, connect_build_variable_header,
+    return encode_buffer_encode(encode_buffer, connect,
+        (encode_buffer_builder_t) connect_build_variable_header,
         offset, buf, buf_len, bytes_written);
 }
 
 static lmqtt_encode_result_t connect_encode_payload_client_id(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
     return string_encode(&connect->client_id, 1, offset, buf, buf_len,
         bytes_written);
 }
 
 static lmqtt_encode_result_t connect_encode_payload_will_topic(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
     return string_encode(&connect->will_topic, 0, offset, buf, buf_len,
         bytes_written);
 }
 
 static lmqtt_encode_result_t connect_encode_payload_will_message(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
     return string_encode(&connect->will_message, 0, offset, buf, buf_len,
         bytes_written);
 }
 
 static lmqtt_encode_result_t connect_encode_payload_user_name(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
     return string_encode(&connect->user_name, 0, offset, buf, buf_len,
         bytes_written);
 }
 
 static lmqtt_encode_result_t connect_encode_payload_password(
-    lmqtt_connect_t *connect, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
 {
     return string_encode(&connect->password, 0, offset, buf, buf_len,
         bytes_written);
@@ -437,20 +441,23 @@ static lmqtt_decode_result_t connack_decode(lmqtt_connack_t *connack, u8 b)
  * (pingreq) PUBLIC functions
  ******************************************************************************/
 
-static lmqtt_encode_result_t pingreq_encode_fixed_header(void *data, int offset,
-    u8 *buf, int buf_len, int *bytes_written)
+static lmqtt_encode_result_t pingreq_build(void *data,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
-    int pos = 0;
+    assert(sizeof(encode_buffer->buf) >= 2);
 
-    for (; offset < 2 && pos < buf_len; offset++) {
-        if (offset == 0)
-            buf[pos++] = LMQTT_TYPE_PINGREQ << 4;
-        else if (offset == 1)
-            buf[pos++] = 0;
-    }
+    encode_buffer->buf[0] = LMQTT_TYPE_PINGREQ << 4;
+    encode_buffer->buf[1] = 0;
+    encode_buffer->buf_len = 2;
+    return LMQTT_ENCODE_FINISHED;
+}
 
-    *bytes_written = pos;
-    return offset >= 2 ? LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_CONTINUE;
+static lmqtt_encode_result_t pingreq_encode_fixed_header(void *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    return encode_buffer_encode(encode_buffer, data, pingreq_build, offset, buf,
+        buf_len, bytes_written);
 }
 
 /******************************************************************************
@@ -511,8 +518,9 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
         if (!recipe)
             break;
 
-        result = recipe(state->recipe_data, state->internal.recipe_offset,
-            buf + offset, buf_len - offset, &cur_bytes);
+        result = recipe(state->recipe_data, &state->internal.encode_buffer,
+            state->internal.recipe_offset, buf + offset, buf_len - offset,
+            &cur_bytes);
         if (result == LMQTT_ENCODE_WOULD_BLOCK)
             return LMQTT_IO_AGAIN;
         if (result == LMQTT_ENCODE_CONTINUE)
