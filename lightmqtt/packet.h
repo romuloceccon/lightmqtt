@@ -139,6 +139,8 @@ void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state,
 
 void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state);
 
+void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state);
+
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read);
 

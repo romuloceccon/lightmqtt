@@ -2,21 +2,22 @@
 
 #include "../src/lmqtt_packet.c"
 
+#define PREPARE \
+    u8 buf[512]; \
+    lmqtt_tx_buffer_t state; \
+    lmqtt_io_result_t res; \
+    int bytes_written; \
+    memset(buf, 0xcc, sizeof(buf)); \
+    memset(&state, 0xcc, sizeof(state))
+
 START_TEST(should_encode_connect)
 {
     u8 *expected_buffer;
-    u8 buf[512];
     int i;
-
     lmqtt_connect_t connect;
-    lmqtt_tx_buffer_t state;
 
-    lmqtt_io_result_t res;
-    int bytes_written;
-
-    memset(buf, 0xcc, sizeof(buf));
+    PREPARE;
     memset(&connect, 0, sizeof(connect));
-    memset(&state, 0xcc, sizeof(state));
 
     connect.keep_alive = 0x102;
     connect.client_id.buf = "a";
@@ -53,15 +54,7 @@ END_TEST
 
 START_TEST(should_encode_pingreq)
 {
-    u8 buf[512];
-
-    lmqtt_tx_buffer_t state;
-
-    lmqtt_io_result_t res;
-    int bytes_written;
-
-    memset(buf, 0xcc, sizeof(buf));
-    memset(&state, 0xcc, sizeof(state));
+    PREPARE;
 
     lmqtt_tx_buffer_pingreq(&state);
 
@@ -78,9 +71,29 @@ START_TEST(should_encode_pingreq)
 }
 END_TEST
 
+START_TEST(should_encode_disconnect)
+{
+    PREPARE;
+
+    lmqtt_tx_buffer_disconnect(&state);
+
+    ck_assert_ptr_eq(recipe_disconnect, state.recipe);
+    ck_assert_ptr_eq(0, state.recipe_data);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(2, bytes_written);
+
+    ck_assert_int_eq(0xe0, buf[0]);
+    ck_assert_int_eq(0x00, buf[1]);
+}
+END_TEST
+
 START_TCASE("Tx buffer recipes")
 {
     ADD_TEST(should_encode_connect);
     ADD_TEST(should_encode_pingreq);
+    ADD_TEST(should_encode_disconnect);
 }
 END_TCASE

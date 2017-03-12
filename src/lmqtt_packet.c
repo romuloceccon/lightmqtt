@@ -461,6 +461,29 @@ static lmqtt_encode_result_t pingreq_encode_fixed_header(void *data,
 }
 
 /******************************************************************************
+ * (disconnect) PUBLIC functions
+ ******************************************************************************/
+
+static lmqtt_encode_result_t disconnect_build(void *data,
+    lmqtt_encode_buffer_t *encode_buffer)
+{
+    assert(sizeof(encode_buffer->buf) >= 2);
+
+    encode_buffer->buf[0] = LMQTT_TYPE_DISCONNECT << 4;
+    encode_buffer->buf[1] = 0;
+    encode_buffer->buf_len = 2;
+    return LMQTT_ENCODE_FINISHED;
+}
+
+static lmqtt_encode_result_t disconnect_encode_fixed_header(void *data,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    return encode_buffer_encode(encode_buffer, data, disconnect_build, offset,
+        buf, buf_len, bytes_written);
+}
+
+/******************************************************************************
  * lmqtt_tx_buffer_t static data
  ******************************************************************************/
 
@@ -477,6 +500,11 @@ lmqtt_encode_t recipe_connect[] = {
 
 lmqtt_encode_t recipe_pingreq[] = {
     (lmqtt_encode_t) pingreq_encode_fixed_header,
+    0
+};
+
+lmqtt_encode_t recipe_disconnect[] = {
+    (lmqtt_encode_t) disconnect_encode_fixed_header,
     0
 };
 
@@ -552,6 +580,14 @@ void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
 {
     memset(state, 0, sizeof(*state));
     state->recipe = recipe_pingreq;
+    state->recipe_data = 0;
+}
+
+void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state)
+{
+    memset(state, 0, sizeof(*state));
+    state->recipe = recipe_disconnect;
+    state->recipe_data = 0;
 }
 
 /******************************************************************************

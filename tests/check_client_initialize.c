@@ -6,6 +6,7 @@
 enum {
     TEST_CONNECT = 1,
     TEST_PINGREQ,
+    TEST_DISCONNECT,
     TEST_CONNACK_SUCCESS,
     TEST_CONNACK_FAILURE,
     TEST_PINGRESP
@@ -36,6 +37,13 @@ void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
     test_recipe = TEST_PINGREQ;
 }
 
+void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state)
+{
+    memset(state, 0, sizeof(*state));
+    state->recipe_data = &test_recipe;
+    test_recipe = TEST_DISCONNECT;
+}
+
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
@@ -49,6 +57,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
         *data = 0;
         *bytes_written = 1;
     }
+
     return LMQTT_IO_SUCCESS;
 }
 
@@ -418,6 +427,19 @@ START_TEST(should_fail_client_after_pingreq_timeout)
 }
 END_TEST
 
+START_TEST(should_disconnect)
+{
+    lmqtt_client_t client;
+    long secs, nsecs;
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    lmqtt_client_disconnect(&client);
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, process_output(&client));
+    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift());
+}
+END_TEST
+
 START_TEST(should_not_send_pingreq_after_failure)
 {
     lmqtt_client_t client;
@@ -508,6 +530,8 @@ START_TCASE("Client initialize")
     ADD_TEST(should_not_send_pingreq_with_response_pending);
     ADD_TEST(should_send_pingreq_after_pingresp);
     ADD_TEST(should_fail_client_after_pingreq_timeout);
+    ADD_TEST(should_disconnect);
+
     ADD_TEST(should_not_send_pingreq_after_failure);
     ADD_TEST(should_not_send_pingreq_before_connack);
     ADD_TEST(should_fail_client_after_connection_timeout);

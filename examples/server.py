@@ -33,6 +33,11 @@ while True:
                 print('  PINGREQ')
                 data = ""
                 conn.send("\xd0\x00")
+            elif len(data) >= 2 and data[0] == '\xe0':
+                print('  DISCONNECT')
+                data = ""
+                conn.close()
+                break
     except KeyboardInterrupt:
         if conn:
             conn.close()

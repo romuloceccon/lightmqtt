@@ -161,12 +161,23 @@ lmqtt_io_status_t process_input(lmqtt_client_t *client)
  */
 lmqtt_io_status_t process_output(lmqtt_client_t *client)
 {
-    return buffer_transfer(
+    lmqtt_io_status_t result = buffer_transfer(
         (lmqtt_read_t) lmqtt_tx_buffer_encode, &client->tx_state,
             LMQTT_IO_STATUS_BLOCK_DATA,
         client->write, client->data, LMQTT_IO_STATUS_BLOCK_CONN,
         client->write_buf, &client->write_buf_pos, sizeof(client->write_buf),
         &client->failed);
+
+    /* If a disconnect was requested wait until the output buffer is flushed;
+     * then fail the connection. (In the future we may need to set an error code
+     * indicating the reason for the error. Meanwhile this trick will make our
+     * test client call close() on the socket.) */
+    if (result == LMQTT_IO_STATUS_READY && client->internal.disconnected) {
+        client->failed = 1;
+        return LMQTT_IO_STATUS_ERROR;
+    }
+
+    return result;
 }
 
 /******************************************************************************
@@ -290,6 +301,15 @@ static int client_do_pingreq(lmqtt_client_t *client)
     return 1;
 }
 
+static int client_do_disconnect(lmqtt_client_t *client)
+{
+    lmqtt_tx_buffer_disconnect(&client->tx_state);
+
+    client->internal.disconnected = 1;
+
+    return 1;
+}
+
 /******************************************************************************
  * lmqtt_client_t PUBLIC functions
  ******************************************************************************/
@@ -300,6 +320,7 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
 
     client->internal.connect = client_do_connect;
     client->internal.pingreq = client_do_pingreq;
+    client->internal.disconnect = client_do_disconnect;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp_fail;
 
@@ -310,6 +331,11 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
     return client->internal.connect(client, connect);
+}
+
+int lmqtt_client_disconnect(lmqtt_client_t *client)
+{
+    return client->internal.disconnect(client);
 }
 
 void lmqtt_client_set_on_connect(lmqtt_client_t *client,

@@ -84,6 +84,8 @@ int main()
     struct sockaddr_in sin;
     struct timeval timeout;
     struct timeval *timeout_ptr;
+    int cnt = 0;
+    int disconnected = 0;
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
@@ -137,8 +139,13 @@ int main()
         }
 
         if (st_k == LMQTT_IO_STATUS_ERROR || st_i == LMQTT_IO_STATUS_ERROR || st_o == LMQTT_IO_STATUS_ERROR) {
-            fprintf(stderr, "client: error\n");
-            exit(1);
+            if (disconnected) {
+                fprintf(stderr, "client: disconnect\n");
+                break;
+            } else {
+                fprintf(stderr, "client: error\n");
+                exit(1);
+            }
         }
 
         FD_ZERO(&read_set);
@@ -153,6 +160,13 @@ int main()
             timeout_ptr = &timeout;
         } else {
             timeout_ptr = NULL;
+        }
+
+        cnt += 1;
+        if (secs > 2 && cnt >= 6) {
+            lmqtt_client_disconnect(&client);
+            disconnected = 1;
+            continue;
         }
 
         if (select(max_fd, &read_set, &write_set, NULL, timeout_ptr) == -1) {
