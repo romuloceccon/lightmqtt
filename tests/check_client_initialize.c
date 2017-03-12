@@ -26,28 +26,28 @@ void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state,
     lmqtt_connect_t *connect)
 {
     memset(state, 0, sizeof(*state));
-    state->recipe_data = &test_recipe;
+    state->data = &test_recipe;
     test_recipe = TEST_CONNECT;
 }
 
 void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
 {
     memset(state, 0, sizeof(*state));
-    state->recipe_data = &test_recipe;
+    state->data = &test_recipe;
     test_recipe = TEST_PINGREQ;
 }
 
 void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state)
 {
     memset(state, 0, sizeof(*state));
-    state->recipe_data = &test_recipe;
+    state->data = &test_recipe;
     test_recipe = TEST_DISCONNECT;
 }
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
-    u8 *data = (u8 *) state->recipe_data;
+    u8 *data = (u8 *) state->data;
 
     *bytes_written = 0;
 

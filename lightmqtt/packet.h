@@ -37,7 +37,7 @@ typedef enum {
 typedef struct _lmqtt_encode_buffer_t {
     int encoded;
     int buf_len;
-    u8 buf[16 - sizeof(int)];
+    u8 buf[16];
 } lmqtt_encode_buffer_t;
 
 typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(void *,
@@ -86,28 +86,29 @@ typedef struct _lmqtt_connack_t {
     } internal;
 } lmqtt_connack_t;
 
-typedef lmqtt_encode_result_t (*lmqtt_encode_t)(void *data,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
-    int *bytes_written);
+typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
+    lmqtt_encode_buffer_t *, int, u8 *, int, int *);
 
-typedef void (*lmqtt_tx_buffer_callback_t)(void *data);
+typedef void (*lmqtt_tx_buffer_callback_t)(void *);
+
+struct _lmqtt_tx_buffer_t;
 
 typedef struct _lmqtt_tx_buffer_t {
-    lmqtt_encode_t *recipe;
-    void *recipe_data;
+    lmqtt_encoder_t (*finder)(struct _lmqtt_tx_buffer_t *);
+    void *data;
     lmqtt_tx_buffer_callback_t callback;
     void *callback_data;
 
     struct {
-        int recipe_pos;
-        int recipe_offset;
-        lmqtt_encode_buffer_t encode_buffer;
+        int pos;
+        int offset;
+        lmqtt_encode_buffer_t buffer;
     } internal;
 } lmqtt_tx_buffer_t;
 
 typedef struct _lmqtt_callbacks_t {
-    int (*on_connack)(void *data, lmqtt_connack_t *connack);
-    int (*on_pingresp)(void *data);
+    int (*on_connack)(void *, lmqtt_connack_t *);
+    int (*on_pingresp)(void *);
 } lmqtt_callbacks_t;
 
 typedef struct _lmqtt_rx_buffer_t {

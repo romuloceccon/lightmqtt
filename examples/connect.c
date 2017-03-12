@@ -94,7 +94,7 @@ int main()
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);
 
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(4000);
+    sin.sin_port = htons(1883);
     if (inet_pton(AF_INET, "127.0.0.1", &sin.sin_addr) == 0) {
         fprintf(stderr, "inet_pton failed\n");
         exit(1);
@@ -115,9 +115,9 @@ int main()
     lmqtt_client_set_default_timeout(&client, 2);
 
     memset(&connect_data, 0, sizeof(connect_data));
-    connect_data.keep_alive = 10;
+    connect_data.keep_alive = 3;
     connect_data.client_id.buf = "Rômulo";
-    connect_data.client_id.len = 6;
+    connect_data.client_id.len = 7;
 
     lmqtt_client_connect(&client, &connect_data);
 
@@ -163,7 +163,7 @@ int main()
         }
 
         cnt += 1;
-        if (secs > 2 && cnt >= 6) {
+        if (secs >= 2 && cnt >= 10) {
             lmqtt_client_disconnect(&client);
             disconnecting = 1;
             continue;

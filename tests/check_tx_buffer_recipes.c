@@ -33,11 +33,11 @@ START_TEST(should_encode_connect)
 
     lmqtt_tx_buffer_connect(&state, &connect);
 
-    ck_assert_ptr_eq(recipe_connect, state.recipe);
-    ck_assert_ptr_eq(&connect, state.recipe_data);
+    ck_assert(&tx_buffer_finder_connect == state.finder);
+    ck_assert_ptr_eq(&connect, state.data);
 
-    ck_assert_int_eq(0, state.internal.recipe_pos);
-    ck_assert_int_eq(0, state.internal.recipe_offset);
+    ck_assert_int_eq(0, state.internal.pos);
+    ck_assert_int_eq(0, state.internal.offset);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -58,8 +58,8 @@ START_TEST(should_encode_pingreq)
 
     lmqtt_tx_buffer_pingreq(&state);
 
-    ck_assert_ptr_eq(recipe_pingreq, state.recipe);
-    ck_assert_ptr_eq(0, state.recipe_data);
+    ck_assert(&tx_buffer_finder_pingreq == state.finder);
+    ck_assert_ptr_eq(0, state.data);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -77,8 +77,8 @@ START_TEST(should_encode_disconnect)
 
     lmqtt_tx_buffer_disconnect(&state);
 
-    ck_assert_ptr_eq(recipe_disconnect, state.recipe);
-    ck_assert_ptr_eq(0, state.recipe_data);
+    ck_assert(&tx_buffer_finder_disconnect == state.finder);
+    ck_assert_ptr_eq(0, state.data);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 

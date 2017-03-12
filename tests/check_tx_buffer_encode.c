@@ -10,12 +10,11 @@
     int data = 0; \
     int bytes_w = BYTES_W_PLACEHOLDER; \
     u8 buf[256]; \
-    lmqtt_encode_t recipe[10]; \
     lmqtt_tx_buffer_t state; \
-    memset(recipe, 0, sizeof(recipe)); \
+    memset(encoders, 0, sizeof(encoders)); \
     memset(&state, 0, sizeof(state)); \
-    state.recipe = recipe; \
-    state.recipe_data = &data; \
+    state.finder = test_finder; \
+    state.data = &data; \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf))
 
 /*
@@ -29,6 +28,8 @@
  * `block_at` sets the last "non-blocking" read. If `begin + offset` is past
  * `block_at` the method returns LMQTT_ENCODE_WOULD_BLOCK.
  */
+
+static lmqtt_encoder_t encoders[10];
 
 static lmqtt_encode_result_t encode_test_range(int *data, int offset, u8 *buf,
     int buf_len, int *bytes_written, int begin, int end, int block_at)
@@ -50,6 +51,11 @@ static lmqtt_encode_result_t encode_test_range(int *data, int offset, u8 *buf,
         *bytes_written += 1;
     }
     return LMQTT_ENCODE_FINISHED;
+}
+
+static lmqtt_encoder_t test_finder(lmqtt_tx_buffer_t *tx_buffer)
+{
+    return encoders[tx_buffer->internal.pos];
 }
 
 static lmqtt_encode_result_t encode_test_0_9(int *data,
@@ -90,7 +96,7 @@ START_TEST(should_encode_tx_buffer_with_one_encoding_function)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -107,8 +113,8 @@ START_TEST(should_encode_tx_buffer_with_two_encoding_functions)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
-    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -123,12 +129,12 @@ START_TEST(should_encode_tx_buffer_with_two_encoding_functions)
 }
 END_TEST
 
-START_TEST(should_stop_recipe_after_buffer_fills_up)
+START_TEST(should_stop_encoder_after_buffer_fills_up)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
-    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
 
     res = lmqtt_tx_buffer_encode(&state, buf, 5, &bytes_w);
 
@@ -145,9 +151,9 @@ START_TEST(should_return_actual_bytes_written_after_error)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
-    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
-    recipe[2] = (lmqtt_encode_t) encode_test_fail;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
+    encoders[2] = (lmqtt_encoder_t) encode_test_fail;
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -164,8 +170,8 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
-    recipe[1] = (lmqtt_encode_t) encode_test_50_54;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
 
     res = lmqtt_tx_buffer_encode(&state, buf, 6, &bytes_w);
 
@@ -195,11 +201,11 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 }
 END_TEST
 
-START_TEST(should_continue_buffer_twice_with_the_same_recipe_entry)
+START_TEST(should_continue_buffer_twice_with_the_same_encoder_entry)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
 
     res = lmqtt_tx_buffer_encode(&state, buf, 2, &bytes_w);
 
@@ -221,7 +227,7 @@ START_TEST(should_encode_blocking_buffer)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_10_19_blocking;
+    encoders[0] = (lmqtt_encoder_t) encode_test_10_19_blocking;
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -243,7 +249,7 @@ START_TEST(should_call_callback_and_cleanup_after_encode)
 {
     PREPARE;
 
-    recipe[0] = (lmqtt_encode_t) encode_test_0_9;
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
 
     state.callback = on_encode_connect;
     state.callback_data = &state;
@@ -251,14 +257,14 @@ START_TEST(should_call_callback_and_cleanup_after_encode)
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    ck_assert_ptr_eq(0, state.recipe);
-    ck_assert_ptr_eq(0, state.recipe_data);
+    ck_assert(!state.finder);
+    ck_assert_ptr_eq(0, state.data);
     /* should not zero data modified by the callback */
-    ck_assert_int_eq(-1, state.internal.recipe_pos);
+    ck_assert_int_eq(-1, state.internal.pos);
 }
 END_TEST
 
-START_TEST(should_not_encode_null_recipe)
+START_TEST(should_not_encode_null_encoder)
 {
     PREPARE;
 
@@ -273,12 +279,12 @@ START_TCASE("Tx buffer encode")
 {
     ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
     ADD_TEST(should_encode_tx_buffer_with_two_encoding_functions);
-    ADD_TEST(should_stop_recipe_after_buffer_fills_up);
+    ADD_TEST(should_stop_encoder_after_buffer_fills_up);
     ADD_TEST(should_return_actual_bytes_written_after_error);
     ADD_TEST(should_continue_buffer_where_previous_call_stopped);
-    ADD_TEST(should_continue_buffer_twice_with_the_same_recipe_entry);
+    ADD_TEST(should_continue_buffer_twice_with_the_same_encoder_entry);
     ADD_TEST(should_encode_blocking_buffer);
     ADD_TEST(should_call_callback_and_cleanup_after_encode);
-    ADD_TEST(should_not_encode_null_recipe);
+    ADD_TEST(should_not_encode_null_encoder);
 }
 END_TCASE

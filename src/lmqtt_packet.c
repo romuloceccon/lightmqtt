@@ -484,33 +484,34 @@ static lmqtt_encode_result_t disconnect_encode_fixed_header(void *data,
 }
 
 /******************************************************************************
- * lmqtt_tx_buffer_t static data
- ******************************************************************************/
-
-lmqtt_encode_t recipe_connect[] = {
-    (lmqtt_encode_t) connect_encode_fixed_header,
-    (lmqtt_encode_t) connect_encode_variable_header,
-    (lmqtt_encode_t) connect_encode_payload_client_id,
-    (lmqtt_encode_t) connect_encode_payload_will_topic,
-    (lmqtt_encode_t) connect_encode_payload_will_message,
-    (lmqtt_encode_t) connect_encode_payload_user_name,
-    (lmqtt_encode_t) connect_encode_payload_password,
-    0
-};
-
-lmqtt_encode_t recipe_pingreq[] = {
-    (lmqtt_encode_t) pingreq_encode_fixed_header,
-    0
-};
-
-lmqtt_encode_t recipe_disconnect[] = {
-    (lmqtt_encode_t) disconnect_encode_fixed_header,
-    0
-};
-
-/******************************************************************************
  * lmqtt_tx_buffer_t PRIVATE functions
  ******************************************************************************/
+
+static lmqtt_encoder_t tx_buffer_finder_connect(lmqtt_tx_buffer_t *tx_buffer)
+{
+    switch (tx_buffer->internal.pos) {
+        case 0: return (lmqtt_encoder_t) connect_encode_fixed_header;
+        case 1: return (lmqtt_encoder_t) connect_encode_variable_header;
+        case 2: return (lmqtt_encoder_t) connect_encode_payload_client_id;
+        case 3: return (lmqtt_encoder_t) connect_encode_payload_will_topic;
+        case 4: return (lmqtt_encoder_t) connect_encode_payload_will_message;
+        case 5: return (lmqtt_encoder_t) connect_encode_payload_user_name;
+        case 6: return (lmqtt_encoder_t) connect_encode_payload_password;
+    }
+    return 0;
+}
+
+static lmqtt_encoder_t tx_buffer_finder_pingreq(lmqtt_tx_buffer_t *tx_buffer)
+{
+    return tx_buffer->internal.pos == 0 ?
+        (lmqtt_encoder_t) pingreq_encode_fixed_header : 0;
+}
+
+static lmqtt_encoder_t tx_buffer_finder_disconnect(lmqtt_tx_buffer_t *tx_buffer)
+{
+    return tx_buffer->internal.pos == 0 ?
+        (lmqtt_encoder_t) disconnect_encode_fixed_header : 0;
+}
 
 static void tx_buffer_call_callback(lmqtt_tx_buffer_t *state)
 {
@@ -535,24 +536,24 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int offset = 0;
     *bytes_written = 0;
 
-    if (!state->recipe)
+    if (!state->finder)
         return LMQTT_IO_SUCCESS;
 
     while (1) {
         int result;
         int cur_bytes;
-        lmqtt_encode_t recipe = state->recipe[state->internal.recipe_pos];
+        lmqtt_encoder_t encoder = state->finder(state);
 
-        if (!recipe)
+        if (!encoder)
             break;
 
-        result = recipe(state->recipe_data, &state->internal.encode_buffer,
-            state->internal.recipe_offset, buf + offset, buf_len - offset,
+        result = encoder(state->data, &state->internal.buffer,
+            state->internal.offset, buf + offset, buf_len - offset,
             &cur_bytes);
         if (result == LMQTT_ENCODE_WOULD_BLOCK)
             return LMQTT_IO_AGAIN;
         if (result == LMQTT_ENCODE_CONTINUE)
-            state->internal.recipe_offset += cur_bytes;
+            state->internal.offset += cur_bytes;
         if (result == LMQTT_ENCODE_CONTINUE || result == LMQTT_ENCODE_FINISHED)
             *bytes_written += cur_bytes;
         if (result == LMQTT_ENCODE_CONTINUE)
@@ -561,8 +562,8 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
             return LMQTT_IO_ERROR;
 
         offset += cur_bytes;
-        state->internal.recipe_pos += 1;
-        state->internal.recipe_offset = 0;
+        state->internal.pos += 1;
+        state->internal.offset = 0;
     }
 
     tx_buffer_call_callback(state);
@@ -572,22 +573,22 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state, lmqtt_connect_t *connect)
 {
     memset(state, 0, sizeof(*state));
-    state->recipe = recipe_connect;
-    state->recipe_data = connect;
+    state->finder = &tx_buffer_finder_connect;
+    state->data = connect;
 }
 
 void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
 {
     memset(state, 0, sizeof(*state));
-    state->recipe = recipe_pingreq;
-    state->recipe_data = 0;
+    state->finder = &tx_buffer_finder_pingreq;
+    state->data = 0;
 }
 
 void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state)
 {
     memset(state, 0, sizeof(*state));
-    state->recipe = recipe_disconnect;
-    state->recipe_data = 0;
+    state->finder = &tx_buffer_finder_disconnect;
+    state->data = 0;
 }
 
 /******************************************************************************
