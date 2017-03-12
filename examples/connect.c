@@ -85,7 +85,7 @@ int main()
     struct timeval timeout;
     struct timeval *timeout_ptr;
     int cnt = 0;
-    int disconnected = 0;
+    int disconnecting = 0;
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
@@ -139,7 +139,7 @@ int main()
         }
 
         if (st_k == LMQTT_IO_STATUS_ERROR || st_i == LMQTT_IO_STATUS_ERROR || st_o == LMQTT_IO_STATUS_ERROR) {
-            if (disconnected) {
+            if (disconnecting) {
                 fprintf(stderr, "client: disconnect\n");
                 break;
             } else {
@@ -165,7 +165,7 @@ int main()
         cnt += 1;
         if (secs > 2 && cnt >= 6) {
             lmqtt_client_disconnect(&client);
-            disconnected = 1;
+            disconnecting = 1;
             continue;
         }
 

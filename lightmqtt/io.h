@@ -53,7 +53,7 @@ typedef struct _lmqtt_client_t {
         long timeout;
         int resp_pending;
         lmqtt_time_t last_resp;
-        int disconnected;
+        int disconnecting;
     } internal;
 } lmqtt_client_t;
 

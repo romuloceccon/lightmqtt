@@ -430,13 +430,41 @@ END_TEST
 START_TEST(should_disconnect)
 {
     lmqtt_client_t client;
-    long secs, nsecs;
 
     ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
-    lmqtt_client_disconnect(&client);
+    ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, process_output(&client));
     ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift());
+}
+END_TEST
+
+START_TEST(should_not_send_pingreq_after_disconnect)
+{
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_connect_and_connack(&client, 5, 3);
+
+    test_time_set(16, 0);
+    ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, process_output(&client));
+    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift());
+}
+END_TEST
+
+START_TEST(should_not_disconnect_before_connack)
+{
+    lmqtt_client_t client;
+
+    do_connect(&client, 5, 3);
+
+    ck_assert_int_eq(0, lmqtt_client_disconnect(&client));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_output(&client));
+    ck_assert_int_eq(-1, test_socket_shift());
 }
 END_TEST
 
@@ -532,6 +560,8 @@ START_TCASE("Client initialize")
     ADD_TEST(should_fail_client_after_pingreq_timeout);
     ADD_TEST(should_disconnect);
 
+    ADD_TEST(should_not_send_pingreq_after_disconnect);
+    ADD_TEST(should_not_disconnect_before_connack);
     ADD_TEST(should_not_send_pingreq_after_failure);
     ADD_TEST(should_not_send_pingreq_before_connack);
     ADD_TEST(should_fail_client_after_connection_timeout);
