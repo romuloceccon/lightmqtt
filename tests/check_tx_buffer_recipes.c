@@ -5,10 +5,14 @@
 #define PREPARE \
     u8 buf[512]; \
     lmqtt_tx_buffer_t state; \
+    lmqtt_store_t store; \
     lmqtt_io_result_t res; \
     int bytes_written; \
     memset(buf, 0xcc, sizeof(buf)); \
-    memset(&state, 0xcc, sizeof(state))
+    memset(&state, 0, sizeof(state)); \
+    memset(&store, 0, sizeof(store)); \
+    state.store = &store; \
+    store.get_time = &test_time_get
 
 START_TEST(should_encode_connect)
 {
@@ -31,13 +35,7 @@ START_TEST(should_encode_connect)
     connect.password.buf = "e";
     connect.password.len = 1;
 
-    lmqtt_tx_buffer_connect(&state, &connect);
-
-    ck_assert(&tx_buffer_finder_connect == state.finder);
-    ck_assert_ptr_eq(&connect, state.data);
-
-    ck_assert_int_eq(0, state.internal.pos);
-    ck_assert_int_eq(0, state.internal.offset);
+    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &connect);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -71,10 +69,7 @@ START_TEST(should_encode_subscribe_to_one_topic)
     subscription.topic.buf = "test";
     subscription.topic.len = 4;
 
-    lmqtt_tx_buffer_subscribe(&state, &subscribe);
-
-    ck_assert(&tx_buffer_finder_subscribe == state.finder);
-    ck_assert_ptr_eq(&subscribe, state.data);
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0a0b, &subscribe);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -112,7 +107,7 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
     subscriptions[1].topic.buf = topic_2;
     subscriptions[1].topic.len = sizeof(topic_2);
 
-    lmqtt_tx_buffer_subscribe(&state, &subscribe);
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0c0d, &subscribe);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -141,10 +136,7 @@ START_TEST(should_encode_pingreq)
 {
     PREPARE;
 
-    lmqtt_tx_buffer_pingreq(&state);
-
-    ck_assert(&tx_buffer_finder_pingreq == state.finder);
-    ck_assert_ptr_eq(0, state.data);
+    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, NULL);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -160,10 +152,7 @@ START_TEST(should_encode_disconnect)
 {
     PREPARE;
 
-    lmqtt_tx_buffer_disconnect(&state);
-
-    ck_assert(&tx_buffer_finder_disconnect == state.finder);
-    ck_assert_ptr_eq(0, state.data);
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, NULL);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 

@@ -2,6 +2,7 @@
 #define _LIGHTMQTT_PACKET_H_
 
 #include <lightmqtt/core.h>
+#include <lightmqtt/store.h>
 
 #define LMQTT_FIXED_HEADER_MAX_SIZE 5
 #define LMQTT_CONNECT_HEADER_SIZE 10
@@ -125,13 +126,8 @@ typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
 
 typedef void (*lmqtt_tx_buffer_callback_t)(void *);
 
-struct _lmqtt_tx_buffer_t;
-
 typedef struct _lmqtt_tx_buffer_t {
-    lmqtt_encoder_t (*finder)(struct _lmqtt_tx_buffer_t *);
-    void *data;
-    lmqtt_tx_buffer_callback_t callback;
-    void *callback_data;
+    lmqtt_store_t *store;
 
     struct {
         int pos;
@@ -139,6 +135,8 @@ typedef struct _lmqtt_tx_buffer_t {
         lmqtt_encode_buffer_t buffer;
     } internal;
 } lmqtt_tx_buffer_t;
+
+typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *, void *);
 
 typedef struct _lmqtt_callbacks_t {
     int (*on_connack)(void *, lmqtt_connack_t *);
@@ -164,16 +162,6 @@ typedef struct _lmqtt_rx_buffer_t {
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written);
-
-void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state,
-    lmqtt_connect_t *connect);
-
-void lmqtt_tx_buffer_subscribe(lmqtt_tx_buffer_t *state,
-    lmqtt_subscribe_t *subscribe);
-
-void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state);
-
-void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state);
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read);

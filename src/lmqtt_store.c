@@ -73,6 +73,19 @@ int lmqtt_store_next(lmqtt_store_t *store)
     return 0;
 }
 
+int lmqtt_store_drop(lmqtt_store_t *store)
+{
+    lmqtt_class_t class;
+    void *data;
+
+    if (store->pos < store->count) {
+        store_pop_at(store, store->pos, &class, &data);
+        return 1;
+    }
+
+    return 0;
+}
+
 int lmqtt_store_peek(lmqtt_store_t *store, lmqtt_class_t *class, void **data)
 {
     if (store->pos < store->count) {

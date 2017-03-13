@@ -12,7 +12,8 @@ typedef enum {
     LMQTT_CLASS_PUBREL,
     LMQTT_CLASS_SUBSCRIBE,
     LMQTT_CLASS_UNSUBSCRIBE,
-    LMQTT_CLASS_PING
+    LMQTT_CLASS_PINGREQ,
+    LMQTT_CLASS_DISCONNECT
 } lmqtt_class_t;
 
 typedef struct _lmqtt_store_entry {
@@ -36,6 +37,7 @@ int lmqtt_store_append(lmqtt_store_t *store, lmqtt_class_t class,
     u16 packet_id, void *data);
 int lmqtt_store_peek(lmqtt_store_t *store, lmqtt_class_t *class, void **data);
 int lmqtt_store_next(lmqtt_store_t *store);
+int lmqtt_store_drop(lmqtt_store_t *store);
 int lmqtt_store_pop(lmqtt_store_t *store, lmqtt_class_t class, u16 packet_id,
     void **data);
 int lmqtt_store_pop_any(lmqtt_store_t *store, lmqtt_class_t *class,

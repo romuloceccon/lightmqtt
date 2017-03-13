@@ -604,7 +604,8 @@ static lmqtt_encode_result_t disconnect_encode_fixed_header(void *data,
  * lmqtt_tx_buffer_t PRIVATE functions
  ******************************************************************************/
 
-static lmqtt_encoder_t tx_buffer_finder_connect(lmqtt_tx_buffer_t *tx_buffer)
+static lmqtt_encoder_t tx_buffer_finder_connect(lmqtt_tx_buffer_t *tx_buffer,
+    void *data)
 {
     switch (tx_buffer->internal.pos) {
         case 0: return (lmqtt_encoder_t) connect_encode_fixed_header;
@@ -618,9 +619,10 @@ static lmqtt_encoder_t tx_buffer_finder_connect(lmqtt_tx_buffer_t *tx_buffer)
     return 0;
 }
 
-static lmqtt_encoder_t tx_buffer_finder_subscribe(lmqtt_tx_buffer_t *tx_buffer)
+static lmqtt_encoder_t tx_buffer_finder_subscribe(lmqtt_tx_buffer_t *tx_buffer,
+    void *data)
 {
-    lmqtt_subscribe_t *subscribe = tx_buffer->data;
+    lmqtt_subscribe_t *subscribe = data;
     int p = tx_buffer->internal.pos;
 
     if (p == 0) {
@@ -638,29 +640,34 @@ static lmqtt_encoder_t tx_buffer_finder_subscribe(lmqtt_tx_buffer_t *tx_buffer)
     return 0;
 }
 
-static lmqtt_encoder_t tx_buffer_finder_pingreq(lmqtt_tx_buffer_t *tx_buffer)
+static lmqtt_encoder_t tx_buffer_finder_pingreq(lmqtt_tx_buffer_t *tx_buffer,
+    void *data)
 {
     return tx_buffer->internal.pos == 0 ?
         (lmqtt_encoder_t) pingreq_encode_fixed_header : 0;
 }
 
-static lmqtt_encoder_t tx_buffer_finder_disconnect(lmqtt_tx_buffer_t *tx_buffer)
+static lmqtt_encoder_t tx_buffer_finder_disconnect(lmqtt_tx_buffer_t *tx_buffer,
+    void *data)
 {
     return tx_buffer->internal.pos == 0 ?
         (lmqtt_encoder_t) disconnect_encode_fixed_header : 0;
 }
 
-static void tx_buffer_call_callback(lmqtt_tx_buffer_t *state)
+/* Enable mocking of tx_buffer_finder_by_class() in test-cases. */
+#ifndef TX_BUFFER_FINDER_BY_CLASS
+    #define TX_BUFFER_FINDER_BY_CLASS tx_buffer_finder_by_class
+#endif
+
+static lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class)
 {
-    lmqtt_tx_buffer_callback_t callback = state->callback;
-    void *callback_data = state->callback_data;
-
-    /* zero first, then call callback, so that whatever the callback modifies is
-       not overwritten */
-    memset(state, 0, sizeof(*state));
-
-    if (callback)
-        callback(callback_data);
+    switch (class) {
+        case LMQTT_CLASS_CONNECT: return &tx_buffer_finder_connect;
+        case LMQTT_CLASS_SUBSCRIBE: return &tx_buffer_finder_subscribe;
+        case LMQTT_CLASS_PINGREQ: return &tx_buffer_finder_pingreq;
+        case LMQTT_CLASS_DISCONNECT: return &tx_buffer_finder_disconnect;
+    }
+    return NULL;
 }
 
 /******************************************************************************
@@ -672,68 +679,50 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 {
     int offset = 0;
     *bytes_written = 0;
+    lmqtt_class_t class;
+    void *data;
 
-    if (!state->finder)
-        return LMQTT_IO_SUCCESS;
+    while (lmqtt_store_peek(state->store, &class, &data)) {
+        lmqtt_encoder_finder_t finder = TX_BUFFER_FINDER_BY_CLASS(class);
 
-    while (1) {
-        int result;
-        int cur_bytes;
-        lmqtt_encoder_t encoder = state->finder(state);
-
-        if (!encoder)
-            break;
-
-        result = encoder(state->data, &state->internal.buffer,
-            state->internal.offset, buf + offset, buf_len - offset,
-            &cur_bytes);
-        if (result == LMQTT_ENCODE_WOULD_BLOCK)
-            return LMQTT_IO_AGAIN;
-        if (result == LMQTT_ENCODE_CONTINUE)
-            state->internal.offset += cur_bytes;
-        if (result == LMQTT_ENCODE_CONTINUE || result == LMQTT_ENCODE_FINISHED)
-            *bytes_written += cur_bytes;
-        if (result == LMQTT_ENCODE_CONTINUE)
-            return LMQTT_IO_SUCCESS;
-        if (result == LMQTT_ENCODE_ERROR)
+        if (!finder)
             return LMQTT_IO_ERROR;
 
-        offset += cur_bytes;
-        state->internal.pos += 1;
-        state->internal.offset = 0;
+        while (1) {
+            int result;
+            int cur_bytes;
+            lmqtt_encoder_t encoder = finder(state, data);
+
+            if (!encoder) {
+                if (class == LMQTT_CLASS_DISCONNECT)
+                    lmqtt_store_drop(state->store);
+                else
+                    lmqtt_store_next(state->store);
+                memset(&state->internal, 0, sizeof(state->internal));
+                break;
+            }
+
+            result = encoder(data, &state->internal.buffer,
+                state->internal.offset, buf + offset, buf_len - offset,
+                &cur_bytes);
+            if (result == LMQTT_ENCODE_WOULD_BLOCK)
+                return LMQTT_IO_AGAIN;
+            if (result == LMQTT_ENCODE_CONTINUE)
+                state->internal.offset += cur_bytes;
+            if (result == LMQTT_ENCODE_CONTINUE || result == LMQTT_ENCODE_FINISHED)
+                *bytes_written += cur_bytes;
+            if (result == LMQTT_ENCODE_CONTINUE)
+                return LMQTT_IO_SUCCESS;
+            if (result == LMQTT_ENCODE_ERROR)
+                return LMQTT_IO_ERROR;
+
+            offset += cur_bytes;
+            state->internal.pos += 1;
+            state->internal.offset = 0;
+        }
     }
 
-    tx_buffer_call_callback(state);
     return LMQTT_IO_SUCCESS;
-}
-
-void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state, lmqtt_connect_t *connect)
-{
-    memset(state, 0, sizeof(*state));
-    state->finder = &tx_buffer_finder_connect;
-    state->data = connect;
-}
-
-void lmqtt_tx_buffer_subscribe(lmqtt_tx_buffer_t *state,
-    lmqtt_subscribe_t *subscribe)
-{
-    memset(state, 0, sizeof(*state));
-    state->finder = &tx_buffer_finder_subscribe;
-    state->data = subscribe;
-}
-
-void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
-{
-    memset(state, 0, sizeof(*state));
-    state->finder = &tx_buffer_finder_pingreq;
-    state->data = 0;
-}
-
-void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state)
-{
-    memset(state, 0, sizeof(*state));
-    state->finder = &tx_buffer_finder_disconnect;
-    state->data = 0;
 }
 
 /******************************************************************************

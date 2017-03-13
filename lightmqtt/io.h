@@ -32,6 +32,7 @@ typedef struct _lmqtt_client_t {
     int read_buf_pos;
     u8 write_buf[LMQTT_TX_BUFFER_SIZE];
     int write_buf_pos;
+    lmqtt_store_t store;
     /* TODO: there should be one of this for each packet in the send queue (when
      * the send queue is implemented) */
     lmqtt_time_t last_req;

@@ -20,42 +20,34 @@ typedef struct {
 } test_socket_t;
 
 static test_socket_t test_socket;
-static u8 test_recipe;
-
-void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state,
-    lmqtt_connect_t *connect)
-{
-    memset(state, 0, sizeof(*state));
-    state->data = &test_recipe;
-    test_recipe = TEST_CONNECT;
-}
-
-void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state)
-{
-    memset(state, 0, sizeof(*state));
-    state->data = &test_recipe;
-    test_recipe = TEST_PINGREQ;
-}
-
-void lmqtt_tx_buffer_disconnect(lmqtt_tx_buffer_t *state)
-{
-    memset(state, 0, sizeof(*state));
-    state->data = &test_recipe;
-    test_recipe = TEST_DISCONNECT;
-}
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
 {
-    u8 *data = (u8 *) state->data;
+    lmqtt_class_t class;
+    void *data;
 
     *bytes_written = 0;
 
-    if (*data != 0) {
-        assert(buf_len > 0);
-        buf[0] = *data;
-        *data = 0;
-        *bytes_written = 1;
+    while (lmqtt_store_peek(state->store, &class, &data)) {
+        assert(buf_len > *bytes_written);
+        switch (class) {
+            case LMQTT_CLASS_CONNECT:
+                buf[*bytes_written] = TEST_CONNECT;
+                lmqtt_store_next(state->store);
+                break;
+            case LMQTT_CLASS_PINGREQ:
+                buf[*bytes_written] = TEST_PINGREQ;
+                lmqtt_store_next(state->store);
+                break;
+            case LMQTT_CLASS_DISCONNECT:
+                buf[*bytes_written] = TEST_DISCONNECT;
+                lmqtt_store_drop(state->store);
+                break;
+            default:
+                return LMQTT_IO_ERROR;
+        }
+        *bytes_written += 1;
     }
 
     return LMQTT_IO_SUCCESS;
@@ -116,6 +108,7 @@ static void test_socket_init_with_client(lmqtt_client_t *client)
 
     if (client) {
         client->get_time = test_time_get;
+        client->store.get_time = test_time_get;
         client->read = test_socket_read;
         client->write = test_socket_write;
         client->data = &test_socket;

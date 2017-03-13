@@ -234,7 +234,7 @@ static int client_do_connect_fail(lmqtt_client_t *client,
 
 static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
-    lmqtt_tx_buffer_connect(&client->tx_state, connect);
+    lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect);
 
     client_touch_req(client);
     client_set_state_connecting(client);
@@ -250,7 +250,7 @@ static int client_do_pingreq_fail(lmqtt_client_t *client)
 
 static int client_do_pingreq(lmqtt_client_t *client)
 {
-    lmqtt_tx_buffer_pingreq(&client->tx_state);
+    lmqtt_store_append(&client->store, LMQTT_CLASS_PINGREQ, 0, NULL);
 
     client_touch_req(client);
 
@@ -264,7 +264,7 @@ static int client_do_disconnect_fail(lmqtt_client_t *client)
 
 static int client_do_disconnect(lmqtt_client_t *client)
 {
-    lmqtt_tx_buffer_disconnect(&client->tx_state);
+    lmqtt_store_append(&client->store, LMQTT_CLASS_DISCONNECT, 0, NULL);
 
     client_set_state_disconnecting(client);
     client->internal.disconnecting = 1;
@@ -311,6 +311,7 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
 
     client->rx_state.callbacks = &client->internal.rx_callbacks;
     client->rx_state.callbacks_data = client;
+    client->tx_state.store = &client->store;
 
     client_set_state_initial(client);
 }

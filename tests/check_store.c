@@ -271,6 +271,38 @@ START_TEST(should_peek_object_after_pop_any)
 }
 END_TEST
 
+START_TEST(should_drop_current_object)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 1, &data[0]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 2, &data[1]);
+
+    res = lmqtt_store_next(&store);
+    ck_assert_int_eq(1, res);
+    res = lmqtt_store_drop(&store);
+    ck_assert_int_eq(1, res);
+
+    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    ck_assert_int_eq(1, res);
+    ck_assert_ptr_eq(&data[0], data_addr);
+    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    ck_assert_int_eq(0, res);
+}
+END_TEST
+
+START_TEST(should_not_drop_nonexistent_object)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 1, &data[0]);
+    lmqtt_store_next(&store);
+
+    res = lmqtt_store_drop(&store);
+    ck_assert_int_eq(0, res);
+}
+END_TEST
+
 START_TEST(should_get_timeout_before_next)
 {
     PREPARE;
@@ -338,6 +370,8 @@ START_TCASE("Store")
     ADD_TEST(should_not_pop_before_next);
     ADD_TEST(should_peek_object_after_pop);
     ADD_TEST(should_peek_object_after_pop_any);
+    ADD_TEST(should_drop_current_object);
+    ADD_TEST(should_not_drop_nonexistent_object);
     ADD_TEST(should_get_timeout_before_next);
     ADD_TEST(should_get_timeout_after_next);
     ADD_TEST(should_get_closest_timeout_after_multiple_next);
