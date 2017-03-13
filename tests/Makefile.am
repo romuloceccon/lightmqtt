@@ -19,7 +19,8 @@ check_PROGRAMS = $(TESTS)
 
 _bin_check_time_SOURCES                     = check_time.c \
     check_lightmqtt.c
-_bin_check_store_SOURCES                    = check_store.c
+_bin_check_store_SOURCES                    = check_store.c \
+    check_lightmqtt.c
 _bin_check_encode_remaining_length_SOURCES  = check_encode_remaining_length.c
 _bin_check_encode_buffer_SOURCES            = check_encode_buffer.c
 _bin_check_connect_encode_headers_SOURCES   = check_connect_encode_headers.c
