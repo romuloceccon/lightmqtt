@@ -34,6 +34,12 @@ typedef enum {
     LMQTT_READ_ERROR
 } lmqtt_read_result_t;
 
+typedef enum {
+    LMQTT_OPERATION_PUBLISH = 140,
+    LMQTT_OPERATION_SUBSCRIBE,
+    LMQTT_OPERATION_UNSUBSCRIBE
+} lmqtt_operation_t;
+
 typedef struct _lmqtt_encode_buffer_t {
     int encoded;
     int buf_len;
@@ -50,6 +56,8 @@ typedef struct _lmqtt_string_t {
     lmqtt_read_result_t (*read)(void *, u8 *, int, int *);
 } lmqtt_string_t;
 
+/* TODO: review this; only remaining_length is actually part of the fixed
+ * header */
 typedef struct _lmqtt_fixed_header_t {
     int type;
     int dup;
@@ -64,6 +72,12 @@ typedef struct _lmqtt_fixed_header_t {
         int remain_len_finished;
     } internal;
 } lmqtt_fixed_header_t;
+
+typedef struct _lmqtt_subscription_t {
+    int qos;
+    lmqtt_string_t topic;
+    int return_code;
+} lmqtt_subscription_t;
 
 typedef struct _lmqtt_connect_t {
     u16 keep_alive;
@@ -85,6 +99,26 @@ typedef struct _lmqtt_connack_t {
         int failed;
     } internal;
 } lmqtt_connack_t;
+
+typedef struct _lmqtt_subscribe_t {
+    u16 packet_id;
+    int count;
+    lmqtt_subscription_t *subscriptions;
+    struct {
+        lmqtt_subscription_t *current;
+    } internal;
+} lmqtt_subscribe_t;
+
+typedef int (*lmqtt_lookup_packet_t)(int, lmqtt_operation_t, void **);
+
+typedef struct _lmqtt_suback_t {
+    u16 packet_id;
+    struct {
+        int bytes_read;
+        int failed;
+        lmqtt_subscribe_t *subscribe;
+    } internal;
+} lmqtt_suback_t;
 
 typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
     lmqtt_encode_buffer_t *, int, u8 *, int, int *);
@@ -112,6 +146,8 @@ typedef struct _lmqtt_callbacks_t {
 } lmqtt_callbacks_t;
 
 typedef struct _lmqtt_rx_buffer_t {
+    lmqtt_lookup_packet_t lookup_packet;
+
     lmqtt_callbacks_t *callbacks;
     void *callbacks_data;
 
@@ -137,6 +173,9 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 
 void lmqtt_tx_buffer_connect(lmqtt_tx_buffer_t *state,
     lmqtt_connect_t *connect);
+
+void lmqtt_tx_buffer_subscribe(lmqtt_tx_buffer_t *state,
+    lmqtt_subscribe_t *subscribe);
 
 void lmqtt_tx_buffer_pingreq(lmqtt_tx_buffer_t *state);
 

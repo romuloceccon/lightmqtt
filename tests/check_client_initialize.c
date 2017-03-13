@@ -69,18 +69,18 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
 
     for (i = 0; i < buf_len; i++) {
         switch (buf[i]) {
-        case TEST_CONNACK_SUCCESS:
-            memset(&connack, 0, sizeof(connack));
-            state->callbacks->on_connack(state->callbacks_data, &connack);
-            break;
-        case TEST_CONNACK_FAILURE:
-            memset(&connack, 0, sizeof(connack));
-            connack.return_code = 1;
-            state->callbacks->on_connack(state->callbacks_data, &connack);
-            break;
-        case TEST_PINGRESP:
-            state->callbacks->on_pingresp(state->callbacks_data);
-            break;
+            case TEST_CONNACK_SUCCESS:
+                memset(&connack, 0, sizeof(connack));
+                state->callbacks->on_connack(state->callbacks_data, &connack);
+                break;
+            case TEST_CONNACK_FAILURE:
+                memset(&connack, 0, sizeof(connack));
+                connack.return_code = 1;
+                state->callbacks->on_connack(state->callbacks_data, &connack);
+                break;
+            case TEST_PINGRESP:
+                state->callbacks->on_pingresp(state->callbacks_data);
+                break;
         }
     }
 
