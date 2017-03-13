@@ -1,2 +1,2 @@
 lib_LTLIBRARIES = liblightmqtt.la
-liblightmqtt_la_SOURCES = lmqtt_packet.c lmqtt_io.c
+liblightmqtt_la_SOURCES = lmqtt_time.c lmqtt_store.c lmqtt_packet.c lmqtt_io.c

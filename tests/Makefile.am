@@ -1,4 +1,6 @@
 TESTS = \
+    .bin/check_time \
+    .bin/check_store \
     .bin/check_encode_remaining_length \
     .bin/check_encode_buffer \
     .bin/check_connect_encode_headers \
@@ -11,11 +13,13 @@ TESTS = \
     .bin/check_tx_buffer_encode \
     .bin/check_rx_buffer_decode \
     .bin/check_tx_buffer_recipes \
-    .bin/check_client_initialize \
-    .bin/check_time
+    .bin/check_client_initialize
 
 check_PROGRAMS = $(TESTS)
 
+_bin_check_time_SOURCES                     = check_time.c \
+    check_lightmqtt.c
+_bin_check_store_SOURCES                    = check_store.c
 _bin_check_encode_remaining_length_SOURCES  = check_encode_remaining_length.c
 _bin_check_encode_buffer_SOURCES            = check_encode_buffer.c
 _bin_check_connect_encode_headers_SOURCES   = check_connect_encode_headers.c
@@ -30,8 +34,6 @@ _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c
 _bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c
 _bin_check_tx_buffer_recipes_SOURCES        = check_tx_buffer_recipes.c
 _bin_check_client_initialize_SOURCES        = check_client_initialize.c \
-    check_lightmqtt.c
-_bin_check_time_SOURCES                     = check_time.c \
     check_lightmqtt.c
 
 AM_CFLAGS = -I$(top_builddir) @CHECK_CFLAGS@

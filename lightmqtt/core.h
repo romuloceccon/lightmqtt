@@ -16,4 +16,10 @@
     typedef unsigned long u32;
 #endif
 
+typedef enum {
+    LMQTT_IO_SUCCESS = 0,
+    LMQTT_IO_AGAIN,
+    LMQTT_IO_ERROR
+} lmqtt_io_result_t;
+
 #endif

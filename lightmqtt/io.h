@@ -1,23 +1,17 @@
 #ifndef _LIGHTMQTT_IO_H_
 #define _LIGHTMQTT_IO_H_
 
+#include <lightmqtt/time.h>
 #include <lightmqtt/packet.h>
 
 #define LMQTT_RX_BUFFER_SIZE 512
 #define LMQTT_TX_BUFFER_SIZE 512
-
-typedef lmqtt_io_result_t (*lmqtt_get_time_t)(long *, long *);
 
 typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
 
 typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
 
 typedef void (*lmqtt_client_on_connect_t)(void *);
-
-typedef struct _lmqtt_time_t {
-    long secs;
-    long nsecs;
-} lmqtt_time_t;
 
 struct _lmqtt_client_t;
 

@@ -1,6 +1,6 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_io.c"
+#include "lightmqtt/time.h"
 
 START_TEST(should_get_integral_time_until_keep_alive)
 {
@@ -8,7 +8,7 @@ START_TEST(should_get_integral_time_until_keep_alive)
     long secs, nsecs;
 
     test_time_set(14, 0);
-    ck_assert_int_eq(1, time_get_timeout_to(
+    ck_assert_int_eq(1, lmqtt_time_get_timeout_to(
         &time, test_time_get, 5, &secs, &nsecs));
 
     ck_assert_int_eq(1, secs);
@@ -22,7 +22,7 @@ START_TEST(should_get_fractional_time_until_keep_alive)
     long secs, nsecs;
 
     test_time_set(14, 400e6);
-    ck_assert_int_eq(1, time_get_timeout_to(
+    ck_assert_int_eq(1, lmqtt_time_get_timeout_to(
         &time, test_time_get, 5, &secs, &nsecs));
 
     ck_assert_int_eq(1, secs);
@@ -36,7 +36,7 @@ START_TEST(should_get_fractional_time_with_carry_until_keep_alive)
     long secs, nsecs;
 
     test_time_set(14, 600e6);
-    ck_assert_int_eq(1, time_get_timeout_to(
+    ck_assert_int_eq(1, lmqtt_time_get_timeout_to(
         &time, test_time_get, 5, &secs, &nsecs));
 
     ck_assert_int_eq(0, secs);
@@ -50,7 +50,7 @@ START_TEST(should_get_time_until_expired_keep_alive)
     long secs, nsecs;
 
     test_time_set(15, 600e6);
-    ck_assert_int_eq(1, time_get_timeout_to(
+    ck_assert_int_eq(1, lmqtt_time_get_timeout_to(
         &time, test_time_get, 5, &secs, &nsecs));
 
     ck_assert_int_eq(0, secs);
@@ -64,7 +64,7 @@ START_TEST(should_get_time_until_keep_alive_at_expiration_time)
     long secs, nsecs;
 
     test_time_set(15, 500e6);
-    ck_assert_int_eq(1, time_get_timeout_to(
+    ck_assert_int_eq(1, lmqtt_time_get_timeout_to(
         &time, test_time_get, 5, &secs, &nsecs));
 
     ck_assert_int_eq(0, secs);
@@ -78,7 +78,7 @@ START_TEST(should_get_time_with_zeroed_keep_alive)
     long secs, nsecs;
 
     test_time_set(11, 0);
-    ck_assert_int_eq(0, time_get_timeout_to(
+    ck_assert_int_eq(0, lmqtt_time_get_timeout_to(
         &time, test_time_get, 0, &secs, &nsecs));
 
     ck_assert_int_eq(0, secs);
