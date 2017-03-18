@@ -731,6 +731,30 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
  * lmqtt_rx_buffer_t PRIVATE functions
  ******************************************************************************/
 
+#define ACTION_RECV 1
+#define ACTION_POP 2
+#define ACTION_PARSE_ID 4
+
+static int rx_buffer_action_by_type(lmqtt_rx_buffer_t *state)
+{
+    switch (state->internal.header.type) {
+        case LMQTT_TYPE_PUBLISH:
+            return ACTION_RECV;
+        case LMQTT_TYPE_PUBREL:
+            return ACTION_RECV | ACTION_PARSE_ID;
+        case LMQTT_TYPE_CONNACK:
+        case LMQTT_TYPE_PINGRESP:
+            return ACTION_RECV | ACTION_POP;
+        case LMQTT_TYPE_PUBACK:
+        case LMQTT_TYPE_PUBREC:
+        case LMQTT_TYPE_PUBCOMP:
+        case LMQTT_TYPE_SUBACK:
+        case LMQTT_TYPE_UNSUBACK:
+            return ACTION_RECV | ACTION_POP | ACTION_PARSE_ID;
+        default:
+            return 0;
+    }
+}
 /*
  * Enable mocking of rx_buffer_call_callback() and rx_buffer_decode_type() in
  * test-cases.
@@ -788,22 +812,31 @@ static lmqtt_io_result_t rx_buffer_fail(lmqtt_rx_buffer_t *state)
     return LMQTT_IO_ERROR;
 }
 
-static int rx_buffer_is_acceptable_response_packet(lmqtt_rx_buffer_t *state)
+static lmqtt_class_t rx_buffer_class_by_type(lmqtt_rx_buffer_t *state)
 {
     switch (state->internal.header.type) {
         case LMQTT_TYPE_CONNACK:
-        case LMQTT_TYPE_PUBLISH:
+            return LMQTT_CLASS_CONNECT;
         case LMQTT_TYPE_PUBACK:
         case LMQTT_TYPE_PUBREC:
-        case LMQTT_TYPE_PUBREL:
+            return LMQTT_CLASS_PUBLISH;
         case LMQTT_TYPE_PUBCOMP:
+            return LMQTT_CLASS_PUBREL;
         case LMQTT_TYPE_SUBACK:
+            return LMQTT_CLASS_SUBSCRIBE;
         case LMQTT_TYPE_UNSUBACK:
+            return LMQTT_CLASS_UNSUBSCRIBE;
         case LMQTT_TYPE_PINGRESP:
-            return 1;
+            return LMQTT_CLASS_PINGREQ;
         default:
-            return 0;
+            assert(0);
     }
+}
+
+static int rx_buffer_pop_packet(lmqtt_rx_buffer_t *state, u16 packet_id)
+{
+    return lmqtt_store_pop(state->store, rx_buffer_class_by_type(state),
+        packet_id, &state->internal.packet_data);
 }
 
 static int rx_buffer_get_min_length(lmqtt_rx_buffer_t *state)
@@ -825,24 +858,6 @@ static int rx_buffer_get_min_length(lmqtt_rx_buffer_t *state)
         case LMQTT_TYPE_PUBCOMP:
         case LMQTT_TYPE_UNSUBACK:
             return 2;
-        default:
-            return 0;
-    }
-}
-
-static int rx_buffer_variable_header_starts_with_packet_id(
-    lmqtt_rx_buffer_t *state)
-{
-    switch (state->internal.header.type) {
-        case LMQTT_TYPE_PUBACK:
-        case LMQTT_TYPE_PUBREC:
-        case LMQTT_TYPE_PUBREL:
-        case LMQTT_TYPE_PUBCOMP:
-        case LMQTT_TYPE_SUBSCRIBE:
-        case LMQTT_TYPE_SUBACK:
-        case LMQTT_TYPE_UNSUBSCRIBE:
-        case LMQTT_TYPE_UNSUBACK:
-            return 1;
         default:
             return 0;
     }
@@ -892,7 +907,8 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
         if (!state->internal.header_finished) {
             int actual_is_zero;
             int expected_is_zero;
-            int remain_len;
+            int rem_len;
+            int action;
             int res = fixed_header_decode(&state->internal.header, buf[i]);
 
             if (res == LMQTT_DECODE_ERROR)
@@ -901,29 +917,40 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
                 continue;
 
             state->internal.header_finished = 1;
-            remain_len = state->internal.header.remaining_length;
+            rem_len = state->internal.header.remaining_length;
+            action = rx_buffer_action_by_type(state);
 
-            if (!rx_buffer_is_acceptable_response_packet(state))
+            if (!(action & ACTION_RECV))
                 return rx_buffer_fail(state);
 
-            if (remain_len < rx_buffer_get_min_length(state))
+            if (rem_len < rx_buffer_get_min_length(state))
                 return rx_buffer_fail(state);
+
+            if ((action & ACTION_POP) && !(action & ACTION_PARSE_ID)) {
+                if (!rx_buffer_pop_packet(state, 0))
+                    return rx_buffer_fail(state);
+            }
         } else {
-            int remain_pos = ++state->internal.remain_buf_pos;
-            int remain_len = state->internal.header.remaining_length;
+            int rem_pos = ++state->internal.remain_buf_pos;
+            int rem_len = state->internal.header.remaining_length;
+            int action = rx_buffer_action_by_type(state);
+            static const int p_len = LMQTT_PACKET_ID_LEN_SIZE;
 
-            if (rx_buffer_variable_header_starts_with_packet_id(state) &&
-                    remain_pos <= LMQTT_PACKET_ID_LEN_SIZE) {
-                int s = LMQTT_PACKET_ID_LEN_SIZE - remain_pos;
-                state->internal.packet_id |= buf[i] << (s * 8);
+            if ((action & ACTION_PARSE_ID) && rem_pos <= p_len) {
+                state->internal.packet_id |= buf[i] << ((p_len - rem_pos) * 8);
+
+                if ((action & ACTION_POP) && rem_pos == p_len) {
+                    if (!rx_buffer_pop_packet(state, state->internal.packet_id))
+                        return rx_buffer_fail(state);
+                }
             } else {
                 int res = RX_BUFFER_DECODE_TYPE(state, buf[i]);
 
                 if (res == LMQTT_DECODE_ERROR)
                     return rx_buffer_fail(state);
-                if (res != LMQTT_DECODE_FINISHED && remain_pos >= remain_len)
+                if (res != LMQTT_DECODE_FINISHED && rem_pos >= rem_len)
                     return rx_buffer_fail(state);
-                if (res == LMQTT_DECODE_FINISHED && remain_pos < remain_len)
+                if (res == LMQTT_DECODE_FINISHED && rem_pos < rem_len)
                     return rx_buffer_fail(state);
 
                 if (res != LMQTT_DECODE_FINISHED)

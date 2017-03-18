@@ -144,6 +144,8 @@ typedef struct _lmqtt_callbacks_t {
 } lmqtt_callbacks_t;
 
 typedef struct _lmqtt_rx_buffer_t {
+    lmqtt_store_t *store;
+
     lmqtt_lookup_packet_t lookup_packet;
 
     lmqtt_callbacks_t *callbacks;
@@ -154,6 +156,7 @@ typedef struct _lmqtt_rx_buffer_t {
         int header_finished;
         int remain_buf_pos;
         u16 packet_id;
+        void *packet_data;
         union {
             lmqtt_connack_t connack;
         } payload;

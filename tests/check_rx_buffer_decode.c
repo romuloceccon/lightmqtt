@@ -8,23 +8,34 @@ static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b);
 #include "../src/lmqtt_packet.c"
 
 #define BYTES_R_PLACEHOLDER -12345
-#define PACKET_ID_PLACEHOLDER 0xCCCC
 
 #define PREPARE \
     lmqtt_rx_buffer_t state; \
+    lmqtt_store_t store; \
     u8 buf[64]; \
     int bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
-    int packet_id = PACKET_ID_PLACEHOLDER; \
+    int data = 0; \
     memset(&client, 0, sizeof(client)); \
     memset(&buf, 0, sizeof(buf)); \
-    memset(&state, 0, sizeof(state))
+    memset(&state, 0, sizeof(state)); \
+    memset(&store, 0, sizeof(store)); \
+    state.store = &store; \
+    store.get_time = &test_time_get
+
+#define STORE_APPEND_NEXT(class, packet_id) \
+    do { \
+        ck_assert_int_eq(1, lmqtt_store_append(&store, class, packet_id, &data)); \
+        ck_assert_int_eq(1, lmqtt_store_next(&store)); \
+    } while (0)
 
 typedef struct _test_packet_t {
     lmqtt_decode_result_t result;
     int bytes_to_read;
     int pos;
     u8 buf[256];
+    u16 packet_id;
+    void *packet_data;
 } test_packet_t;
 
 typedef struct _TestClient {
@@ -36,10 +47,11 @@ static TestClient client;
 
 static int test_call_callback(lmqtt_rx_buffer_t *state)
 {
-    if (state->callbacks_data) {
-        u16* packet_id = (u16 *) state->callbacks_data;
-        *packet_id = state->internal.packet_id;
-    }
+    test_packet_t *packet = &client.packets[client.current_packet++];
+
+    packet->packet_id = state->internal.packet_id;
+    packet->packet_data = state->internal.packet_data;
+
     return 1;
 }
 
@@ -51,12 +63,8 @@ static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b)
         return LMQTT_DECODE_ERROR;
 
     packet->buf[packet->pos++] = b;
-    if (packet->pos >= packet->bytes_to_read) {
-        client.current_packet++;
-        return packet->result;
-    } else {
-        return LMQTT_DECODE_CONTINUE;
-    }
+    return packet->pos >= packet->bytes_to_read ?
+        packet->result : LMQTT_DECODE_CONTINUE;
 }
 
 void set_packet_result(int i, lmqtt_decode_result_t result, int bytes_to_read)
@@ -75,6 +83,7 @@ START_TEST(should_process_complete_rx_buffer)
     buf[2] = 0;
     buf[3] = 5;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -85,6 +94,7 @@ START_TEST(should_process_complete_rx_buffer)
     ck_assert_int_eq(2, client.packets[0].pos);
     ck_assert_uint_eq(0, client.packets[0].buf[0]);
     ck_assert_uint_eq(5, client.packets[0].buf[1]);
+    ck_assert_ptr_eq(&data, client.packets[0].packet_data);
 }
 END_TEST
 
@@ -95,6 +105,7 @@ START_TEST(should_process_partial_rx_buffer)
     buf[0] = 0x20;
     buf[1] = 2;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
@@ -113,6 +124,7 @@ START_TEST(should_decode_rx_buffer_continuation)
     buf[0] = 0x20;
     buf[1] = 2;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 1, &bytes_r);
@@ -133,6 +145,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_header)
 
     buf[1] = 2;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -152,6 +165,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_data)
     buf[1] = 2;
     buf[2] = 0x0f;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -171,6 +185,7 @@ START_TEST(should_not_decode_rx_buffer_after_error)
     buf[1] = 2;
     buf[2] = 0x0f;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -199,6 +214,8 @@ START_TEST(should_reset_rx_buffer_after_successful_processing)
     buf[0] = 0x20;
     buf[1] = 2;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
     set_packet_result(1, LMQTT_DECODE_FINISHED, 2);
 
@@ -206,7 +223,6 @@ START_TEST(should_reset_rx_buffer_after_successful_processing)
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(2, client.packets[0].pos);
-    ck_assert_int_eq(0, client.packets[1].pos);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
@@ -225,6 +241,8 @@ START_TEST(should_decode_rx_buffer_with_two_packets)
     buf[4] = 0x20;
     buf[5] = 2;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
     set_packet_result(1, LMQTT_DECODE_FINISHED, 2);
 
@@ -246,6 +264,10 @@ START_TEST(should_decode_rx_buffer_with_allowed_null_data)
     buf[2] = 0xd0;
     buf[4] = 0xd0;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
+    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
+    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
+
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -261,6 +283,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_null_data)
     buf[1] = 0;
     buf[2] = 0xd0;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -279,6 +302,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_nonnull_data)
     buf[0] = 0xd0;
     buf[1] = 1;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 0);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
@@ -294,6 +318,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_response_packet)
 
     buf[0] = 0xe0;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_DISCONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 2, &bytes_r);
@@ -314,14 +339,14 @@ START_TEST(should_decode_rx_buffer_with_packet_id)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
-    state.callbacks_data = &packet_id;
+    STORE_APPEND_NEXT(LMQTT_CLASS_PUBLISH, 0x0102);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(4, bytes_r);
 
-    ck_assert_int_eq(0x0102, packet_id);
+    ck_assert_int_eq(0x0102, client.packets[0].packet_id);
 }
 END_TEST
 
@@ -334,8 +359,7 @@ START_TEST(should_decode_rx_buffer_after_packet_id)
     buf[2] = 0x03;
     buf[3] = 0x04;
 
-    state.callbacks_data = &packet_id;
-
+    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0304);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
@@ -343,7 +367,7 @@ START_TEST(should_decode_rx_buffer_after_packet_id)
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(5, bytes_r);
 
-    ck_assert_int_eq(0x0304, packet_id);
+    ck_assert_int_eq(0x0304, client.packets[0].packet_id);
     ck_assert_int_eq(1, client.packets[0].pos);
 }
 END_TEST
@@ -357,6 +381,7 @@ START_TEST(should_fail_if_decoder_does_not_finish_when_expected)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0102);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
@@ -364,7 +389,7 @@ START_TEST(should_fail_if_decoder_does_not_finish_when_expected)
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_int_eq(5, bytes_r);
 
-    ck_assert_int_eq(PACKET_ID_PLACEHOLDER, packet_id);
+    ck_assert_int_eq(0, client.packets[0].packet_id);
     ck_assert_int_eq(1, client.packets[0].pos);
 }
 END_TEST
@@ -378,6 +403,7 @@ START_TEST(should_fail_if_decoder_finishes_before_expected)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
+    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0102);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
@@ -385,8 +411,63 @@ START_TEST(should_fail_if_decoder_finishes_before_expected)
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_int_eq(5, bytes_r);
 
-    ck_assert_int_eq(PACKET_ID_PLACEHOLDER, packet_id);
+    ck_assert_int_eq(0, client.packets[0].packet_id);
     ck_assert_int_eq(1, client.packets[0].pos);
+}
+END_TEST
+
+START_TEST(should_fail_if_connack_has_no_corresponding_connect)
+{
+    PREPARE;
+
+    buf[0] = 0x20;
+    buf[1] = 2;
+    buf[2] = 0;
+    buf[3] = 5;
+
+    set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+    ck_assert_int_eq(2, bytes_r);
+}
+END_TEST
+
+START_TEST(should_fail_if_suback_has_no_corresponding_subscribe)
+{
+    PREPARE;
+
+    buf[0] = 0x90;
+    buf[1] = 4;
+    buf[2] = 0x01;
+    buf[3] = 0x02;
+
+    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0111);
+    set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+    ck_assert_int_eq(4, bytes_r);
+}
+END_TEST
+
+START_TEST(should_decode_pubrel_without_corresponding_pubrec)
+{
+    PREPARE;
+
+    buf[0] = 0x62;
+    buf[1] = 2;
+    buf[2] = 0x01;
+    buf[3] = 0x02;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(4, bytes_r);
+
+    ck_assert_int_eq(0x0102, client.packets[0].packet_id);
 }
 END_TEST
 
@@ -408,5 +489,8 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_decode_rx_buffer_after_packet_id);
     ADD_TEST(should_fail_if_decoder_does_not_finish_when_expected);
     ADD_TEST(should_fail_if_decoder_finishes_before_expected);
+    ADD_TEST(should_fail_if_connack_has_no_corresponding_connect);
+    ADD_TEST(should_fail_if_suback_has_no_corresponding_subscribe);
+    ADD_TEST(should_decode_pubrel_without_corresponding_pubrec);
 }
 END_TCASE

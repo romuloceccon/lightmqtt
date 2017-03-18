@@ -33,7 +33,8 @@ _bin_check_process_SOURCES                  = check_process.c \
     check_lightmqtt.c
 _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c \
     check_lightmqtt.c
-_bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c
+_bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c \
+    check_lightmqtt.c
 _bin_check_tx_buffer_recipes_SOURCES        = check_tx_buffer_recipes.c \
     check_lightmqtt.c
 _bin_check_client_initialize_SOURCES        = check_client_initialize.c \
