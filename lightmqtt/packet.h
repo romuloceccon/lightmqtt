@@ -152,6 +152,8 @@ typedef struct _lmqtt_rx_buffer_t {
     struct {
         lmqtt_fixed_header_t header;
         int header_finished;
+        int remain_buf_pos;
+        u16 packet_id;
         union {
             lmqtt_connack_t connack;
         } payload;
