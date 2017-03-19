@@ -143,6 +143,16 @@ typedef struct _lmqtt_callbacks_t {
     int (*on_pingresp)(void *);
 } lmqtt_callbacks_t;
 
+struct _lmqtt_rx_buffer_t;
+
+struct _lmqtt_rx_buffer_decoder_t {
+    int min_length;
+    lmqtt_class_t class;
+    int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
+    int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
+    int (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
+};
+
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
 
@@ -154,6 +164,7 @@ typedef struct _lmqtt_rx_buffer_t {
     struct {
         lmqtt_fixed_header_t header;
         int header_finished;
+        struct _lmqtt_rx_buffer_decoder_t const *decoder;
         int remain_buf_pos;
         u16 packet_id;
         void *packet_data;
