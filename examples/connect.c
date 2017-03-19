@@ -73,9 +73,32 @@ lmqtt_io_result_t get_time(long *secs, long *nsecs)
     return LMQTT_IO_ERROR;
 }
 
+static char *topic = "topic";
+static lmqtt_subscribe_t subscribe;
+static lmqtt_subscription_t subscriptions[1];
+
 void on_connect(void *data)
 {
+    lmqtt_client_t *client;
+
     fprintf(stderr, "connected!\n");
+
+    client = (lmqtt_client_t *) data;
+
+    memset(&subscribe, 0, sizeof(subscribe));
+    memset(subscriptions, 0, sizeof(subscriptions));
+    subscribe.count = 1;
+    subscribe.subscriptions = subscriptions;
+    subscriptions[0].qos = 1;
+    subscriptions[0].topic.buf = topic;
+    subscriptions[0].topic.len = strlen(topic);
+
+    lmqtt_client_subscribe(client, &subscribe);
+}
+
+void on_subscribe(void *data)
+{
+    fprintf(stderr, "subscribed: %d!\n", (int) subscriptions[0].return_code);
 }
 
 int main()
@@ -112,7 +135,8 @@ int main()
     client.write = write_data;
     client.get_time = get_time;
     client.store.get_time = get_time;
-    lmqtt_client_set_on_connect(&client, on_connect, NULL);
+    lmqtt_client_set_on_connect(&client, on_connect, &client);
+    lmqtt_client_set_on_subscribe(&client, on_subscribe, &client);
     lmqtt_client_set_default_timeout(&client, 2);
 
     memset(&connect_data, 0, sizeof(connect_data));

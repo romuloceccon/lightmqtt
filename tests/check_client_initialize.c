@@ -5,10 +5,12 @@
 
 enum {
     TEST_CONNECT = 1,
+    TEST_SUBSCRIBE,
     TEST_PINGREQ,
     TEST_DISCONNECT,
     TEST_CONNACK_SUCCESS,
     TEST_CONNACK_FAILURE,
+    TEST_SUBACK_SUCCESS,
     TEST_PINGRESP
 } test_type_t;
 
@@ -36,6 +38,10 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
                 buf[*bytes_written] = TEST_CONNECT;
                 lmqtt_store_next(state->store);
                 break;
+            case LMQTT_CLASS_SUBSCRIBE:
+                buf[*bytes_written] = TEST_SUBSCRIBE;
+                lmqtt_store_next(state->store);
+                break;
             case LMQTT_CLASS_PINGREQ:
                 buf[*bytes_written] = TEST_PINGREQ;
                 lmqtt_store_next(state->store);
@@ -58,6 +64,7 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
 {
     int i;
     lmqtt_connect_t connect;
+    lmqtt_subscribe_t subscribe;
 
     for (i = 0; i < buf_len; i++) {
         switch (buf[i]) {
@@ -69,6 +76,10 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
                 memset(&connect, 0, sizeof(connect));
                 connect.response.return_code = 1;
                 state->callbacks->on_connack(state->callbacks_data, &connect);
+                break;
+            case TEST_SUBACK_SUCCESS:
+                memset(&subscribe, 0, sizeof(subscribe));
+                state->callbacks->on_suback(state->callbacks_data, &subscribe);
                 break;
             case TEST_PINGRESP:
                 state->callbacks->on_pingresp(state->callbacks_data);
@@ -155,6 +166,11 @@ static lmqtt_io_result_t write_buf(void *data, u8 *buf, int buf_len,
 static void on_connect(void *data)
 {
     *((int *) data) = 1;
+}
+
+static void on_subscribe(void *data)
+{
+    *((int *) data) = 2;
 }
 
 static int do_connect_and_connack(lmqtt_client_t *client, long keep_alive,
@@ -312,6 +328,55 @@ START_TEST(should_not_receive_connack_before_connect)
     test_socket_append(TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, process_input(&client));
     ck_assert_int_eq(0, connected);
+}
+END_TEST
+
+START_TEST(should_subscribe)
+{
+    lmqtt_client_t client;
+    lmqtt_subscribe_t subscribe;
+    int subscribed;
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    lmqtt_client_set_on_subscribe(&client, on_subscribe, &subscribed);
+
+    ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_output(&client));
+    ck_assert_int_eq(TEST_SUBSCRIBE, test_socket_shift());
+
+    subscribed = 0;
+    test_socket_append(TEST_SUBACK_SUCCESS);
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_input(&client));
+    ck_assert_int_eq(2, subscribed);
+}
+END_TEST
+
+START_TEST(should_assign_packet_ids_to_subscribe)
+{
+    lmqtt_client_t client;
+    lmqtt_subscribe_t subscribe[3];
+    void *data;
+
+    memset(subscribe, 0, sizeof(subscribe));
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[0]));
+    ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[1]));
+    ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[2]));
+
+    ck_assert_uint_eq(0, subscribe[0].packet_id);
+    ck_assert_uint_eq(1, subscribe[1].packet_id);
+    ck_assert_uint_eq(2, subscribe[2].packet_id);
+
+    lmqtt_store_next(&client.store);
+    lmqtt_store_next(&client.store);
+    lmqtt_store_next(&client.store);
+
+    ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 0, &data));
+    ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 1, &data));
+    ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 2, &data));
 }
 END_TEST
 
@@ -547,6 +612,9 @@ START_TCASE("Client initialize")
     ADD_TEST(should_receive_connack_after_connect);
     ADD_TEST(should_not_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);
+
+    ADD_TEST(should_subscribe);
+    ADD_TEST(should_assign_packet_ids_to_subscribe);
 
     ADD_TEST(should_send_pingreq_after_timeout);
     ADD_TEST(should_not_send_pingreq_before_timeout);

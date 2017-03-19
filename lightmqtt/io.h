@@ -12,6 +12,7 @@ typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
 typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
 
 typedef void (*lmqtt_client_on_connect_t)(void *);
+typedef void (*lmqtt_client_on_subscribe_t)(void *);
 
 struct _lmqtt_client_t;
 
@@ -23,6 +24,8 @@ typedef struct _lmqtt_client_t {
 
     lmqtt_client_on_connect_t on_connect;
     void *on_connect_data;
+    lmqtt_client_on_subscribe_t on_subscribe;
+    void *on_subscribe_data;
 
     int failed;
 
@@ -39,6 +42,7 @@ typedef struct _lmqtt_client_t {
 
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
+        int (*subscribe)(struct _lmqtt_client_t *, lmqtt_subscribe_t *);
         int (*pingreq)(struct _lmqtt_client_t *);
         int (*disconnect)(struct _lmqtt_client_t *);
 
@@ -64,10 +68,16 @@ lmqtt_io_status_t process_output(lmqtt_client_t *client);
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
 
 void lmqtt_client_initialize(lmqtt_client_t *client);
+
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);
+int lmqtt_client_subscribe(lmqtt_client_t *client, lmqtt_subscribe_t *subscribe);
 int lmqtt_client_disconnect(lmqtt_client_t *client);
+
 void lmqtt_client_set_on_connect(lmqtt_client_t *client,
     lmqtt_client_on_connect_t on_connect, void *on_connect_data);
+void lmqtt_client_set_on_subscribe(lmqtt_client_t *client,
+    lmqtt_client_on_subscribe_t on_subscribe, void *on_subscribe_data);
+
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs);
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
 
