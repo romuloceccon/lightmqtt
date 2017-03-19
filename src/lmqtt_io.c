@@ -182,7 +182,7 @@ static void client_set_state_connecting(lmqtt_client_t *client);
 static void client_set_state_connected(lmqtt_client_t *client);
 static void client_set_state_disconnecting(lmqtt_client_t *client);
 
-static int client_on_connack_fail(void *data, lmqtt_connack_t *connack)
+static int client_on_connack_fail(void *data, lmqtt_connect_t *connect)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
@@ -191,11 +191,11 @@ static int client_on_connack_fail(void *data, lmqtt_connack_t *connack)
     return 1;
 }
 
-static int client_on_connack(void *data, lmqtt_connack_t *connack)
+static int client_on_connack(void *data, lmqtt_connect_t *connect)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    if (connack->return_code == LMQTT_CONNACK_RC_ACCEPTED) {
+    if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
         client_touch_resp(client);
         client_set_state_connected(client);
 
@@ -311,6 +311,7 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
 
     client->rx_state.callbacks = &client->internal.rx_callbacks;
     client->rx_state.callbacks_data = client;
+    client->rx_state.store = &client->store;
     client->tx_state.store = &client->store;
 
     client_set_state_initial(client);

@@ -90,16 +90,11 @@ typedef struct _lmqtt_connect_t {
     lmqtt_string_t will_message;
     lmqtt_string_t user_name;
     lmqtt_string_t password;
-} lmqtt_connect_t;
-
-typedef struct _lmqtt_connack_t {
-    int session_present;
-    int return_code;
     struct {
-        int bytes_read;
-        int failed;
-    } internal;
-} lmqtt_connack_t;
+        int session_present;
+        int return_code;
+    } response;
+} lmqtt_connect_t;
 
 typedef struct _lmqtt_subscribe_t {
     u16 packet_id;
@@ -110,21 +105,8 @@ typedef struct _lmqtt_subscribe_t {
     } internal;
 } lmqtt_subscribe_t;
 
-typedef int (*lmqtt_lookup_packet_t)(int, lmqtt_operation_t, void **);
-
-typedef struct _lmqtt_suback_t {
-    u16 packet_id;
-    struct {
-        int bytes_read;
-        int failed;
-        lmqtt_subscribe_t *subscribe;
-    } internal;
-} lmqtt_suback_t;
-
 typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
     lmqtt_encode_buffer_t *, int, u8 *, int, int *);
-
-typedef void (*lmqtt_tx_buffer_callback_t)(void *);
 
 typedef struct _lmqtt_tx_buffer_t {
     lmqtt_store_t *store;
@@ -139,7 +121,8 @@ typedef struct _lmqtt_tx_buffer_t {
 typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *, void *);
 
 typedef struct _lmqtt_callbacks_t {
-    int (*on_connack)(void *, lmqtt_connack_t *);
+    int (*on_connack)(void *, lmqtt_connect_t *);
+    int (*on_suback)(void *, lmqtt_subscribe_t *);
     int (*on_pingresp)(void *);
 } lmqtt_callbacks_t;
 
@@ -151,12 +134,12 @@ struct _lmqtt_rx_buffer_decoder_t {
     int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
     int (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
+    lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
+    int (*call_callback)(struct _lmqtt_rx_buffer_t *);
 };
 
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
-
-    lmqtt_lookup_packet_t lookup_packet;
 
     lmqtt_callbacks_t *callbacks;
     void *callbacks_data;
@@ -168,10 +151,6 @@ typedef struct _lmqtt_rx_buffer_t {
         int remain_buf_pos;
         u16 packet_id;
         void *packet_data;
-        union {
-            lmqtt_connack_t connack;
-        } payload;
-
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;

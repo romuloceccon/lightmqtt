@@ -111,6 +111,7 @@ int main()
     client.read = read_data;
     client.write = write_data;
     client.get_time = get_time;
+    client.store.get_time = get_time;
     lmqtt_client_set_on_connect(&client, on_connect, NULL);
     lmqtt_client_set_default_timeout(&client, 2);
 

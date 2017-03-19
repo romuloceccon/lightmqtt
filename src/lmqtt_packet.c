@@ -27,7 +27,7 @@
 #define LMQTT_OFFSET_FLAG_QOS 3
 
 #define LMQTT_STRING_LEN_SIZE 2
-#define LMQTT_PACKET_ID_LEN_SIZE 2
+#define LMQTT_PACKET_ID_SIZE 2
 
 #define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
 
@@ -403,50 +403,13 @@ static lmqtt_encode_result_t connect_encode_payload_password(
 }
 
 /******************************************************************************
- * lmqtt_connack_t PRIVATE functions
- ******************************************************************************/
-
-static lmqtt_decode_result_t connack_decode(lmqtt_connack_t *connack, u8 b)
-{
-    int result = LMQTT_DECODE_ERROR;
-
-    if (connack->internal.failed)
-        return LMQTT_DECODE_ERROR;
-
-    switch (connack->internal.bytes_read) {
-        case 0:
-            if (b & ~1) {
-                result = LMQTT_DECODE_ERROR;
-            } else {
-                connack->session_present = b != 0;
-                result = LMQTT_DECODE_CONTINUE;
-            }
-            break;
-        case 1:
-            if (b > LMQTT_CONNACK_RC_MAX) {
-                result = LMQTT_DECODE_ERROR;
-            } else {
-                connack->return_code = b;
-                result = LMQTT_DECODE_FINISHED;
-            }
-            break;
-    }
-
-    if (result == LMQTT_DECODE_ERROR)
-        connack->internal.failed = 1;
-    else
-        connack->internal.bytes_read += 1;
-    return result;
-}
-
-/******************************************************************************
  * lmqtt_subscribe_t PRIVATE functions
  ******************************************************************************/
 
 static int subscribe_calc_remaining_length(lmqtt_subscribe_t *subscribe)
 {
     int i;
-    int result = LMQTT_PACKET_ID_LEN_SIZE;
+    int result = LMQTT_PACKET_ID_SIZE;
 
     for (i = 0; i < subscribe->count; i++)
         result += subscribe->subscriptions[i].topic.len +
@@ -466,11 +429,11 @@ static lmqtt_encode_result_t subscribe_build_header(
         return LMQTT_ENCODE_ERROR;
 
     encode_buffer->buf[0] = LMQTT_TYPE_SUBSCRIBE << 4 | 0x02;
-    for (i = 0; i < LMQTT_PACKET_ID_LEN_SIZE; i++)
+    for (i = 0; i < LMQTT_PACKET_ID_SIZE; i++)
         encode_buffer->buf[v + i + 1] = STRING_LEN_BYTE(subscribe->packet_id,
-            LMQTT_PACKET_ID_LEN_SIZE - i - 1);
+            LMQTT_PACKET_ID_SIZE - i - 1);
 
-    encode_buffer->buf_len = v + LMQTT_PACKET_ID_LEN_SIZE + 1;
+    encode_buffer->buf_len = v + LMQTT_PACKET_ID_SIZE + 1;
     return LMQTT_ENCODE_FINISHED;
 }
 
@@ -506,52 +469,6 @@ static lmqtt_encode_result_t subscribe_encode_qos(
     return encode_buffer_encode(encode_buffer, subscribe,
         (encode_buffer_builder_t) subscribe_build_qos, offset, buf, buf_len,
         bytes_written);
-}
-
-/******************************************************************************
- * lmqtt_suback_t PRIVATE functions
- ******************************************************************************/
-
-static lmqtt_decode_result_t suback_decode(lmqtt_suback_t *suback,
-    int payload_len, lmqtt_lookup_packet_t lookup_packet, u8 b)
-{
-    int pos;
-
-    if (suback->internal.failed) {
-        return LMQTT_DECODE_ERROR;
-    }
-
-    if (payload_len < 3) {
-        suback->internal.failed = 1;
-        return LMQTT_DECODE_ERROR;
-    }
-
-    pos = suback->internal.bytes_read;
-
-    if (pos < LMQTT_PACKET_ID_LEN_SIZE) {
-        int s = LMQTT_PACKET_ID_LEN_SIZE - pos - 1;
-        suback->packet_id = suback->packet_id | (b << (s * 8));
-
-        if (pos == LMQTT_PACKET_ID_LEN_SIZE - 1 && (
-                !lookup_packet(suback->packet_id, LMQTT_OPERATION_SUBSCRIBE,
-                    (void **) &suback->internal.subscribe) ||
-                suback->internal.subscribe->count !=
-                    payload_len - LMQTT_PACKET_ID_LEN_SIZE)) {
-            suback->internal.failed = 1;
-            return LMQTT_DECODE_ERROR;
-        }
-    } else {
-        int s = pos - LMQTT_PACKET_ID_LEN_SIZE;
-        if (b > 2 && b != 0x80) {
-            suback->internal.failed = 1;
-            return LMQTT_DECODE_ERROR;
-        }
-        suback->internal.subscribe->subscriptions[s].return_code = b;
-    }
-
-    suback->internal.bytes_read += 1;
-    return payload_len == suback->internal.bytes_read ?
-        LMQTT_DECODE_FINISHED : LMQTT_DECODE_CONTINUE;
 }
 
 /******************************************************************************
@@ -731,6 +648,75 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
  * lmqtt_rx_buffer_t PRIVATE functions
  ******************************************************************************/
 
+static lmqtt_decode_result_t rx_buffer_decode_connack(lmqtt_rx_buffer_t *state,
+    u8 b)
+{
+    lmqtt_connect_t *connect = (lmqtt_connect_t *) state->internal.packet_data;
+
+    switch (state->internal.remain_buf_pos) {
+        case 0:
+            if (b & ~1)
+                return LMQTT_DECODE_ERROR;
+            connect->response.session_present = b;
+            return LMQTT_DECODE_CONTINUE;
+        case 1:
+            if (b > LMQTT_CONNACK_RC_MAX)
+                return LMQTT_DECODE_ERROR;
+            connect->response.return_code = b;
+            return LMQTT_DECODE_FINISHED;
+        default:
+            return LMQTT_DECODE_ERROR;
+    }
+}
+
+static lmqtt_decode_result_t rx_buffer_decode_suback(lmqtt_rx_buffer_t *state,
+    u8 b)
+{
+    lmqtt_subscribe_t *subscribe =
+        (lmqtt_subscribe_t *) state->internal.packet_data;
+
+    int pos = state->internal.remain_buf_pos - LMQTT_PACKET_ID_SIZE;
+
+    if (pos == 0) {
+        int len = state->internal.header.remaining_length - LMQTT_PACKET_ID_SIZE;
+        if (len != subscribe->count)
+            return LMQTT_DECODE_ERROR;
+    }
+
+    if (b > 2 && b != 0x80)
+        return LMQTT_DECODE_ERROR;
+
+    subscribe->subscriptions[pos].return_code = b;
+    return pos + 1 >= subscribe->count ?
+        LMQTT_DECODE_FINISHED : LMQTT_DECODE_CONTINUE;
+}
+
+static int rx_buffer_call_connack(lmqtt_rx_buffer_t *state)
+{
+    if (!state->callbacks->on_connack)
+        return 0;
+
+    return state->callbacks->on_connack(state->callbacks_data,
+        (lmqtt_connect_t *) state->internal.packet_data);
+}
+
+static int rx_buffer_call_suback(lmqtt_rx_buffer_t *state)
+{
+    if (!state->callbacks->on_suback)
+        return 0;
+
+    return state->callbacks->on_suback(state->callbacks_data,
+        (lmqtt_subscribe_t *) state->internal.packet_data);
+}
+
+static int rx_buffer_call_pingresp(lmqtt_rx_buffer_t *state)
+{
+    if (!state->callbacks->on_pingresp)
+        return 0;
+
+    return state->callbacks->on_pingresp(state->callbacks_data);
+}
+
 /*
  * Enable mocking of rx_buffer_call_callback() and rx_buffer_decode_type() in
  * test-cases.
@@ -747,39 +733,13 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
  */
 static int rx_buffer_call_callback(lmqtt_rx_buffer_t *state)
 {
-    int result = 1;
-
-    switch (state->internal.header.type) {
-        case LMQTT_TYPE_CONNACK:
-            state->callbacks->on_connack(state->callbacks_data,
-                &state->internal.payload.connack);
-            break;
-        case LMQTT_TYPE_PINGRESP:
-            state->callbacks->on_pingresp(state->callbacks_data);
-            break;
-        default:
-            result = 0;
-    }
-
-    return result;
+    return state->internal.decoder->call_callback(state);
 }
 
 static lmqtt_decode_result_t rx_buffer_decode_type(lmqtt_rx_buffer_t *state,
     u8 b)
 {
-    switch (state->internal.header.type) {
-        case LMQTT_TYPE_CONNACK:
-            return connack_decode(&state->internal.payload.connack, b);
-        case LMQTT_TYPE_PUBLISH:
-        case LMQTT_TYPE_PUBACK:
-        case LMQTT_TYPE_PUBREC:
-        case LMQTT_TYPE_PUBREL:
-        case LMQTT_TYPE_PUBCOMP:
-        case LMQTT_TYPE_SUBACK:
-        case LMQTT_TYPE_UNSUBACK:
-        default:
-            assert(0);
-    }
+    return state->internal.decoder->decode_byte(state, b);
 }
 
 static lmqtt_io_result_t rx_buffer_fail(lmqtt_rx_buffer_t *state)
@@ -844,7 +804,7 @@ static int rx_buffer_decode_remaining_without_id(lmqtt_rx_buffer_t *state, u8 b)
 static int rx_buffer_decode_remaining_with_id(lmqtt_rx_buffer_t *state, u8 b)
 {
     int rem_pos = state->internal.remain_buf_pos + 1;
-    static const int p_len = LMQTT_PACKET_ID_LEN_SIZE;
+    static const int p_len = LMQTT_PACKET_ID_SIZE;
 
     if (rem_pos > p_len)
         return rx_buffer_decode_remaining_without_id(state, b);
@@ -862,63 +822,81 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_connack = {
     LMQTT_CLASS_CONNECT,
     &rx_buffer_pop_packet_without_id,
     &rx_buffer_pop_packet_ignore,
-    &rx_buffer_decode_remaining_without_id
+    &rx_buffer_decode_remaining_without_id,
+    &rx_buffer_decode_connack,
+    &rx_buffer_call_connack
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_publish = {
     5,
     0, /* never used */
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_ignore,
-    &rx_buffer_decode_remaining_without_id
+    &rx_buffer_decode_remaining_without_id,
+    NULL,
+    NULL
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_puback = {
     2,
     LMQTT_CLASS_PUBLISH,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
-    &rx_buffer_decode_remaining_with_id
+    &rx_buffer_decode_remaining_with_id,
+    NULL,
+    NULL
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrec = {
     2,
     LMQTT_CLASS_PUBLISH,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
-    &rx_buffer_decode_remaining_with_id
+    &rx_buffer_decode_remaining_with_id,
+    NULL,
+    NULL
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrel = {
     2,
     0, /* never used */
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_ignore,
-    &rx_buffer_decode_remaining_with_id
+    &rx_buffer_decode_remaining_with_id,
+    NULL,
+    NULL
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubcomp = {
     2,
     LMQTT_CLASS_PUBREL,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
-    &rx_buffer_decode_remaining_with_id
+    &rx_buffer_decode_remaining_with_id,
+    NULL,
+    NULL
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_suback = {
     3,
     LMQTT_CLASS_SUBSCRIBE,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
-    &rx_buffer_decode_remaining_with_id
+    &rx_buffer_decode_remaining_with_id,
+    &rx_buffer_decode_suback,
+    &rx_buffer_call_suback
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_unsuback = {
     2,
     LMQTT_CLASS_UNSUBSCRIBE,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
-    &rx_buffer_decode_remaining_with_id
+    &rx_buffer_decode_remaining_with_id,
+    NULL,
+    NULL
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pingresp = {
     0,
     LMQTT_CLASS_PINGREQ,
     &rx_buffer_pop_packet_without_id,
     &rx_buffer_pop_packet_ignore,
-    &rx_buffer_decode_remaining_without_id
+    &rx_buffer_decode_remaining_without_id,
+    NULL,
+    &rx_buffer_call_pingresp
 };
 
 static struct _lmqtt_rx_buffer_decoder_t const
