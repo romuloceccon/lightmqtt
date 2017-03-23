@@ -25,8 +25,10 @@ typedef struct _lmqtt_store_entry {
 
 typedef struct _lmqtt_store_t {
     lmqtt_get_time_t get_time;
+    int keep_alive;
     int timeout;
     u16 next_packet_id;
+    lmqtt_time_t last_touch;
     int count;
     int pos;
     lmqtt_store_entry_t entries[LMQTT_STORE_SIZE];
@@ -42,6 +44,8 @@ int lmqtt_store_pop(lmqtt_store_t *store, lmqtt_class_t class, u16 packet_id,
     void **data);
 int lmqtt_store_pop_any(lmqtt_store_t *store, lmqtt_class_t *class,
     void **data);
-int lmqtt_get_timeout(lmqtt_store_t *store, long *secs, long *nsecs);
+int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
+    long *nsecs);
+void lmqtt_store_touch(lmqtt_store_t *store);
 
 #endif

@@ -127,15 +127,32 @@ int lmqtt_store_pop_any(lmqtt_store_t *store, lmqtt_class_t *class, void **data)
     return 0;
 }
 
-int lmqtt_get_timeout(lmqtt_store_t *store, long *secs, long *nsecs)
+int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
+    long *nsecs)
 {
+    lmqtt_time_t *tm;
+    int when = 0;
+
     if (store->pos > 0) {
-        lmqtt_store_entry_t *entry = &store->entries[0];
-        return lmqtt_time_get_timeout_to(&entry->time, store->get_time,
-            store->timeout, secs, nsecs);
+        tm = &store->entries[0].time;
+        when = store->timeout;
+    } else {
+        tm = &store->last_touch;
+        when = store->keep_alive;
     }
 
-    *secs = 0;
-    *nsecs = 0;
-    return 0;
+    if (when == 0) {
+        *count = 0;
+        *secs = 0;
+        *nsecs = 0;
+        return 0;
+    }
+
+    *count = store->pos;
+    return lmqtt_time_get_timeout_to(tm, store->get_time, when, secs, nsecs);
+}
+
+void lmqtt_store_touch(lmqtt_store_t *store)
+{
+    lmqtt_time_touch(&store->last_touch, store->get_time);
 }

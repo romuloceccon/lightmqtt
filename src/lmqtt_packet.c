@@ -977,5 +977,6 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
             rx_buffer_finish_packet(state);
     }
 
+    lmqtt_store_touch(state->store);
     return LMQTT_IO_SUCCESS;
 }
