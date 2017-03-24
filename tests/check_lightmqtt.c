@@ -15,6 +15,24 @@ lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
         LMQTT_IO_AGAIN : LMQTT_IO_SUCCESS;
 }
 
+lmqtt_io_result_t test_buffer_read(void *data, u8 *buf, int buf_len,
+    int *bytes_read)
+{
+    test_buffer_t *source = (test_buffer_t *) data;
+
+    return test_buffer_move(source, buf, &source->buf[source->pos], buf_len,
+        bytes_read);
+}
+
+lmqtt_io_result_t test_buffer_write(void *data, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    test_buffer_t *destination = (test_buffer_t *) data;
+
+    return test_buffer_move(destination, &destination->buf[destination->pos],
+        buf, buf_len, bytes_written);
+}
+
 static lmqtt_time_t test_time;
 
 lmqtt_io_result_t test_time_get(long *secs, long *nsecs)

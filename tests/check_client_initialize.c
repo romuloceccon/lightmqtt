@@ -3,16 +3,19 @@
 
 #include "../src/lmqtt_io.c"
 
-enum {
-    TEST_CONNECT = 1,
+typedef enum {
+    TEST_CONNECT = 5000,
     TEST_SUBSCRIBE,
     TEST_PINGREQ,
-    TEST_DISCONNECT,
-    TEST_CONNACK_SUCCESS,
+    TEST_DISCONNECT
+} test_type_request_t;
+
+typedef enum {
+    TEST_CONNACK_SUCCESS = 5100,
     TEST_CONNACK_FAILURE,
     TEST_SUBACK_SUCCESS,
     TEST_PINGRESP
-} test_type_t;
+} test_type_response_t;
 
 typedef struct {
     test_buffer_t read_buf;
@@ -23,92 +26,18 @@ typedef struct {
 
 static test_socket_t test_socket;
 
-lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
-    int buf_len, int *bytes_written)
-{
-    lmqtt_class_t class;
-    void *data;
-
-    *bytes_written = 0;
-
-    while (lmqtt_store_peek(state->store, &class, &data)) {
-        assert(buf_len > *bytes_written);
-        switch (class) {
-            case LMQTT_CLASS_CONNECT:
-                buf[*bytes_written] = TEST_CONNECT;
-                lmqtt_store_next(state->store);
-                break;
-            case LMQTT_CLASS_SUBSCRIBE:
-                buf[*bytes_written] = TEST_SUBSCRIBE;
-                lmqtt_store_next(state->store);
-                break;
-            case LMQTT_CLASS_PINGREQ:
-                buf[*bytes_written] = TEST_PINGREQ;
-                lmqtt_store_next(state->store);
-                break;
-            case LMQTT_CLASS_DISCONNECT:
-                buf[*bytes_written] = TEST_DISCONNECT;
-                lmqtt_store_drop(state->store);
-                break;
-            default:
-                return LMQTT_IO_ERROR;
-        }
-        *bytes_written += 1;
-    }
-
-    return LMQTT_IO_SUCCESS;
-}
-
-lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
-    int buf_len, int *bytes_read)
-{
-    int i;
-    lmqtt_connect_t connect;
-    lmqtt_subscribe_t subscribe;
-
-    for (i = 0; i < buf_len; i++) {
-        switch (buf[i]) {
-            case TEST_CONNACK_SUCCESS:
-                memset(&connect, 0, sizeof(connect));
-                state->callbacks->on_connack(state->callbacks_data, &connect);
-                break;
-            case TEST_CONNACK_FAILURE:
-                memset(&connect, 0, sizeof(connect));
-                connect.response.return_code = 1;
-                state->callbacks->on_connack(state->callbacks_data, &connect);
-                break;
-            case TEST_SUBACK_SUCCESS:
-                memset(&subscribe, 0, sizeof(subscribe));
-                state->callbacks->on_suback(state->callbacks_data, &subscribe);
-                break;
-            case TEST_PINGRESP:
-                state->callbacks->on_pingresp(state->callbacks_data);
-                break;
-        }
-    }
-
-    *bytes_read = buf_len;
-    return LMQTT_IO_SUCCESS;
-}
-
 static lmqtt_io_result_t test_socket_read(void *data, u8 *buf, int buf_len,
     int *bytes_read)
 {
     test_socket_t *sock = (test_socket_t *) data;
-
-    return test_buffer_move(&sock->read_buf,
-        buf, &sock->read_buf.buf[sock->read_buf.pos],
-        buf_len, bytes_read);
+    return test_buffer_read(&sock->read_buf, buf, buf_len, bytes_read);
 }
 
 static lmqtt_io_result_t test_socket_write(void *data, u8 *buf, int buf_len,
     int *bytes_written)
 {
     test_socket_t *sock = (test_socket_t *) data;
-
-    return test_buffer_move(&sock->write_buf,
-        &sock->write_buf.buf[sock->write_buf.pos], buf,
-        buf_len, bytes_written);
+    return test_buffer_write(&sock->write_buf, buf, buf_len, bytes_written);
 }
 
 static void test_socket_init_with_client(lmqtt_client_t *client)
@@ -130,19 +59,79 @@ static void test_socket_append(int val)
 {
     test_buffer_t *buf = &test_socket.read_buf;
 
-    buf->buf[test_socket.test_pos_read++] = val;
-    buf->available_len += 1;
-    buf->len += 1;
+    char *src = NULL;
+    int len = 0;
+
+    switch (val) {
+        case TEST_CONNACK_SUCCESS:
+            src = "\x20\x02\x00\x00";
+            len = 4;
+            break;
+        case TEST_CONNACK_FAILURE:
+            src = "\x20\x02\x00\x01";
+            len = 4;
+            break;
+        case TEST_SUBACK_SUCCESS:
+            src = "\x90\x03\x00\x00\x00";
+            len = 5;
+            break;
+        case TEST_PINGRESP:
+            src = "\xd0\x00";
+            len = 2;
+            break;
+    }
+
+    if (src) {
+        memcpy(&buf->buf[test_socket.test_pos_read], src, len);
+        test_socket.test_pos_read += len;
+        buf->available_len += len;
+        buf->len += len;
+    }
 }
 
 static int test_socket_shift()
 {
     test_buffer_t *buf = &test_socket.write_buf;
 
-    if (test_socket.test_pos_write < buf->pos)
-        return buf->buf[test_socket.test_pos_write++];
+    test_type_request_t result = -4; /* invalid command */
+    u8 cmd;
+    u8 remain_len;
+    int len;
+    int available = buf->pos - test_socket.test_pos_write;
 
-    return -1;
+    if (available <= 0)
+        return -1; /* eof */
+    if (available < 2)
+        return -2; /* partial buffer */
+
+    cmd = buf->buf[test_socket.test_pos_write];
+    remain_len = buf->buf[test_socket.test_pos_write + 1];
+
+    if (remain_len & 0x80)
+        return -3; /* invalid remaining length (for simplicity we do not
+                      implement here decoding for values larger than 127) */
+
+    len = 2 + remain_len;
+    if (available < len)
+        return -2; /* partial buffer */
+
+    switch (cmd) {
+        case 0x10:
+            result = TEST_CONNECT;
+            break;
+        case 0x82:
+            result = TEST_SUBSCRIBE;
+            break;
+        case 0xc0:
+            result = TEST_PINGREQ;
+            break;
+        case 0xe0:
+            result = TEST_DISCONNECT;
+            break;
+    }
+
+    test_socket.test_pos_write += len;
+    return result;
 }
 
 static lmqtt_io_result_t read_buf(void *data, u8 *buf, int buf_len,
@@ -173,11 +162,11 @@ static void on_subscribe(void *data)
     *((int *) data) = 2;
 }
 
+static lmqtt_connect_t connect;
+
 static int do_connect_and_connack(lmqtt_client_t *client, long keep_alive,
     long timeout)
 {
-    lmqtt_connect_t connect;
-
     lmqtt_client_initialize(client);
     lmqtt_client_set_default_timeout(client, timeout);
     test_socket_init_with_client(client);
@@ -197,8 +186,6 @@ static int do_connect_and_connack(lmqtt_client_t *client, long keep_alive,
 static int do_connect(lmqtt_client_t *client, long keep_alive,
     long timeout)
 {
-    lmqtt_connect_t connect;
-
     lmqtt_client_initialize(client);
     lmqtt_client_set_default_timeout(client, timeout);
     test_socket_init_with_client(client);
@@ -276,6 +263,7 @@ START_TEST(should_receive_connack_after_connect)
 
     lmqtt_client_set_on_connect(&client, on_connect, &connected);
 
+    memset(&connect, 0, sizeof(connect));
     lmqtt_client_connect(&client, &connect);
     process_output(&client);
 
@@ -303,6 +291,7 @@ START_TEST(should_not_call_connect_callback_on_connect_failure)
 
     lmqtt_client_set_on_connect(&client, on_connect, &connected);
 
+    memset(&connect, 0, sizeof(connect));
     lmqtt_client_connect(&client, &connect);
     process_output(&client);
 
@@ -322,6 +311,7 @@ START_TEST(should_not_receive_connack_before_connect)
     lmqtt_client_initialize(&client);
     test_socket_init_with_client(&client);
 
+    memset(&connect, 0, sizeof(connect));
     lmqtt_client_set_on_connect(&client, on_connect, &connected);
 
     connected = 0;
@@ -335,11 +325,20 @@ START_TEST(should_subscribe)
 {
     lmqtt_client_t client;
     lmqtt_subscribe_t subscribe;
+    lmqtt_subscription_t subscription;
     int subscribed;
 
     ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &subscribed);
+
+    memset(&subscribe, 0, sizeof(subscribe));
+    memset(&subscription, 0, sizeof(subscription));
+    subscribe.count = 1;
+    subscribe.subscriptions = &subscription;
+    subscription.qos = 0;
+    subscription.topic.buf = "test";
+    subscription.topic.len = strlen(subscription.topic.buf);
 
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_output(&client));

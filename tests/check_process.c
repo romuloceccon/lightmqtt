@@ -11,7 +11,7 @@
         memset(&test_src, 0, sizeof(test_src)); \
         memset(&test_dst, 0, sizeof(test_dst)); \
         client.data = &test_src; \
-        client.read = read_test_buf; \
+        client.read = test_buffer_read; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -25,7 +25,7 @@
         memset(&test_dst, 0, sizeof(test_dst)); \
         memset(&test_src, 0, sizeof(test_src)); \
         client.data = &test_dst; \
-        client.write = write_test_buf; \
+        client.write = test_buffer_write; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -43,24 +43,6 @@
 
 static test_buffer_t test_src;
 static test_buffer_t test_dst;
-
-static lmqtt_io_result_t read_test_buf(void *data, u8 *buf, int buf_len,
-    int *bytes_read)
-{
-    test_buffer_t *source = (test_buffer_t *) data;
-
-    return test_buffer_move(source, buf, &source->buf[source->pos], buf_len,
-        bytes_read);
-}
-
-static lmqtt_io_result_t write_test_buf(void *data, u8 *buf, int buf_len,
-    int *bytes_written)
-{
-    test_buffer_t *destination = (test_buffer_t *) data;
-
-    return test_buffer_move(destination, &destination->buf[destination->pos],
-        buf, buf_len, bytes_written);
-}
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read)
