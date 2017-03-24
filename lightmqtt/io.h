@@ -36,9 +36,6 @@ typedef struct _lmqtt_client_t {
     u8 write_buf[LMQTT_TX_BUFFER_SIZE];
     int write_buf_pos;
     lmqtt_store_t store;
-    /* TODO: there should be one of this for each packet in the send queue (when
-     * the send queue is implemented) */
-    lmqtt_time_t last_req;
 
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
@@ -47,11 +44,6 @@ typedef struct _lmqtt_client_t {
         int (*disconnect)(struct _lmqtt_client_t *);
 
         lmqtt_callbacks_t rx_callbacks;
-
-        long keep_alive;
-        long timeout;
-        int resp_pending;
-        lmqtt_time_t last_resp;
         int disconnecting;
     } internal;
 } lmqtt_client_t;

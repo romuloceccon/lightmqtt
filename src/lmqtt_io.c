@@ -142,38 +142,24 @@ lmqtt_io_status_t process_output(lmqtt_client_t *client)
  * lmqtt_client_t PRIVATE functions
  ******************************************************************************/
 
-static void client_touch_req(lmqtt_client_t *client)
-{
-    lmqtt_time_touch(&client->last_req, client->get_time);
-    client->internal.resp_pending = 1;
-}
-
-static void client_touch_resp(lmqtt_client_t *client)
-{
-    lmqtt_time_touch(&client->internal.last_resp, client->get_time);
-    client->internal.resp_pending = 0;
-}
-
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
 {
+    int cnt;
     long s, ns;
 
     if (client->failed)
         return LMQTT_IO_STATUS_ERROR;
 
-    if (client->internal.resp_pending) {
-        if (lmqtt_time_get_timeout_to(&client->last_req, client->get_time,
-                client->internal.timeout, &s, &ns) && s == 0 && ns == 0) {
-            client->failed = 1;
-            return LMQTT_IO_STATUS_ERROR;
-        }
-    } else {
-        if (lmqtt_time_get_timeout_to(&client->internal.last_resp, client->get_time,
-                client->internal.keep_alive, &s, &ns) && s == 0 && ns == 0) {
-            client->internal.pingreq(client);
-        }
+    if (!lmqtt_store_get_timeout(&client->store, &cnt, &s, &ns) ||
+            s != 0 || ns != 0)
+        return LMQTT_IO_STATUS_READY;
+
+    if (cnt > 0) {
+        client->failed = 1;
+        return LMQTT_IO_STATUS_ERROR;
     }
 
+    client->internal.pingreq(client);
     return LMQTT_IO_STATUS_READY;
 }
 
@@ -196,7 +182,7 @@ static int client_on_connack(void *data, lmqtt_connect_t *connect)
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
     if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
-        client_touch_resp(client);
+        client->store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
 
         if (client->on_connect)
@@ -221,8 +207,6 @@ static int client_on_suback(void *data, lmqtt_subscribe_t *subscribe)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client_touch_resp(client);
-
     if (client->on_subscribe)
         client->on_subscribe(client->on_subscribe_data);
 
@@ -240,10 +224,6 @@ static int client_on_pingresp_fail(void *data)
 
 static int client_on_pingresp(void *data)
 {
-    lmqtt_client_t *client = (lmqtt_client_t *) data;
-
-    client_touch_resp(client);
-
     return 1;
 }
 
@@ -257,9 +237,7 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
     lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect);
 
-    client_touch_req(client);
     client_set_state_connecting(client);
-    client->internal.keep_alive = connect->keep_alive;
 
     return 1;
 }
@@ -279,8 +257,6 @@ static int client_do_subscribe(lmqtt_client_t *client,
     lmqtt_store_append(&client->store, LMQTT_CLASS_SUBSCRIBE, packet_id,
         subscribe);
 
-    client_touch_req(client);
-
     return 1;
 }
 
@@ -292,8 +268,6 @@ static int client_do_pingreq_fail(lmqtt_client_t *client)
 static int client_do_pingreq(lmqtt_client_t *client)
 {
     lmqtt_store_append(&client->store, LMQTT_CLASS_PINGREQ, 0, NULL);
-
-    client_touch_req(client);
 
     return 1;
 }
@@ -395,21 +369,12 @@ void lmqtt_client_set_on_subscribe(lmqtt_client_t *client,
 
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs)
 {
-    client->internal.timeout = secs;
+    client->store.timeout = secs;
 }
 
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 {
-    long when;
-    lmqtt_time_t *tm;
+    int cnt;
 
-    if (client->internal.resp_pending) {
-        tm = &client->last_req;
-        when = client->internal.timeout;
-    } else {
-        tm = &client->internal.last_resp;
-        when = client->internal.keep_alive;
-    }
-
-    return lmqtt_time_get_timeout_to(tm, client->get_time, when, secs, nsecs);
+    return lmqtt_store_get_timeout(&client->store, &cnt, secs, nsecs);
 }
