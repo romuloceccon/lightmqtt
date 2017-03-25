@@ -646,7 +646,7 @@ START_TEST(should_not_send_pingreq_with_zeroed_keep_alive)
 }
 END_TEST
 
-START_TCASE("Client initialize")
+START_TCASE("Client commands")
 {
     ADD_TEST(should_initialize_client);
     ADD_TEST(should_prepare_connect_after_initialize);

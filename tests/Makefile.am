@@ -14,7 +14,7 @@ TESTS = \
     .bin/check_rx_buffer_decode_suback \
     .bin/check_rx_buffer_callbacks \
     .bin/check_client_buffers \
-    .bin/check_client_initialize
+    .bin/check_client_commands
 
 check_PROGRAMS = $(TESTS)
 
@@ -40,7 +40,7 @@ _bin_check_rx_buffer_callbacks_SOURCES      = check_rx_buffer_callbacks.c \
     check_lightmqtt.c
 _bin_check_client_buffers_SOURCES           = check_client_buffers.c \
     check_lightmqtt.c
-_bin_check_client_initialize_SOURCES        = check_client_initialize.c \
+_bin_check_client_commands_SOURCES          = check_client_commands.c \
     check_lightmqtt.c
 
 AM_CFLAGS = -I$(top_builddir) @CHECK_CFLAGS@
