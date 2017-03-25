@@ -356,7 +356,7 @@ START_TEST(should_return_block_conn_if_both_encode_and_write_block)
 }
 END_TEST
 
-START_TCASE("Process")
+START_TCASE("Client buffers")
 {
     ADD_TEST(should_process_input_without_data);
     ADD_TEST(should_process_input_with_complete_read_and_complete_decode);
