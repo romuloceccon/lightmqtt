@@ -59,8 +59,8 @@ typedef enum {
     LMQTT_IO_STATUS_ERROR
 } lmqtt_io_status_t;
 
-lmqtt_io_status_t process_input(lmqtt_client_t *client);
-lmqtt_io_status_t process_output(lmqtt_client_t *client);
+lmqtt_io_status_t client_process_input(lmqtt_client_t *client);
+lmqtt_io_status_t client_process_output(lmqtt_client_t *client);
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
 
 void lmqtt_client_initialize(lmqtt_client_t *client);

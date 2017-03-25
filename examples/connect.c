@@ -152,8 +152,8 @@ int main()
         fd_set read_set;
         fd_set write_set;
         lmqtt_io_status_t st_k = client_keep_alive(&client);
-        lmqtt_io_status_t st_i = process_input(&client);
-        lmqtt_io_status_t st_o = process_output(&client);
+        lmqtt_io_status_t st_i = client_process_input(&client);
+        lmqtt_io_status_t st_o = client_process_output(&client);
 
         if (st_k == LMQTT_IO_STATUS_READY && st_i == LMQTT_IO_STATUS_READY && st_o == LMQTT_IO_STATUS_READY)
             break;

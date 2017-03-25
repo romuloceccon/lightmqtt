@@ -77,7 +77,7 @@ START_TEST(should_process_input_without_data)
     test_src.available_len = 0;
     test_dst.available_len = test_dst.len;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, res);
 
     ck_assert_int_eq(0, test_src.pos);
@@ -98,7 +98,7 @@ START_TEST(should_process_input_with_complete_read_and_complete_decode)
     test_src.available_len = test_src.len;
     test_dst.available_len = test_dst.len;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, res);
 
     ck_assert_int_eq(5, test_src.pos);
@@ -119,7 +119,7 @@ START_TEST(should_consume_read_buffer_after_decode_blocks)
     test_src.available_len = test_src.len;
     test_dst.available_len = 2 * RX_4TH;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
     /*
@@ -166,7 +166,7 @@ START_TEST(should_fill_read_buffer_if_decode_interrupts)
     test_src.available_len = test_src.len;
     test_dst.available_len = 2 * RX_4TH;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
     /*
@@ -205,7 +205,7 @@ START_TEST(should_process_remaining_input_from_previous_call)
      * 3. |********          |******* |        |*
      * 4. |*******           |********|        |*
      */
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
     ck_assert_int_eq(RX_4TH / 2, test_dst.pos);
@@ -223,7 +223,7 @@ START_TEST(should_process_remaining_input_from_previous_call)
      * 2. |*******           |******* |        |**
      * 3. |******            |********|        |**
      */
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
     ck_assert_int_eq(RX_4TH, test_dst.pos);
@@ -246,7 +246,7 @@ START_TEST(should_decode_remaining_buffer_if_read_blocks)
     test_src.available_len = 2;
     test_dst.available_len = test_dst.len;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
     ck_assert_int_eq(2, test_src.pos);
@@ -264,7 +264,7 @@ START_TEST(should_return_block_conn_if_both_read_and_decode_block)
     test_src.available_len = 4;
     test_dst.available_len = 2;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
     ck_assert_int_eq(4, test_src.pos);
@@ -283,13 +283,13 @@ START_TEST(should_not_decode_remaining_buffer_if_read_fails)
     test_src.available_len = test_src.len;
     test_dst.available_len = test_dst.len;
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, res);
 
     ck_assert_int_eq(1, test_src.call_count);
     ck_assert_int_eq(0, test_dst.call_count);
 
-    res = process_input(&client);
+    res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, res);
 
     /* should not try any other I/O after failure */
@@ -309,7 +309,7 @@ START_TEST(should_process_output_with_complete_encode_and_complete_write)
     test_src.available_len = test_src.len;
     test_dst.available_len = test_dst.len;
 
-    res = process_output(&client);
+    res = client_process_output(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, res);
 
     ck_assert_int_eq(5, test_dst.pos);
@@ -330,7 +330,7 @@ START_TEST(should_encode_remaining_buffer_if_write_blocks)
     test_src.available_len = test_src.len;
     test_dst.available_len = 2;
 
-    res = process_output(&client);
+    res = client_process_output(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
     ck_assert_int_eq(2, test_dst.pos);
@@ -348,7 +348,7 @@ START_TEST(should_return_block_conn_if_both_encode_and_write_block)
     test_src.available_len = 4;
     test_dst.available_len = 2;
 
-    res = process_output(&client);
+    res = client_process_output(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
     ck_assert_int_eq(4, test_src.pos);

@@ -2,93 +2,108 @@
 #include <string.h>
 
 /******************************************************************************
- * misc functions (need refactoring)
+ * lmqtt_input_t
  ******************************************************************************/
 
-static lmqtt_io_result_t decode_wrapper(void *data, u8 *buf, int buf_len,
-    int *bytes_read)
-{
-    return lmqtt_rx_buffer_decode((lmqtt_rx_buffer_t *) data, buf, buf_len,
-        bytes_read);
-}
+typedef struct _lmqtt_input_t {
+    lmqtt_read_t read;
+    void *data;
+} lmqtt_input_t;
 
-static lmqtt_io_result_t encode_wrapper(void *data, u8 *buf, int buf_len,
-    int *bytes_written)
-{
-    return lmqtt_tx_buffer_encode((lmqtt_tx_buffer_t *) data, buf, buf_len,
-        bytes_written);
-}
-
-static lmqtt_io_result_t buffer_read(lmqtt_read_t reader, void *data, u8 *buf,
+static lmqtt_io_result_t input_read(lmqtt_input_t *input, u8 *buf,
     int *buf_pos, int buf_len, int *cnt)
 {
     lmqtt_io_result_t result;
 
-    result = reader(data, &buf[*buf_pos], buf_len - *buf_pos, cnt);
+    result = input->read(input->data, &buf[*buf_pos], buf_len - *buf_pos, cnt);
     *buf_pos += *cnt;
 
     return result;
 }
 
-static lmqtt_io_result_t buffer_write(lmqtt_write_t writer, void *data, u8 *buf,
+/******************************************************************************
+ * lmqtt_output_t
+ ******************************************************************************/
+
+typedef struct _lmqtt_output_t {
+    lmqtt_write_t write;
+    void *data;
+} lmqtt_output_t;
+
+static lmqtt_io_result_t output_write(lmqtt_output_t *output, u8 *buf,
     int *buf_pos, int *cnt)
 {
     lmqtt_io_result_t result;
 
-    result = writer(data, buf, *buf_pos, cnt);
+    result = output->write(output->data, buf, *buf_pos, cnt);
     memmove(&buf[0], &buf[*cnt], *buf_pos - *cnt);
     *buf_pos -= *cnt;
 
     return result;
 }
 
-static int buffer_check(lmqtt_io_result_t io_res, int *cnt,
-    lmqtt_io_status_t block_status, lmqtt_io_status_t *transfer_result,
-    int *failed)
+/******************************************************************************
+ * lmqtt_client_t PRIVATE functions
+ ******************************************************************************/
+
+static int client_buffer_check(lmqtt_client_t *client, lmqtt_io_result_t io_res,
+    int *cnt, lmqtt_io_status_t block_status, lmqtt_io_status_t *transfer_res)
 {
     if (io_res == LMQTT_IO_AGAIN) {
         /* if both input and output block prefer LMQTT_IO_STATUS_BLOCK_CONN */
-        if (*transfer_result != LMQTT_IO_STATUS_BLOCK_CONN)
-            *transfer_result = block_status;
+        if (*transfer_res != LMQTT_IO_STATUS_BLOCK_CONN)
+            *transfer_res = block_status;
         return 0;
     }
 
-    if (io_res == LMQTT_IO_ERROR || *failed) {
-        *transfer_result = LMQTT_IO_STATUS_ERROR;
-        *failed = 1;
+    if (io_res == LMQTT_IO_ERROR || client->failed) {
+        *transfer_res = LMQTT_IO_STATUS_ERROR;
+        client->failed = 1;
         return 0;
     }
 
     return *cnt > 0;
 }
 
-static lmqtt_io_status_t buffer_transfer(
-    lmqtt_read_t reader, void *reader_data, lmqtt_io_status_t reader_block,
-    lmqtt_write_t writer, void *writer_data, lmqtt_io_status_t writer_block,
-    u8 *buf, int *buf_pos, int buf_len, int *failed)
+static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
+    lmqtt_input_t *input, lmqtt_io_status_t reader_block,
+    lmqtt_output_t *output, lmqtt_io_status_t writer_block,
+    u8 *buf, int *buf_pos, int buf_len)
 {
     int read_allowed = 1;
     int write_allowed = 1;
     lmqtt_io_status_t result = LMQTT_IO_STATUS_READY;
 
-    if (*failed)
+    if (client->failed)
         return LMQTT_IO_STATUS_ERROR;
 
     while (read_allowed || write_allowed) {
         int cnt;
 
-        read_allowed = read_allowed && !*failed && *buf_pos < buf_len &&
-            buffer_check(
-                buffer_read(reader, reader_data, buf, buf_pos, buf_len, &cnt),
-                &cnt, reader_block, &result, failed);
+        read_allowed = read_allowed && !client->failed && *buf_pos < buf_len &&
+            client_buffer_check(client, input_read(input,
+                buf, buf_pos, buf_len, &cnt), &cnt, reader_block, &result);
 
-        write_allowed = write_allowed && !*failed && *buf_pos > 0 &&
-            buffer_check(
-                buffer_write(writer, writer_data, buf, buf_pos, &cnt),
-                &cnt, writer_block, &result, failed);
+        write_allowed = write_allowed && !client->failed && *buf_pos > 0 &&
+            client_buffer_check(client, output_write(output,
+                buf, buf_pos, &cnt), &cnt, writer_block, &result);
     }
 
     return result;
+}
+
+static lmqtt_io_result_t client_decode_wrapper(void *data, u8 *buf, int buf_len,
+    int *bytes_read)
+{
+    return lmqtt_rx_buffer_decode((lmqtt_rx_buffer_t *) data, buf, buf_len,
+        bytes_read);
+}
+
+static lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    return lmqtt_tx_buffer_encode((lmqtt_tx_buffer_t *) data, buf, buf_len,
+        bytes_written);
 }
 
 /*
@@ -102,14 +117,17 @@ static lmqtt_io_status_t buffer_transfer(
  * which some callback is writing the input message to if the input buffer is
  * empty.
  */
-lmqtt_io_status_t process_input(lmqtt_client_t *client)
+lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 {
-    return buffer_transfer(
-        client->read, client->data, LMQTT_IO_STATUS_BLOCK_CONN,
-        (lmqtt_write_t) lmqtt_rx_buffer_decode, &client->rx_state,
-            LMQTT_IO_STATUS_BLOCK_DATA,
-        client->read_buf, &client->read_buf_pos, sizeof(client->read_buf),
-        &client->failed);
+    lmqtt_input_t input = { client->read, client->data };
+    lmqtt_output_t output = { client_decode_wrapper, &client->rx_state };
+
+    lmqtt_io_status_t result = client_buffer_transfer(client,
+        &input, LMQTT_IO_STATUS_BLOCK_CONN,
+        &output, LMQTT_IO_STATUS_BLOCK_DATA,
+        client->read_buf, &client->read_buf_pos, sizeof(client->read_buf));
+
+    return result;
 }
 
 /*
@@ -117,14 +135,15 @@ lmqtt_io_status_t process_input(lmqtt_client_t *client)
  * would block, cases where there's no data to encode and cases where the buffer
  * is not enough to encode the whole command.
  */
-lmqtt_io_status_t process_output(lmqtt_client_t *client)
+lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 {
-    lmqtt_io_status_t result = buffer_transfer(
-        (lmqtt_read_t) lmqtt_tx_buffer_encode, &client->tx_state,
-            LMQTT_IO_STATUS_BLOCK_DATA,
-        client->write, client->data, LMQTT_IO_STATUS_BLOCK_CONN,
-        client->write_buf, &client->write_buf_pos, sizeof(client->write_buf),
-        &client->failed);
+    lmqtt_input_t input = { client_encode_wrapper, &client->tx_state };
+    lmqtt_output_t output = { client->write, client->data };
+
+    lmqtt_io_status_t result = client_buffer_transfer(client,
+        &input, LMQTT_IO_STATUS_BLOCK_DATA,
+        &output, LMQTT_IO_STATUS_BLOCK_CONN,
+        client->write_buf, &client->write_buf_pos, sizeof(client->write_buf));
 
     /* If a disconnect was requested wait until the output buffer is flushed;
      * then fail the connection. (In the future we may need to set an error code
@@ -137,10 +156,6 @@ lmqtt_io_status_t process_output(lmqtt_client_t *client)
 
     return result;
 }
-
-/******************************************************************************
- * lmqtt_client_t PRIVATE functions
- ******************************************************************************/
 
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
 {
