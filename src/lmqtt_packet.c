@@ -739,6 +739,9 @@ static int rx_buffer_call_callback(lmqtt_rx_buffer_t *state)
 static lmqtt_decode_result_t rx_buffer_decode_type(lmqtt_rx_buffer_t *state,
     u8 b)
 {
+    if (!state->internal.decoder->decode_byte)
+        return LMQTT_DECODE_ERROR;
+
     return state->internal.decoder->decode_byte(state, b);
 }
 
