@@ -212,7 +212,7 @@ START_TEST(should_encode_disconnect)
 }
 END_TEST
 
-START_TCASE("Tx buffer recipes")
+START_TCASE("Tx buffer finders")
 {
     ADD_TEST(should_encode_connect);
     ADD_TEST(should_encode_subscribe_to_one_topic);
