@@ -187,6 +187,7 @@ static int do_connect_and_connack(lmqtt_client_t *client, long keep_alive,
 
     memset(&connect, 0, sizeof(connect));
     connect.keep_alive = keep_alive;
+    connect.clean_session = 1;
 
     lmqtt_client_connect(client, &connect);
 
@@ -206,6 +207,7 @@ static int do_connect(lmqtt_client_t *client, long keep_alive,
 
     memset(&connect, 0, sizeof(connect));
     connect.keep_alive = keep_alive;
+    connect.clean_session = 1;
 
     lmqtt_client_connect(client, &connect);
 
@@ -239,9 +241,10 @@ START_TEST(should_prepare_connect_after_initialize)
     test_socket_init_with_client(&client);
 
     memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
     ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-
     ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
 }
 END_TEST
@@ -255,6 +258,7 @@ START_TEST(should_not_prepare_connect_twice)
     test_socket_init_with_client(&client);
 
     memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
 
     ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
     client_process_output(&client);
@@ -262,6 +266,23 @@ START_TEST(should_not_prepare_connect_twice)
 
     ck_assert_int_eq(0, lmqtt_client_connect(&client, &connect));
     client_process_output(&client);
+    ck_assert_int_eq(-1, test_socket_shift());
+}
+END_TEST
+
+START_TEST(should_not_prepare_invalid_connect)
+{
+    lmqtt_client_t client;
+    lmqtt_connect_t connect;
+
+    lmqtt_client_initialize(&client);
+    test_socket_init_with_client(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 0; /* invalid; should have a non-empty client_id */
+
+    ck_assert_int_eq(0, lmqtt_client_connect(&client, &connect));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
     ck_assert_int_eq(-1, test_socket_shift());
 }
 END_TEST
@@ -278,6 +299,7 @@ START_TEST(should_receive_connack_after_connect)
     lmqtt_client_set_on_connect(&client, on_connect, &connected);
 
     memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
     lmqtt_client_connect(&client, &connect);
     client_process_output(&client);
 
@@ -306,6 +328,7 @@ START_TEST(should_not_call_connect_callback_on_connect_failure)
     lmqtt_client_set_on_connect(&client, on_connect, &connected);
 
     memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
     lmqtt_client_connect(&client, &connect);
     client_process_output(&client);
 
@@ -326,6 +349,7 @@ START_TEST(should_not_receive_connack_before_connect)
     test_socket_init_with_client(&client);
 
     memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
     lmqtt_client_set_on_connect(&client, on_connect, &connected);
 
     connected = 0;
@@ -651,6 +675,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_initialize_client);
     ADD_TEST(should_prepare_connect_after_initialize);
     ADD_TEST(should_not_prepare_connect_twice);
+    ADD_TEST(should_not_prepare_invalid_connect);
     ADD_TEST(should_receive_connack_after_connect);
     ADD_TEST(should_not_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);

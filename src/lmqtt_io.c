@@ -269,8 +269,10 @@ static int client_do_connect_fail(lmqtt_client_t *client,
 
 static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
-    lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect);
+    if (!lmqtt_connect_validate(connect))
+        return 0;
 
+    lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect);
     client_set_state_connecting(client);
 
     return 1;

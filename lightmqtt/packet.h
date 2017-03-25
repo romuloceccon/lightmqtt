@@ -160,6 +160,8 @@ typedef struct _lmqtt_rx_buffer_t {
     } internal;
 } lmqtt_rx_buffer_t;
 
+int lmqtt_connect_validate(lmqtt_connect_t *connect);
+
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written);
 

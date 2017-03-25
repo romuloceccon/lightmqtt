@@ -270,34 +270,6 @@ static int connect_calc_remaining_length(lmqtt_connect_t *connect)
         string_calc_field_length(&connect->password);
  }
 
-/* TODO: validate connect packet somewhere */
-static int connect_validate(lmqtt_connect_t *connect)
-{
-    if (!string_validate_field_length(&connect->client_id) ||
-            !string_validate_field_length(&connect->will_topic) ||
-            !string_validate_field_length(&connect->will_message) ||
-            !string_validate_field_length(&connect->user_name) ||
-            !string_validate_field_length(&connect->password))
-        return 0;
-
-    if (connect->will_topic.len == 0 ^ connect->will_message.len == 0)
-        return 0;
-
-    if (connect->will_topic.len == 0 && connect->will_retain)
-        return 0;
-
-    if (connect->client_id.len == 0 && !connect->clean_session)
-        return 0;
-
-    if (connect->user_name.len == 0 && connect->password.len != 0)
-        return 0;
-
-    if (connect->qos < 0 || connect->qos > 2)
-        return 0;
-
-    return 1;
-}
-
 static lmqtt_encode_result_t connect_build_fixed_header(
     lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer)
 {
@@ -400,6 +372,37 @@ static lmqtt_encode_result_t connect_encode_payload_password(
 {
     return string_encode(&connect->password, 0, offset, buf, buf_len,
         bytes_written);
+}
+
+/******************************************************************************
+ * lmqtt_connect_t PUBLIC functions
+ ******************************************************************************/
+
+int lmqtt_connect_validate(lmqtt_connect_t *connect)
+{
+    if (!string_validate_field_length(&connect->client_id) ||
+            !string_validate_field_length(&connect->will_topic) ||
+            !string_validate_field_length(&connect->will_message) ||
+            !string_validate_field_length(&connect->user_name) ||
+            !string_validate_field_length(&connect->password))
+        return 0;
+
+    if (connect->will_topic.len == 0 ^ connect->will_message.len == 0)
+        return 0;
+
+    if (connect->will_topic.len == 0 && connect->will_retain)
+        return 0;
+
+    if (connect->client_id.len == 0 && !connect->clean_session)
+        return 0;
+
+    if (connect->user_name.len == 0 && connect->password.len != 0)
+        return 0;
+
+    if (connect->qos < 0 || connect->qos > 2)
+        return 0;
+
+    return 1;
 }
 
 /******************************************************************************
