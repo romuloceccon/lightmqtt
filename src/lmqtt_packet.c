@@ -500,6 +500,29 @@ static lmqtt_encode_result_t subscribe_encode_qos(
 }
 
 /******************************************************************************
+ * lmqtt_subscribe_t PUBLIC functions
+ ******************************************************************************/
+
+int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe)
+{
+    int i;
+    int cnt = subscribe->count;
+
+    if (cnt == 0 || !subscribe->subscriptions)
+        return 0;
+
+    for (i = 0; i < cnt; i++) {
+        lmqtt_subscription_t *sub = &subscribe->subscriptions[i];
+        if (!string_validate_field_length(&sub->topic))
+            return 0;
+        if (sub->topic.len == 0 || sub->qos < 0 || sub->qos > 2)
+            return 0;
+    }
+
+    return 1;
+}
+
+/******************************************************************************
  * (pingreq) PUBLIC functions
  ******************************************************************************/
 

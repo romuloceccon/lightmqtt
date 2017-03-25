@@ -183,6 +183,21 @@ static void client_set_state_connecting(lmqtt_client_t *client);
 static void client_set_state_connected(lmqtt_client_t *client);
 static void client_set_state_disconnecting(lmqtt_client_t *client);
 
+static int client_subscribe_with_class(lmqtt_client_t *client,
+    lmqtt_subscribe_t *subscribe, lmqtt_class_t class)
+{
+    u16 packet_id;
+
+    if (!lmqtt_subscribe_validate(subscribe))
+        return 0;
+
+    packet_id = lmqtt_store_get_id(&client->store);
+    subscribe->packet_id = packet_id;
+    lmqtt_store_append(&client->store, class, packet_id, subscribe);
+
+    return 1;
+}
+
 static int client_on_connack_fail(void *data, lmqtt_connect_t *connect)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
@@ -287,13 +302,8 @@ static int client_do_subscribe_fail(lmqtt_client_t *client,
 static int client_do_subscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
-    u16 packet_id = lmqtt_store_get_id(&client->store);
-
-    subscribe->packet_id = packet_id;
-    lmqtt_store_append(&client->store, LMQTT_CLASS_SUBSCRIBE, packet_id,
-        subscribe);
-
-    return 1;
+    return client_subscribe_with_class(client, subscribe,
+        LMQTT_CLASS_SUBSCRIBE);
 }
 
 static int client_do_unsubscribe_fail(lmqtt_client_t *client,
@@ -305,13 +315,8 @@ static int client_do_unsubscribe_fail(lmqtt_client_t *client,
 static int client_do_unsubscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
-    u16 packet_id = lmqtt_store_get_id(&client->store);
-
-    subscribe->packet_id = packet_id;
-    lmqtt_store_append(&client->store, LMQTT_CLASS_UNSUBSCRIBE, packet_id,
-        subscribe);
-
-    return 1;
+    return client_subscribe_with_class(client, subscribe,
+        LMQTT_CLASS_UNSUBSCRIBE);
 }
 
 static int client_do_pingreq_fail(lmqtt_client_t *client)

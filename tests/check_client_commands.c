@@ -422,9 +422,18 @@ START_TEST(should_assign_packet_ids_to_subscribe)
 {
     lmqtt_client_t client;
     lmqtt_subscribe_t subscribe[3];
+    lmqtt_subscription_t subscriptions[3];
     void *data;
+    int i;
 
-    memset(subscribe, 0, sizeof(subscribe));
+    memset(&subscribe, 0, sizeof(subscribe));
+    memset(&subscriptions, 0, sizeof(subscriptions));
+    for (i = 0; i < 3; i++) {
+        subscribe[i].count = 1;
+        subscribe[i].subscriptions = &subscriptions[i];
+        subscriptions[i].topic.buf = "test";
+        subscriptions[i].topic.len = strlen(subscriptions[i].topic.buf);
+    }
 
     ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
@@ -443,6 +452,21 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 0, &data));
     ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 1, &data));
     ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 2, &data));
+}
+END_TEST
+
+START_TEST(should_not_subscribe_with_invalid_packet)
+{
+    lmqtt_client_t client;
+    lmqtt_subscribe_t subscribe;
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    memset(&subscribe, 0, sizeof(subscribe));
+
+    ck_assert_int_eq(0, lmqtt_client_subscribe(&client, &subscribe));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(-1, test_socket_shift());
 }
 END_TEST
 
@@ -683,6 +707,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_subscribe);
     ADD_TEST(should_unsubscribe);
     ADD_TEST(should_assign_packet_ids_to_subscribe);
+    ADD_TEST(should_not_subscribe_with_invalid_packet);
 
     ADD_TEST(should_send_pingreq_after_timeout);
     ADD_TEST(should_not_send_pingreq_before_timeout);
