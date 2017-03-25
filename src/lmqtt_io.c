@@ -193,9 +193,7 @@ static int client_subscribe_with_class(lmqtt_client_t *client,
 
     packet_id = lmqtt_store_get_id(&client->store);
     subscribe->packet_id = packet_id;
-    lmqtt_store_append(&client->store, class, packet_id, subscribe);
-
-    return 1;
+    return lmqtt_store_append(&client->store, class, packet_id, subscribe);
 }
 
 static int client_on_connack_fail(void *data, lmqtt_connect_t *connect)
@@ -286,10 +284,10 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
     if (!lmqtt_connect_validate(connect))
         return 0;
+    if (!lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect))
+        return 0;
 
-    lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect);
     client_set_state_connecting(client);
-
     return 1;
 }
 
@@ -326,9 +324,7 @@ static int client_do_pingreq_fail(lmqtt_client_t *client)
 
 static int client_do_pingreq(lmqtt_client_t *client)
 {
-    lmqtt_store_append(&client->store, LMQTT_CLASS_PINGREQ, 0, NULL);
-
-    return 1;
+    return lmqtt_store_append(&client->store, LMQTT_CLASS_PINGREQ, 0, NULL);
 }
 
 static int client_do_disconnect_fail(lmqtt_client_t *client)
@@ -338,11 +334,11 @@ static int client_do_disconnect_fail(lmqtt_client_t *client)
 
 static int client_do_disconnect(lmqtt_client_t *client)
 {
-    lmqtt_store_append(&client->store, LMQTT_CLASS_DISCONNECT, 0, NULL);
+    if (!lmqtt_store_append(&client->store, LMQTT_CLASS_DISCONNECT, 0, NULL))
+        return 0;
 
     client_set_state_disconnecting(client);
     client->internal.disconnecting = 1;
-
     return 1;
 }
 

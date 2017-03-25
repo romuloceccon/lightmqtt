@@ -287,6 +287,39 @@ START_TEST(should_not_prepare_invalid_connect)
 }
 END_TEST
 
+START_TEST(should_not_connect_with_full_store)
+{
+    lmqtt_client_t client;
+    lmqtt_connect_t connect;
+    int i;
+    int res;
+
+    lmqtt_client_initialize(&client);
+    test_socket_init_with_client(&client);
+
+    for (i = 0; lmqtt_store_append(&client.store, LMQTT_CLASS_PINGREQ, 0, 0); i++)
+        ;
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    ck_assert_int_eq(0, lmqtt_client_connect(&client, &connect));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    do {
+        int class;
+        void *data;
+        res = test_socket_shift();
+        lmqtt_store_pop_any(&client.store, &class, &data);
+    } while (res == TEST_PINGREQ);
+    ck_assert_int_eq(-1, res);
+
+    /* should work if trying again after store is empty */
+    ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+}
+END_TEST
+
 START_TEST(should_receive_connack_after_connect)
 {
     lmqtt_client_t client;
@@ -467,6 +500,30 @@ START_TEST(should_not_subscribe_with_invalid_packet)
     ck_assert_int_eq(0, lmqtt_client_subscribe(&client, &subscribe));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
     ck_assert_int_eq(-1, test_socket_shift());
+}
+END_TEST
+
+START_TEST(should_not_subscribe_with_full_store)
+{
+    lmqtt_client_t client;
+    lmqtt_subscribe_t subscribe;
+    lmqtt_subscription_t subscription;
+    int i;
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    memset(&subscribe, 0, sizeof(subscribe));
+    memset(&subscription, 0, sizeof(subscription));
+    subscribe.count = 1;
+    subscribe.subscriptions = &subscription;
+    subscription.qos = 0;
+    subscription.topic.buf = "test";
+    subscription.topic.len = strlen(subscription.topic.buf);
+
+    for (i = 0; lmqtt_store_append(&client.store, LMQTT_CLASS_PINGREQ, 0, 0); i++)
+        ;
+
+    ck_assert_int_eq(0, lmqtt_client_subscribe(&client, &subscribe));
 }
 END_TEST
 
@@ -700,6 +757,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_prepare_connect_after_initialize);
     ADD_TEST(should_not_prepare_connect_twice);
     ADD_TEST(should_not_prepare_invalid_connect);
+    ADD_TEST(should_not_connect_with_full_store);
     ADD_TEST(should_receive_connack_after_connect);
     ADD_TEST(should_not_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);
@@ -708,6 +766,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_unsubscribe);
     ADD_TEST(should_assign_packet_ids_to_subscribe);
     ADD_TEST(should_not_subscribe_with_invalid_packet);
+    ADD_TEST(should_not_subscribe_with_full_store);
 
     ADD_TEST(should_send_pingreq_after_timeout);
     ADD_TEST(should_not_send_pingreq_before_timeout);
