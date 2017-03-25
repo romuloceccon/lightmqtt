@@ -298,7 +298,7 @@ END_TEST
 
 START_TEST(should_not_track_disconnect_packet)
 {
-    lmqtt_class_t class;
+    int class;
     void *data_addr;
     PREPARE;
 
@@ -315,7 +315,6 @@ END_TEST
 
 START_TEST(should_track_connect_packet)
 {
-    lmqtt_class_t class;
     void *data_addr;
     PREPARE;
 

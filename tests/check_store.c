@@ -5,7 +5,7 @@
 #define PREPARE \
     int data[LMQTT_STORE_SIZE]; \
     void *data_addr; \
-    lmqtt_class_t class = -1; \
+    int class = -1; \
     int res; \
     lmqtt_store_t store; \
     int count = -1; \

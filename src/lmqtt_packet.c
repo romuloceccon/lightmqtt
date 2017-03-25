@@ -642,7 +642,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 {
     int offset = 0;
     *bytes_written = 0;
-    lmqtt_class_t class;
+    int class;
     void *data;
 
     while (lmqtt_store_peek(state->store, &class, &data)) {
