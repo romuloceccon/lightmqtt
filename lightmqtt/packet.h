@@ -35,12 +35,6 @@ typedef enum {
     LMQTT_READ_ERROR
 } lmqtt_read_result_t;
 
-typedef enum {
-    LMQTT_OPERATION_PUBLISH = 140,
-    LMQTT_OPERATION_SUBSCRIBE,
-    LMQTT_OPERATION_UNSUBSCRIBE
-} lmqtt_operation_t;
-
 typedef struct _lmqtt_encode_buffer_t {
     int encoded;
     int buf_len;
