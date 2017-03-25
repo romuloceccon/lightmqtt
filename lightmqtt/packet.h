@@ -123,6 +123,7 @@ typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *, void *);
 typedef struct _lmqtt_callbacks_t {
     int (*on_connack)(void *, lmqtt_connect_t *);
     int (*on_suback)(void *, lmqtt_subscribe_t *);
+    int (*on_unsuback)(void *, lmqtt_subscribe_t *);
     int (*on_pingresp)(void *);
 } lmqtt_callbacks_t;
 

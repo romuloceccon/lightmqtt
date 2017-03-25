@@ -406,29 +406,31 @@ static lmqtt_encode_result_t connect_encode_payload_password(
  * lmqtt_subscribe_t PRIVATE functions
  ******************************************************************************/
 
-static int subscribe_calc_remaining_length(lmqtt_subscribe_t *subscribe)
+static int subscribe_calc_remaining_length(lmqtt_subscribe_t *subscribe,
+    int include_qos)
 {
     int i;
     int result = LMQTT_PACKET_ID_SIZE;
 
     for (i = 0; i < subscribe->count; i++)
         result += subscribe->subscriptions[i].topic.len +
-            LMQTT_STRING_LEN_SIZE + 1;
+            LMQTT_STRING_LEN_SIZE + (include_qos ? 1 : 0);
 
     return result;
 }
 
 static lmqtt_encode_result_t subscribe_build_header(
-    lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer)
+    lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer,
+    int type, int include_qos)
 {
     int res, i, v;
 
-    res = encode_remaining_length(subscribe_calc_remaining_length(subscribe),
-        encode_buffer->buf + 1, &v);
+    res = encode_remaining_length(subscribe_calc_remaining_length(subscribe,
+        include_qos), encode_buffer->buf + 1, &v);
     if (res != LMQTT_ENCODE_FINISHED)
         return LMQTT_ENCODE_ERROR;
 
-    encode_buffer->buf[0] = LMQTT_TYPE_SUBSCRIBE << 4 | 0x02;
+    encode_buffer->buf[0] = type << 4 | 0x02;
     for (i = 0; i < LMQTT_PACKET_ID_SIZE; i++)
         encode_buffer->buf[v + i + 1] = STRING_LEN_BYTE(subscribe->packet_id,
             LMQTT_PACKET_ID_SIZE - i - 1);
@@ -437,13 +439,36 @@ static lmqtt_encode_result_t subscribe_build_header(
     return LMQTT_ENCODE_FINISHED;
 }
 
-static lmqtt_encode_result_t subscribe_encode_header(
+static lmqtt_encode_result_t subscribe_build_header_subscribe(
+    lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer)
+{
+    return subscribe_build_header(subscribe, encode_buffer,
+        LMQTT_TYPE_SUBSCRIBE, 1);
+}
+
+static lmqtt_encode_result_t subscribe_encode_header_subscribe(
     lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer,
     int offset, u8 *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, subscribe,
-        (encode_buffer_builder_t) subscribe_build_header, offset, buf, buf_len,
-        bytes_written);
+        (encode_buffer_builder_t) subscribe_build_header_subscribe, offset,
+        buf, buf_len, bytes_written);
+}
+
+static lmqtt_encode_result_t subscribe_build_header_unsubscribe(
+    lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer)
+{
+    return subscribe_build_header(subscribe, encode_buffer,
+        LMQTT_TYPE_UNSUBSCRIBE, 0);
+}
+
+static lmqtt_encode_result_t subscribe_encode_header_unsubscribe(
+    lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_buffer_encode(encode_buffer, subscribe,
+        (encode_buffer_builder_t) subscribe_build_header_unsubscribe, offset,
+        buf, buf_len, bytes_written);
 }
 
 static lmqtt_encode_result_t subscribe_encode_topic(
@@ -544,7 +569,7 @@ static lmqtt_encoder_t tx_buffer_finder_subscribe(lmqtt_tx_buffer_t *tx_buffer,
 
     if (p == 0) {
         subscribe->internal.current = 0;
-        return (lmqtt_encoder_t) subscribe_encode_header;
+        return (lmqtt_encoder_t) subscribe_encode_header_subscribe;
     }
 
     p -= 1;
@@ -552,6 +577,26 @@ static lmqtt_encoder_t tx_buffer_finder_subscribe(lmqtt_tx_buffer_t *tx_buffer,
         subscribe->internal.current = &subscribe->subscriptions[p / 2];
         return (lmqtt_encoder_t) (p % 2 == 0 ?
             subscribe_encode_topic : subscribe_encode_qos);
+    }
+
+    return 0;
+}
+
+static lmqtt_encoder_t tx_buffer_finder_unsubscribe(
+    lmqtt_tx_buffer_t *tx_buffer, void *data)
+{
+    lmqtt_subscribe_t *subscribe = data;
+    int p = tx_buffer->internal.pos;
+
+    if (p == 0) {
+        subscribe->internal.current = 0;
+        return (lmqtt_encoder_t) subscribe_encode_header_unsubscribe;
+    }
+
+    p -= 1;
+    if (p >= 0 && p < subscribe->count) {
+        subscribe->internal.current = &subscribe->subscriptions[p];
+        return (lmqtt_encoder_t) subscribe_encode_topic;
     }
 
     return 0;
@@ -581,6 +626,7 @@ static lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class)
     switch (class) {
         case LMQTT_CLASS_CONNECT: return &tx_buffer_finder_connect;
         case LMQTT_CLASS_SUBSCRIBE: return &tx_buffer_finder_subscribe;
+        case LMQTT_CLASS_UNSUBSCRIBE: return &tx_buffer_finder_unsubscribe;
         case LMQTT_CLASS_PINGREQ: return &tx_buffer_finder_pingreq;
         case LMQTT_CLASS_DISCONNECT: return &tx_buffer_finder_disconnect;
     }
@@ -706,6 +752,15 @@ static int rx_buffer_call_suback(lmqtt_rx_buffer_t *state)
         return 0;
 
     return state->callbacks->on_suback(state->callbacks_data,
+        (lmqtt_subscribe_t *) state->internal.packet_data);
+}
+
+static int rx_buffer_call_unsuback(lmqtt_rx_buffer_t *state)
+{
+    if (!state->callbacks->on_unsuback)
+        return 0;
+
+    return state->callbacks->on_unsuback(state->callbacks_data,
         (lmqtt_subscribe_t *) state->internal.packet_data);
 }
 
@@ -890,7 +945,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_unsuback = {
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
     NULL,
-    NULL
+    &rx_buffer_call_unsuback
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pingresp = {
     0,

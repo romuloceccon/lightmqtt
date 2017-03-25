@@ -132,6 +132,54 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
 }
 END_TEST
 
+START_TEST(should_encode_unsubscribe_to_multiple_topics)
+{
+    lmqtt_subscribe_t subscribe;
+    lmqtt_subscription_t subscriptions[2];
+    char topic_1[127];
+    char topic_2[129];
+
+    PREPARE;
+    memset(&subscribe, 0, sizeof(subscribe));
+    memset(&subscriptions, 0, sizeof(subscriptions));
+    memset(topic_1, 'x', sizeof(topic_1));
+    memset(topic_2, 'y', sizeof(topic_2));
+
+    subscribe.packet_id = 0x0c0d;
+    subscribe.count = 2;
+    subscribe.subscriptions = subscriptions;
+
+    subscriptions[0].topic.buf = topic_1;
+    subscriptions[0].topic.len = sizeof(topic_1);
+
+    subscriptions[1].topic.buf = topic_2;
+    subscriptions[1].topic.len = sizeof(topic_2);
+
+    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0c0d, &subscribe);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(265, bytes_written);
+
+    ck_assert_int_eq((u8) '\xa2', buf[0]);
+    ck_assert_int_eq((u8) '\x86', buf[1]);
+    ck_assert_int_eq((u8) '\x02', buf[2]);
+    ck_assert_int_eq((u8) '\x0c', buf[3]);
+    ck_assert_int_eq((u8) '\x0d', buf[4]);
+
+    ck_assert_int_eq((u8) '\x00', buf[5]);
+    ck_assert_int_eq((u8) '\x7f', buf[6]);
+    ck_assert_int_eq((u8) 'x',    buf[7]);
+    ck_assert_int_eq((u8) 'x',    buf[133]);
+
+    ck_assert_int_eq((u8) '\x00', buf[134]);
+    ck_assert_int_eq((u8) '\x81', buf[135]);
+    ck_assert_int_eq((u8) 'y',    buf[136]);
+    ck_assert_int_eq((u8) 'y',    buf[264]);
+}
+END_TEST
+
 START_TEST(should_encode_pingreq)
 {
     PREPARE;
@@ -169,6 +217,7 @@ START_TCASE("Tx buffer recipes")
     ADD_TEST(should_encode_connect);
     ADD_TEST(should_encode_subscribe_to_one_topic);
     ADD_TEST(should_encode_subscribe_to_multiple_topics);
+    ADD_TEST(should_encode_unsubscribe_to_multiple_topics);
     ADD_TEST(should_encode_pingreq);
     ADD_TEST(should_encode_disconnect);
 }

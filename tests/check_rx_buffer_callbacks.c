@@ -77,6 +77,28 @@ START_TEST(should_call_suback_callback)
 }
 END_TEST
 
+START_TEST(should_call_unsuback_callback)
+{
+    lmqtt_subscribe_t subscribe;
+    lmqtt_subscription_t subscriptions[1];
+    u8 *buf = (u8 *) "\xb0\x02\x03\x04";
+
+    PREPARE;
+
+    memset(&subscribe, 0, sizeof(subscribe));
+    callbacks.on_unsuback = &test_on_suback;
+    subscribe.count = 1;
+    subscribe.subscriptions = subscriptions;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0304, &subscribe);
+    lmqtt_store_next(&store);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_ptr_eq(&subscribe, callbacks_data);
+}
+END_TEST
+
 START_TEST(should_call_pingresp_callback)
 {
     u8 *buf = (u8 *) "\xd0\x00";
@@ -116,6 +138,7 @@ START_TCASE("Rx buffer callbacks")
 {
     ADD_TEST(should_call_connack_callback);
     ADD_TEST(should_call_suback_callback);
+    ADD_TEST(should_call_unsuback_callback);
     ADD_TEST(should_call_pingresp_callback);
     ADD_TEST(should_not_call_null_decode_byte);
 }

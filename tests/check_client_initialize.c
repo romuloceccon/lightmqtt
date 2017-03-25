@@ -6,6 +6,7 @@
 typedef enum {
     TEST_CONNECT = 5000,
     TEST_SUBSCRIBE,
+    TEST_UNSUBSCRIBE,
     TEST_PINGREQ,
     TEST_DISCONNECT
 } test_type_request_t;
@@ -14,6 +15,7 @@ typedef enum {
     TEST_CONNACK_SUCCESS = 5100,
     TEST_CONNACK_FAILURE,
     TEST_SUBACK_SUCCESS,
+    TEST_UNSUBACK_SUCCESS,
     TEST_PINGRESP
 } test_type_response_t;
 
@@ -75,6 +77,10 @@ static void test_socket_append(int val)
             src = "\x90\x03\x00\x00\x00";
             len = 5;
             break;
+        case TEST_UNSUBACK_SUCCESS:
+            src = "\xb0\x02\x00\x00";
+            len = 4;
+            break;
         case TEST_PINGRESP:
             src = "\xd0\x00";
             len = 2;
@@ -122,6 +128,9 @@ static int test_socket_shift()
         case 0x82:
             result = TEST_SUBSCRIBE;
             break;
+        case 0xa2:
+            result = TEST_UNSUBSCRIBE;
+            break;
         case 0xc0:
             result = TEST_PINGREQ;
             break;
@@ -160,6 +169,11 @@ static void on_connect(void *data)
 static void on_subscribe(void *data)
 {
     *((int *) data) = 2;
+}
+
+static void on_unsubscribe(void *data)
+{
+    *((int *) data) = 3;
 }
 
 static lmqtt_connect_t connect;
@@ -348,6 +362,35 @@ START_TEST(should_subscribe)
     test_socket_append(TEST_SUBACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_input(&client));
     ck_assert_int_eq(2, subscribed);
+}
+END_TEST
+
+START_TEST(should_unsubscribe)
+{
+    lmqtt_client_t client;
+    lmqtt_subscribe_t subscribe;
+    lmqtt_subscription_t subscription;
+    int unsubscribed;
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    lmqtt_client_set_on_unsubscribe(&client, on_unsubscribe, &unsubscribed);
+
+    memset(&subscribe, 0, sizeof(subscribe));
+    memset(&subscription, 0, sizeof(subscription));
+    subscribe.count = 1;
+    subscribe.subscriptions = &subscription;
+    subscription.topic.buf = "test";
+    subscription.topic.len = strlen(subscription.topic.buf);
+
+    ck_assert_int_eq(1, lmqtt_client_unsubscribe(&client, &subscribe));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_output(&client));
+    ck_assert_int_eq(TEST_UNSUBSCRIBE, test_socket_shift());
+
+    unsubscribed = 0;
+    test_socket_append(TEST_UNSUBACK_SUCCESS);
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, process_input(&client));
+    ck_assert_int_eq(3, unsubscribed);
 }
 END_TEST
 
@@ -613,6 +656,7 @@ START_TCASE("Client initialize")
     ADD_TEST(should_not_receive_connack_before_connect);
 
     ADD_TEST(should_subscribe);
+    ADD_TEST(should_unsubscribe);
     ADD_TEST(should_assign_packet_ids_to_subscribe);
 
     ADD_TEST(should_send_pingreq_after_timeout);
