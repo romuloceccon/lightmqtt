@@ -17,6 +17,7 @@ typedef enum {
     TEST_CONNACK_FAILURE,
     TEST_SUBACK_SUCCESS,
     TEST_UNSUBACK_SUCCESS,
+    TEST_PUBACK,
     TEST_PINGRESP
 } test_type_response_t;
 
@@ -85,6 +86,10 @@ static void test_socket_append(int val)
             break;
         case TEST_UNSUBACK_SUCCESS:
             src = "\xb0\x02\x00\x00";
+            len = 4;
+            break;
+        case TEST_PUBACK:
+            src = "\x40\x02\x00\x01";
             len = 4;
             break;
         case TEST_PINGRESP:
@@ -571,8 +576,44 @@ START_TEST(should_publish_with_qos_0)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
     ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
 
-    /* should not assign id to QoS 0 packet */
+    /* should NOT assign id to QoS 0 packet */
     ck_assert_int_eq(0, publish.packet_id);
+    ck_assert_ptr_eq(&publish, cb_result.data);
+    ck_assert_int_eq(1, cb_result.succeeded);
+}
+END_TEST
+
+START_TEST(should_publish_with_qos_1)
+{
+    lmqtt_client_t client;
+    lmqtt_publish_t publish;
+    test_cb_result_t cb_result = { 0, 0 };
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    lmqtt_client_set_on_publish(&client, on_publish, &cb_result);
+
+    memset(&publish, 0, sizeof(publish));
+    publish.qos = 1;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    lmqtt_store_get_id(&client.store);
+
+    ck_assert_int_eq(1, lmqtt_client_publish(&client, &publish));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+
+    /* should assign id to QoS 1 packet */
+    ck_assert_int_eq(1, publish.packet_id);
+    ck_assert_ptr_eq(0, cb_result.data);
+    ck_assert_int_eq(0, cb_result.succeeded);
+
+    test_socket_append(TEST_PUBACK);
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+
     ck_assert_ptr_eq(&publish, cb_result.data);
     ck_assert_int_eq(1, cb_result.succeeded);
 }
@@ -883,6 +924,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_subscribe_with_full_store);
 
     ADD_TEST(should_publish_with_qos_0);
+    ADD_TEST(should_publish_with_qos_1);
     ADD_TEST(should_not_publish_invalid_packet);
 
     ADD_TEST(should_send_pingreq_after_timeout);

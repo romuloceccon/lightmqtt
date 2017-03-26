@@ -373,7 +373,7 @@ START_TEST(should_decode_rx_buffer_with_packet_id)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_PUBLISH, 0x0102);
+    STORE_APPEND_NEXT(LMQTT_CLASS_PUBLISH_1, 0x0102);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 

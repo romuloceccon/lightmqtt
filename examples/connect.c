@@ -107,6 +107,7 @@ void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
     client = (lmqtt_client_t *) data;
 
     memset(&publish, 0, sizeof(publish));
+    publish.qos = 1;
     publish.topic.buf = "a/b/c";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = payload;

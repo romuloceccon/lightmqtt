@@ -359,10 +359,20 @@ static int client_do_publish_fail(lmqtt_client_t *client,
 
 static int client_do_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
 {
+    int class;
+
     if (!lmqtt_publish_validate(publish))
         return 0;
 
-    return lmqtt_store_append(&client->store, LMQTT_CLASS_PUBLISH, 0, publish);
+    if (publish->qos == 0) {
+        class = LMQTT_CLASS_PUBLISH_0;
+        publish->packet_id = 0;
+    } else {
+        class = LMQTT_CLASS_PUBLISH_1;
+        publish->packet_id = lmqtt_store_get_id(&client->store);
+    }
+    return lmqtt_store_append(&client->store, class, publish->packet_id,
+        publish);
 }
 
 static int client_do_pingreq_fail(lmqtt_client_t *client)
@@ -402,7 +412,8 @@ static void client_set_state_initial(lmqtt_client_t *client)
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_suback = client_on_suback_fail;
     client->internal.rx_callbacks.on_unsuback = client_on_unsuback_fail;
-    client->internal.rx_callbacks.on_publish = client_on_publish_fail;
+    client->internal.rx_callbacks.on_puback = client_on_publish_fail;
+    client->internal.rx_callbacks.on_publish_tx = client_on_publish_fail;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp_fail;
 }
 
@@ -422,7 +433,7 @@ static void client_set_state_connected(lmqtt_client_t *client)
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_suback = client_on_suback;
     client->internal.rx_callbacks.on_unsuback = client_on_unsuback;
-    client->internal.rx_callbacks.on_publish = client_on_publish;
+    client->internal.rx_callbacks.on_puback = client_on_publish;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp;
 }
 
@@ -438,7 +449,7 @@ static void client_set_state_disconnecting(lmqtt_client_t *client)
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_suback = client_on_suback_fail;
     client->internal.rx_callbacks.on_unsuback = client_on_unsuback_fail;
-    client->internal.rx_callbacks.on_publish = client_on_publish_fail;
+    client->internal.rx_callbacks.on_puback = client_on_publish_fail;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp_fail;
 }
 

@@ -18,7 +18,9 @@
 
 typedef enum {
     LMQTT_CLASS_CONNECT = 200,
-    LMQTT_CLASS_PUBLISH,
+    LMQTT_CLASS_PUBLISH_0,
+    LMQTT_CLASS_PUBLISH_1,
+    LMQTT_CLASS_PUBLISH_2,
     LMQTT_CLASS_PUBREL,
     LMQTT_CLASS_SUBSCRIBE,
     LMQTT_CLASS_UNSUBSCRIBE,
@@ -144,7 +146,8 @@ typedef struct _lmqtt_rx_buffer_callbacks_t {
     int (*on_connack)(void *, lmqtt_connect_t *);
     int (*on_suback)(void *, lmqtt_subscribe_t *);
     int (*on_unsuback)(void *, lmqtt_subscribe_t *);
-    int (*on_publish)(void *, lmqtt_publish_t *);
+    int (*on_publish_tx)(void *, lmqtt_publish_t *);
+    int (*on_puback)(void *, lmqtt_publish_t *);
     int (*on_pingresp)(void *);
 } lmqtt_rx_buffer_callbacks_t;
 
@@ -157,7 +160,6 @@ struct _lmqtt_rx_buffer_decoder_t {
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
     int (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
     lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
-    int (*call_callback)(struct _lmqtt_rx_buffer_t *, void *);
 };
 
 typedef struct _lmqtt_rx_buffer_t {

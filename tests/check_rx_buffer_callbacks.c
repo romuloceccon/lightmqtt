@@ -29,6 +29,11 @@ int test_on_suback(void *data, lmqtt_subscribe_t *subscribe)
     *((void **) data) = subscribe;
 }
 
+int test_on_puback(void *data, lmqtt_publish_t *publish)
+{
+    *((void **) data) = publish;
+}
+
 int test_on_pingresp(void *data)
 {
     *((void **) data) = &pingresp_data;
@@ -99,6 +104,29 @@ START_TEST(should_call_unsuback_callback)
 }
 END_TEST
 
+START_TEST(should_call_puback_callback)
+{
+    lmqtt_publish_t publish;
+    u8 *buf = (u8 *) "\x40\x02\x05\x06";
+
+    PREPARE;
+
+    memset(&publish, 0, sizeof(publish));
+    publish.packet_id = 0x0506;
+    publish.qos = 1;
+    publish.topic.buf = "a";
+    publish.topic.len = 1;
+    callbacks.on_puback = &test_on_puback;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0506, &publish);
+    lmqtt_store_next(&store);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_ptr_eq(&publish, callbacks_data);
+}
+END_TEST
+
 START_TEST(should_call_pingresp_callback)
 {
     u8 *buf = (u8 *) "\xd0\x00";
@@ -139,6 +167,7 @@ START_TCASE("Rx buffer callbacks")
     ADD_TEST(should_call_connack_callback);
     ADD_TEST(should_call_suback_callback);
     ADD_TEST(should_call_unsuback_callback);
+    ADD_TEST(should_call_puback_callback);
     ADD_TEST(should_call_pingresp_callback);
     ADD_TEST(should_not_call_null_decode_byte);
 }

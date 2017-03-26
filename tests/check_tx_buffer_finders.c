@@ -204,7 +204,7 @@ START_TEST(should_encode_publish_with_qos_0)
     publish.topic.len = strlen(publish.topic.buf);
     tx_callbacks.on_publish = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 0x0102, &publish);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_0, 0x0102, &publish);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -235,7 +235,7 @@ START_TEST(should_encode_publish_with_qos_1)
     publish.payload.len = strlen(publish.payload.buf);
     tx_callbacks.on_publish = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 0x0708, &publish);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &publish);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
