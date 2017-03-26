@@ -763,34 +763,34 @@ static lmqtt_decode_result_t rx_buffer_decode_suback(lmqtt_rx_buffer_t *state,
         LMQTT_DECODE_FINISHED : LMQTT_DECODE_CONTINUE;
 }
 
-static int rx_buffer_call_connack(lmqtt_rx_buffer_t *state)
+static int rx_buffer_call_connack(lmqtt_rx_buffer_t *state, void *data)
 {
     if (!state->callbacks->on_connack)
         return 0;
 
     return state->callbacks->on_connack(state->callbacks_data,
-        (lmqtt_connect_t *) state->internal.packet_data);
+        (lmqtt_connect_t *) data);
 }
 
-static int rx_buffer_call_suback(lmqtt_rx_buffer_t *state)
+static int rx_buffer_call_suback(lmqtt_rx_buffer_t *state, void *data)
 {
     if (!state->callbacks->on_suback)
         return 0;
 
     return state->callbacks->on_suback(state->callbacks_data,
-        (lmqtt_subscribe_t *) state->internal.packet_data);
+        (lmqtt_subscribe_t *) data);
 }
 
-static int rx_buffer_call_unsuback(lmqtt_rx_buffer_t *state)
+static int rx_buffer_call_unsuback(lmqtt_rx_buffer_t *state, void *data)
 {
     if (!state->callbacks->on_unsuback)
         return 0;
 
     return state->callbacks->on_unsuback(state->callbacks_data,
-        (lmqtt_subscribe_t *) state->internal.packet_data);
+        (lmqtt_subscribe_t *) data);
 }
 
-static int rx_buffer_call_pingresp(lmqtt_rx_buffer_t *state)
+static int rx_buffer_call_pingresp(lmqtt_rx_buffer_t *state, void *data)
 {
     if (!state->callbacks->on_pingresp)
         return 0;
@@ -814,7 +814,8 @@ static int rx_buffer_call_pingresp(lmqtt_rx_buffer_t *state)
  */
 static int rx_buffer_call_callback(lmqtt_rx_buffer_t *state)
 {
-    return state->internal.decoder->call_callback(state);
+    return state->internal.decoder->call_callback(state,
+        state->internal.packet_data);
 }
 
 static lmqtt_decode_result_t rx_buffer_decode_type(lmqtt_rx_buffer_t *state,
@@ -1063,4 +1064,32 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
 
     lmqtt_store_touch(state->store);
     return LMQTT_IO_SUCCESS;
+}
+
+void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
+{
+    int class;
+    void *data;
+
+    if (state->internal.packet_data)
+        RX_BUFFER_CALL_CALLBACK(state);
+
+    while (lmqtt_store_pop_any(state->store, &class, &data)) {
+        if (!data)
+            continue;
+
+        switch (class) {
+            case LMQTT_CLASS_CONNECT:
+                rx_buffer_call_connack(state, data);
+                break;
+            case LMQTT_CLASS_SUBSCRIBE:
+                rx_buffer_call_suback(state, data);
+                break;
+            case LMQTT_CLASS_UNSUBSCRIBE:
+                rx_buffer_call_unsuback(state, data);
+                break;
+            default:
+                assert(0);
+        }
+    }
 }

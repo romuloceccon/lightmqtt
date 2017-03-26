@@ -77,7 +77,7 @@ static char *topic = "topic";
 static lmqtt_subscribe_t subscribe;
 static lmqtt_subscription_t subscriptions[1];
 
-void on_connect(void *data)
+void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     lmqtt_client_t *client;
 
@@ -96,7 +96,7 @@ void on_connect(void *data)
     lmqtt_client_subscribe(client, &subscribe);
 }
 
-void on_subscribe(void *data)
+void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
     fprintf(stderr, "subscribed: %d!\n", (int) subscriptions[0].return_code);
 }

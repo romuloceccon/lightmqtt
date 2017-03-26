@@ -11,9 +11,9 @@ typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
 
 typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
 
-typedef void (*lmqtt_client_on_connect_t)(void *);
-typedef void (*lmqtt_client_on_subscribe_t)(void *);
-typedef void (*lmqtt_client_on_unsubscribe_t)(void *);
+typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
+typedef void (*lmqtt_client_on_subscribe_t)(void *, lmqtt_subscribe_t *, int);
+typedef void (*lmqtt_client_on_unsubscribe_t)(void *, lmqtt_subscribe_t *, int);
 
 struct _lmqtt_client_t;
 
@@ -64,6 +64,7 @@ lmqtt_io_status_t client_process_output(lmqtt_client_t *client);
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
 
 void lmqtt_client_initialize(lmqtt_client_t *client);
+void lmqtt_client_finalize(lmqtt_client_t *client);
 
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);
 int lmqtt_client_subscribe(lmqtt_client_t *client,

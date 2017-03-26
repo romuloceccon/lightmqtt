@@ -38,12 +38,12 @@ typedef struct _test_packet_t {
     void *packet_data;
 } test_packet_t;
 
-typedef struct _TestClient {
+typedef struct _test_client_t {
     int current_packet;
     test_packet_t packets[10];
-} TestClient;
+} test_client_t;
 
-static TestClient client;
+static test_client_t client;
 
 static int test_call_callback(lmqtt_rx_buffer_t *state)
 {
@@ -505,6 +505,26 @@ START_TEST(should_decode_pubrel_without_corresponding_pubrec)
 }
 END_TEST
 
+START_TEST(should_finish_failed_buffer)
+{
+    PREPARE;
+
+    buf[0] = 0x20;
+    buf[1] = 2;
+    buf[2] = 0x0f;
+
+    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    set_packet_result(0, LMQTT_DECODE_ERROR, 1);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    lmqtt_rx_buffer_finish(&state);
+    ck_assert_int_eq(1, client.current_packet);
+    ck_assert_ptr_eq(&data, client.packets[0].packet_data);
+}
+END_TEST
+
 START_TCASE("Rx buffer decode")
 {
     ADD_TEST(should_process_complete_rx_buffer);
@@ -527,5 +547,6 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_fail_if_connack_has_no_corresponding_connect);
     ADD_TEST(should_fail_if_suback_has_no_corresponding_subscribe);
     ADD_TEST(should_decode_pubrel_without_corresponding_pubrec);
+    ADD_TEST(should_finish_failed_buffer);
 }
 END_TCASE

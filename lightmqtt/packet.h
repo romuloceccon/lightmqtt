@@ -140,7 +140,7 @@ struct _lmqtt_rx_buffer_decoder_t {
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
     int (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
     lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
-    int (*call_callback)(struct _lmqtt_rx_buffer_t *);
+    int (*call_callback)(struct _lmqtt_rx_buffer_t *, void *);
 };
 
 typedef struct _lmqtt_rx_buffer_t {
@@ -168,5 +168,6 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read);
+void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 
 #endif
