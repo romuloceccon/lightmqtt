@@ -180,6 +180,41 @@ START_TEST(should_encode_unsubscribe_to_multiple_topics)
 }
 END_TEST
 
+START_TEST(should_encode_publish)
+{
+    lmqtt_publish_t publish;
+
+    PREPARE;
+    memset(&publish, 0, sizeof(publish));
+    publish.packet_id = 0x0708;
+    publish.retain = 1;
+    publish.dup = 1;
+    publish.qos = 1;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 0x0708, &publish);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(18, bytes_written);
+
+    ck_assert_uint_eq(0x3b, buf[0]);
+    ck_assert_uint_eq(0x10, buf[1]);
+    ck_assert_uint_eq(0x00, buf[2]);
+    ck_assert_uint_eq(0x05, buf[3]);
+    ck_assert_uint_eq((u8) 't', buf[4]);
+    ck_assert_uint_eq((u8) 'c', buf[8]);
+    ck_assert_uint_eq(0x07, buf[9]);
+    ck_assert_uint_eq(0x08, buf[10]);
+    ck_assert_uint_eq((u8) 'p', buf[11]);
+    ck_assert_uint_eq((u8) 'd', buf[17]);
+}
+END_TEST
+
 START_TEST(should_encode_pingreq)
 {
     PREPARE;
@@ -218,6 +253,7 @@ START_TCASE("Tx buffer finders")
     ADD_TEST(should_encode_subscribe_to_one_topic);
     ADD_TEST(should_encode_subscribe_to_multiple_topics);
     ADD_TEST(should_encode_unsubscribe_to_multiple_topics);
+    ADD_TEST(should_encode_publish);
     ADD_TEST(should_encode_pingreq);
     ADD_TEST(should_encode_disconnect);
 }

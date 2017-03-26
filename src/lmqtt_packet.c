@@ -113,13 +113,13 @@ static lmqtt_read_result_t string_fetch(lmqtt_string_t *str, int offset,
     return LMQTT_READ_SUCCESS;
 }
 
-static lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
+static lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
     int encode_if_empty, int offset, u8 *buf, int buf_len, int *bytes_written)
 {
     int len = str->len;
     int result;
     int pos = 0;
-    int offset_str;
+    int offset_str = offset;
     int i;
 
     int read_cnt;
@@ -131,21 +131,24 @@ static lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
         return LMQTT_ENCODE_FINISHED;
     }
 
-    assert(offset < len + LMQTT_STRING_LEN_SIZE && buf_len > 0);
+    assert(buf_len > 0);
+    assert(offset < len + (encode_len ? LMQTT_STRING_LEN_SIZE : 0));
 
-    for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
-        if (offset <= i) {
-            buf[pos++] = STRING_LEN_BYTE(len, LMQTT_STRING_LEN_SIZE - i - 1);
-            if (pos >= buf_len) {
-                *bytes_written = pos;
-                return pos >= LMQTT_STRING_LEN_SIZE && len == 0 ?
-                    LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_CONTINUE;
+    if (encode_len) {
+        for (i = 0; i < LMQTT_STRING_LEN_SIZE; i++) {
+            if (offset <= i) {
+                buf[pos++] = STRING_LEN_BYTE(len, LMQTT_STRING_LEN_SIZE - i - 1);
+                if (pos >= buf_len) {
+                    *bytes_written = pos;
+                    return pos >= LMQTT_STRING_LEN_SIZE && len == 0 ?
+                        LMQTT_ENCODE_FINISHED : LMQTT_ENCODE_CONTINUE;
+                }
             }
         }
+        offset_str = offset <= LMQTT_STRING_LEN_SIZE ? 0 :
+            offset - LMQTT_STRING_LEN_SIZE;
     }
 
-    offset_str = offset <= LMQTT_STRING_LEN_SIZE ? 0 :
-        offset - LMQTT_STRING_LEN_SIZE;
     len -= offset_str;
     remaining = str->len - offset_str;
 
@@ -338,7 +341,7 @@ static lmqtt_encode_result_t connect_encode_payload_client_id(
     lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    return string_encode(&connect->client_id, 1, offset, buf, buf_len,
+    return string_encode(&connect->client_id, 1, 1, offset, buf, buf_len,
         bytes_written);
 }
 
@@ -346,7 +349,7 @@ static lmqtt_encode_result_t connect_encode_payload_will_topic(
     lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    return string_encode(&connect->will_topic, 0, offset, buf, buf_len,
+    return string_encode(&connect->will_topic, 1, 0, offset, buf, buf_len,
         bytes_written);
 }
 
@@ -354,7 +357,7 @@ static lmqtt_encode_result_t connect_encode_payload_will_message(
     lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    return string_encode(&connect->will_message, 0, offset, buf, buf_len,
+    return string_encode(&connect->will_message, 1, 0, offset, buf, buf_len,
         bytes_written);
 }
 
@@ -362,7 +365,7 @@ static lmqtt_encode_result_t connect_encode_payload_user_name(
     lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    return string_encode(&connect->user_name, 0, offset, buf, buf_len,
+    return string_encode(&connect->user_name, 1, 0, offset, buf, buf_len,
         bytes_written);
 }
 
@@ -370,7 +373,7 @@ static lmqtt_encode_result_t connect_encode_payload_password(
     lmqtt_connect_t *connect, lmqtt_encode_buffer_t *encode_buffer, int offset,
     u8 *buf, int buf_len, int *bytes_written)
 {
-    return string_encode(&connect->password, 0, offset, buf, buf_len,
+    return string_encode(&connect->password, 1, 0, offset, buf, buf_len,
         bytes_written);
 }
 
@@ -478,7 +481,7 @@ static lmqtt_encode_result_t subscribe_encode_topic(
     lmqtt_subscribe_t *subscribe, lmqtt_encode_buffer_t *encode_buffer,
     int offset, u8 *buf, int buf_len, int *bytes_written)
 {
-    return string_encode(&subscribe->internal.current->topic, 1, offset, buf,
+    return string_encode(&subscribe->internal.current->topic, 1, 1, offset, buf,
         buf_len, bytes_written);
 }
 
@@ -520,6 +523,83 @@ int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe)
     }
 
     return 1;
+}
+
+/******************************************************************************
+ * lmqtt_publish_t PRIVATE functions
+ ******************************************************************************/
+
+static int publish_calc_remaining_length(lmqtt_publish_t *publish)
+{
+    return LMQTT_PACKET_ID_SIZE + LMQTT_STRING_LEN_SIZE + publish->topic.len +
+        publish->payload.len;
+}
+
+static lmqtt_encode_result_t publish_build_fixed_header(
+    lmqtt_publish_t *publish, lmqtt_encode_buffer_t *encode_buffer)
+{
+    int res, i, v;
+    u8 type;
+
+    res = encode_remaining_length(publish_calc_remaining_length(publish),
+        encode_buffer->buf + 1, &v);
+    if (res != LMQTT_ENCODE_FINISHED)
+        return LMQTT_ENCODE_ERROR;
+
+    type = LMQTT_TYPE_PUBLISH << 4;
+    type |= publish->retain ? 0x01 : 0x00;
+    type |= (publish->qos & 0x03) << 1;
+    type |= publish->dup ? 0x08 : 0x00;
+    encode_buffer->buf[0] = type;
+    encode_buffer->buf_len = 1 + v;
+    return LMQTT_ENCODE_FINISHED;
+}
+
+static lmqtt_encode_result_t publish_encode_fixed_header(
+    lmqtt_publish_t *publish, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_buffer_encode(encode_buffer, publish,
+        (encode_buffer_builder_t) publish_build_fixed_header, offset, buf,
+        buf_len, bytes_written);
+}
+
+static lmqtt_encode_result_t publish_encode_topic(lmqtt_publish_t *publish,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    return string_encode(&publish->topic, 1, 1, offset, buf, buf_len,
+        bytes_written);
+}
+
+static lmqtt_encode_result_t publish_build_packet_id(
+    lmqtt_publish_t *publish, lmqtt_encode_buffer_t *encode_buffer)
+{
+    int i;
+
+    for (i = 0; i < LMQTT_PACKET_ID_SIZE; i++)
+        encode_buffer->buf[i] = STRING_LEN_BYTE(publish->packet_id,
+            LMQTT_PACKET_ID_SIZE - i - 1);
+
+    encode_buffer->buf_len = LMQTT_PACKET_ID_SIZE;
+    return LMQTT_ENCODE_FINISHED;
+}
+
+static lmqtt_encode_result_t publish_encode_packet_id(
+    lmqtt_publish_t *publish, lmqtt_encode_buffer_t *encode_buffer, int offset,
+    u8 *buf, int buf_len, int *bytes_written)
+{
+    return encode_buffer_encode(encode_buffer, publish,
+        (encode_buffer_builder_t) publish_build_packet_id, offset, buf,
+        buf_len, bytes_written);
+}
+
+static lmqtt_encode_result_t publish_encode_payload(lmqtt_publish_t *publish,
+    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
+    int *bytes_written)
+{
+    return string_encode(&publish->payload, 0, 0, offset, buf, buf_len,
+        bytes_written);
 }
 
 /******************************************************************************
@@ -628,6 +708,18 @@ static lmqtt_encoder_t tx_buffer_finder_unsubscribe(
     return 0;
 }
 
+static lmqtt_encoder_t tx_buffer_finder_publish(lmqtt_tx_buffer_t *tx_buffer,
+    void *data)
+{
+    switch (tx_buffer->internal.pos) {
+        case 0: return (lmqtt_encoder_t) publish_encode_fixed_header;
+        case 1: return (lmqtt_encoder_t) publish_encode_topic;
+        case 2: return (lmqtt_encoder_t) publish_encode_packet_id;
+        case 3: return (lmqtt_encoder_t) publish_encode_payload;
+    }
+    return 0;
+}
+
 static lmqtt_encoder_t tx_buffer_finder_pingreq(lmqtt_tx_buffer_t *tx_buffer,
     void *data)
 {
@@ -653,6 +745,7 @@ static lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class)
         case LMQTT_CLASS_CONNECT: return &tx_buffer_finder_connect;
         case LMQTT_CLASS_SUBSCRIBE: return &tx_buffer_finder_subscribe;
         case LMQTT_CLASS_UNSUBSCRIBE: return &tx_buffer_finder_unsubscribe;
+        case LMQTT_CLASS_PUBLISH: return &tx_buffer_finder_publish;
         case LMQTT_CLASS_PINGREQ: return &tx_buffer_finder_pingreq;
         case LMQTT_CLASS_DISCONNECT: return &tx_buffer_finder_disconnect;
     }

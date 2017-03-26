@@ -109,6 +109,15 @@ typedef struct _lmqtt_subscribe_t {
     } internal;
 } lmqtt_subscribe_t;
 
+typedef struct _lmqtt_publish_t {
+    u16 packet_id;
+    int dup;
+    int qos;
+    int retain;
+    lmqtt_string_t topic;
+    lmqtt_string_t payload;
+} lmqtt_publish_t;
+
 typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
     lmqtt_encode_buffer_t *, int, u8 *, int, int *);
 
