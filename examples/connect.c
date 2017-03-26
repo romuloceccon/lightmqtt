@@ -45,7 +45,7 @@ lmqtt_io_result_t write_data(void *data, u8 *buf, int buf_len,
     res = write(socket_fd, buf, buf_len);
     if (res >= 0) {
         *bytes_written = res;
-        fprintf(stderr, "write ok\n");
+        fprintf(stderr, "write ok: %d\n", res);
         return LMQTT_IO_SUCCESS;
     }
 
@@ -76,6 +76,8 @@ lmqtt_io_result_t get_time(long *secs, long *nsecs)
 static char *topic = "topic";
 static lmqtt_subscribe_t subscribe;
 static lmqtt_subscription_t subscriptions[1];
+static lmqtt_publish_t publish;
+static char payload[8192];
 
 void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
@@ -98,7 +100,26 @@ void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 
 void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
-    fprintf(stderr, "subscribed: %d!\n", (int) subscriptions[0].return_code);
+    lmqtt_client_t *client;
+
+    fprintf(stderr, "subscribed: %d!\n", succeeded);
+
+    client = (lmqtt_client_t *) data;
+
+    memset(&publish, 0, sizeof(publish));
+    publish.topic.buf = "a/b/c";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = payload;
+    publish.payload.len = sizeof(payload);
+
+    memset(payload, 'x', sizeof(payload));
+
+    lmqtt_client_publish(client, &publish);
+}
+
+void on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
+{
+    fprintf(stderr, "published: %d!\n", succeeded);
 }
 
 int main()
@@ -137,6 +158,7 @@ int main()
     client.store.get_time = get_time;
     lmqtt_client_set_on_connect(&client, on_connect, &client);
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &client);
+    lmqtt_client_set_on_publish(&client, on_publish, &client);
     lmqtt_client_set_default_timeout(&client, 2);
 
     memset(&connect_data, 0, sizeof(connect_data));

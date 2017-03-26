@@ -118,11 +118,15 @@ typedef struct _lmqtt_publish_t {
     lmqtt_string_t payload;
 } lmqtt_publish_t;
 
-typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
-    lmqtt_encode_buffer_t *, int, u8 *, int, int *);
+typedef struct _lmqtt_tx_buffer_callbacks_t {
+    int (*on_publish)(void *, lmqtt_publish_t *);
+} lmqtt_tx_buffer_callbacks_t;
 
 typedef struct _lmqtt_tx_buffer_t {
     lmqtt_store_t *store;
+
+    lmqtt_tx_buffer_callbacks_t *callbacks;
+    void *callbacks_data;
 
     struct {
         int pos;
@@ -131,14 +135,18 @@ typedef struct _lmqtt_tx_buffer_t {
     } internal;
 } lmqtt_tx_buffer_t;
 
+typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
+    lmqtt_encode_buffer_t *, int, u8 *, int, int *);
+
 typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *, void *);
 
-typedef struct _lmqtt_callbacks_t {
+typedef struct _lmqtt_rx_buffer_callbacks_t {
     int (*on_connack)(void *, lmqtt_connect_t *);
     int (*on_suback)(void *, lmqtt_subscribe_t *);
     int (*on_unsuback)(void *, lmqtt_subscribe_t *);
+    int (*on_publish)(void *, lmqtt_publish_t *);
     int (*on_pingresp)(void *);
-} lmqtt_callbacks_t;
+} lmqtt_rx_buffer_callbacks_t;
 
 struct _lmqtt_rx_buffer_t;
 
@@ -155,7 +163,7 @@ struct _lmqtt_rx_buffer_decoder_t {
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
 
-    lmqtt_callbacks_t *callbacks;
+    lmqtt_rx_buffer_callbacks_t *callbacks;
     void *callbacks_data;
 
     struct {
@@ -171,6 +179,7 @@ typedef struct _lmqtt_rx_buffer_t {
 
 int lmqtt_connect_validate(lmqtt_connect_t *connect);
 int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe);
+int lmqtt_publish_validate(lmqtt_publish_t *publish);
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written);

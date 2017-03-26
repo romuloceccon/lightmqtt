@@ -3,16 +3,27 @@
 #include "../src/lmqtt_packet.c"
 
 #define PREPARE \
+    void *data = 0; \
     u8 buf[512]; \
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_io_result_t res; \
+    lmqtt_tx_buffer_callbacks_t tx_callbacks; \
     int bytes_written; \
     memset(buf, 0xcc, sizeof(buf)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
+    memset(&tx_callbacks, 0, sizeof(tx_callbacks)); \
+    state.callbacks = &tx_callbacks; \
+    state.callbacks_data = &data; \
     state.store = &store; \
     store.get_time = &test_time_get
+
+int test_on_publish(void *data, lmqtt_publish_t *publish)
+{
+    *((void **) data) = publish;
+    return 1;
+}
 
 START_TEST(should_encode_connect)
 {
@@ -180,9 +191,37 @@ START_TEST(should_encode_unsubscribe_to_multiple_topics)
 }
 END_TEST
 
-START_TEST(should_encode_publish)
+START_TEST(should_encode_publish_with_qos_0)
 {
     lmqtt_publish_t publish;
+    int store_class;
+    void *store_data;
+
+    PREPARE;
+    memset(&publish, 0, sizeof(publish));
+    publish.packet_id = 0x0102;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    tx_callbacks.on_publish = &test_on_publish;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 0x0102, &publish);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(11, bytes_written);
+
+    ck_assert_int_eq(0, lmqtt_store_pop_any(&store, &store_class, &store_data));
+    ck_assert_ptr_eq(0, store_data);
+    ck_assert_ptr_eq(&publish, data);
+}
+END_TEST
+
+START_TEST(should_encode_publish_with_qos_1)
+{
+    lmqtt_publish_t publish;
+    int store_class;
+    void *store_data;
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
@@ -194,6 +233,7 @@ START_TEST(should_encode_publish)
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
+    tx_callbacks.on_publish = &test_on_publish;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH, 0x0708, &publish);
 
@@ -212,6 +252,10 @@ START_TEST(should_encode_publish)
     ck_assert_uint_eq(0x08, buf[10]);
     ck_assert_uint_eq((u8) 'p', buf[11]);
     ck_assert_uint_eq((u8) 'd', buf[17]);
+
+    ck_assert_int_eq(1, lmqtt_store_pop_any(&store, &store_class, &store_data));
+    ck_assert_ptr_eq(&publish, store_data);
+    ck_assert_ptr_eq(0, data);
 }
 END_TEST
 
@@ -253,7 +297,8 @@ START_TCASE("Tx buffer finders")
     ADD_TEST(should_encode_subscribe_to_one_topic);
     ADD_TEST(should_encode_subscribe_to_multiple_topics);
     ADD_TEST(should_encode_unsubscribe_to_multiple_topics);
-    ADD_TEST(should_encode_publish);
+    ADD_TEST(should_encode_publish_with_qos_0);
+    ADD_TEST(should_encode_publish_with_qos_1);
     ADD_TEST(should_encode_pingreq);
     ADD_TEST(should_encode_disconnect);
 }

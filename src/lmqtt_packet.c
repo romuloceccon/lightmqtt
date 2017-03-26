@@ -603,6 +603,17 @@ static lmqtt_encode_result_t publish_encode_payload(lmqtt_publish_t *publish,
 }
 
 /******************************************************************************
+ * lmqtt_publish_t PUBLIC functions
+ ******************************************************************************/
+
+int lmqtt_publish_validate(lmqtt_publish_t *publish)
+{
+    return string_validate_field_length(&publish->topic) &&
+        publish->topic.len > 0 && publish->qos >= 0 && publish->qos <= 2 &&
+        publish_calc_remaining_length(publish) <= 0xfffffff;
+}
+
+/******************************************************************************
  * (pingreq) PUBLIC functions
  ******************************************************************************/
 
@@ -752,6 +763,15 @@ static lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class)
     return NULL;
 }
 
+int tx_buffer_call_publish(lmqtt_tx_buffer_t *state, void *data)
+{
+    if (!state->callbacks->on_publish)
+        return 0;
+
+    return state->callbacks->on_publish(state->callbacks_data,
+        (lmqtt_publish_t *) data);
+}
+
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
@@ -776,12 +796,15 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
             lmqtt_encoder_t encoder = finder(state, data);
 
             if (!encoder) {
-                if (class == LMQTT_CLASS_DISCONNECT)
-                    /* same case for PUBLISH messages with QoS 0, except a
-                       callback may also need to be called to free resources */
+                if (class == LMQTT_CLASS_DISCONNECT) {
                     lmqtt_store_drop(state->store);
-                else
+                } else if (class == LMQTT_CLASS_PUBLISH &&
+                        ((lmqtt_publish_t *) data)->qos == 0) {
+                    lmqtt_store_drop(state->store);
+                    tx_buffer_call_publish(state, data);
+                } else {
                     lmqtt_store_next(state->store);
+                }
                 memset(&state->internal, 0, sizeof(state->internal));
                 break;
             }
@@ -881,6 +904,15 @@ static int rx_buffer_call_unsuback(lmqtt_rx_buffer_t *state, void *data)
 
     return state->callbacks->on_unsuback(state->callbacks_data,
         (lmqtt_subscribe_t *) data);
+}
+
+static int rx_buffer_call_publish(lmqtt_rx_buffer_t *state, void *data)
+{
+    if (!state->callbacks->on_publish)
+        return 0;
+
+    return state->callbacks->on_publish(state->callbacks_data,
+        (lmqtt_publish_t *) data);
 }
 
 static int rx_buffer_call_pingresp(lmqtt_rx_buffer_t *state, void *data)
@@ -1180,6 +1212,9 @@ void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
                 break;
             case LMQTT_CLASS_UNSUBSCRIBE:
                 rx_buffer_call_unsuback(state, data);
+                break;
+            case LMQTT_CLASS_PUBLISH:
+                rx_buffer_call_publish(state, data);
                 break;
             default:
                 assert(0);

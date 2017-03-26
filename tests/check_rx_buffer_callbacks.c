@@ -7,7 +7,7 @@
     int bytes_r; \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
-    lmqtt_callbacks_t callbacks; \
+    lmqtt_rx_buffer_callbacks_t callbacks; \
     void *callbacks_data = 0; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \

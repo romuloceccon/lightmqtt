@@ -7,6 +7,7 @@ typedef enum {
     TEST_CONNECT = 5000,
     TEST_SUBSCRIBE,
     TEST_UNSUBSCRIBE,
+    TEST_PUBLISH,
     TEST_PINGREQ,
     TEST_DISCONNECT
 } test_type_request_t;
@@ -126,15 +127,18 @@ static int test_socket_shift()
     if (available < len)
         return -2; /* partial buffer */
 
-    switch (cmd) {
+    switch (cmd & 0xf0) {
         case 0x10:
             result = TEST_CONNECT;
             break;
-        case 0x82:
+        case 0x80:
             result = TEST_SUBSCRIBE;
             break;
-        case 0xa2:
+        case 0xa0:
             result = TEST_UNSUBSCRIBE;
+            break;
+        case 0x30:
+            result = TEST_PUBLISH;
             break;
         case 0xc0:
             result = TEST_PINGREQ;
@@ -186,6 +190,11 @@ static void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded
 static void on_unsubscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
     test_cb_result_set(data, subscribe, succeeded);
+}
+
+static void on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
+{
+    test_cb_result_set(data, publish, succeeded);
 }
 
 static lmqtt_connect_t connect;
@@ -540,6 +549,50 @@ START_TEST(should_not_subscribe_with_full_store)
 }
 END_TEST
 
+START_TEST(should_publish_with_qos_0)
+{
+    lmqtt_client_t client;
+    lmqtt_publish_t publish;
+    test_cb_result_t cb_result = { 0, 0 };
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    lmqtt_client_set_on_publish(&client, on_publish, &cb_result);
+
+    memset(&publish, 0, sizeof(publish));
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    lmqtt_store_get_id(&client.store);
+
+    ck_assert_int_eq(1, lmqtt_client_publish(&client, &publish));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+
+    /* should not assign id to QoS 0 packet */
+    ck_assert_int_eq(0, publish.packet_id);
+    ck_assert_ptr_eq(&publish, cb_result.data);
+    ck_assert_int_eq(1, cb_result.succeeded);
+}
+END_TEST
+
+START_TEST(should_not_publish_invalid_packet)
+{
+    lmqtt_client_t client;
+    lmqtt_publish_t publish;
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    memset(&publish, 0, sizeof(publish));
+
+    ck_assert_int_eq(0, lmqtt_client_publish(&client, &publish));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(-1, test_socket_shift());
+}
+END_TEST
+
 START_TEST(should_send_pingreq_after_timeout)
 {
     lmqtt_client_t client;
@@ -769,14 +822,17 @@ START_TEST(should_finalize_client)
     lmqtt_client_t client;
     lmqtt_subscribe_t subscribe;
     lmqtt_subscribe_t unsubscribe;
+    lmqtt_publish_t publish;
     lmqtt_subscription_t subscription;
     test_cb_result_t cb_result_1 = { 0, -1 };
     test_cb_result_t cb_result_2 = { 0, -1 };
+    test_cb_result_t cb_result_3 = { 0, -1 };
 
     ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
 
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &cb_result_1);
     lmqtt_client_set_on_unsubscribe(&client, on_unsubscribe, &cb_result_2);
+    lmqtt_client_set_on_publish(&client, on_publish, &cb_result_3);
 
     memset(&subscribe, 0, sizeof(subscribe));
     memset(&unsubscribe, 0, sizeof(unsubscribe));
@@ -788,16 +844,24 @@ START_TEST(should_finalize_client)
     subscription.qos = 0;
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
+    memset(&publish, 0, sizeof(publish));
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
 
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe));
     ck_assert_int_eq(1, lmqtt_client_unsubscribe(&client, &unsubscribe));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    /* publish after process_output; otherwise qos 0 packet will be dropped from
+       queue immediattely after being sent */
+    ck_assert_int_eq(1, lmqtt_client_publish(&client, &publish));
 
     lmqtt_client_finalize(&client);
     ck_assert_ptr_eq(&subscribe, cb_result_1.data);
     ck_assert_int_eq(0, cb_result_1.succeeded);
     ck_assert_ptr_eq(&unsubscribe, cb_result_2.data);
     ck_assert_int_eq(0, cb_result_2.succeeded);
+    ck_assert_ptr_eq(&publish, cb_result_3.data);
+    ck_assert_int_eq(0, cb_result_3.succeeded);
 }
 END_TEST
 
@@ -817,6 +881,9 @@ START_TCASE("Client commands")
     ADD_TEST(should_assign_packet_ids_to_subscribe);
     ADD_TEST(should_not_subscribe_with_invalid_packet);
     ADD_TEST(should_not_subscribe_with_full_store);
+
+    ADD_TEST(should_publish_with_qos_0);
+    ADD_TEST(should_not_publish_invalid_packet);
 
     ADD_TEST(should_send_pingreq_after_timeout);
     ADD_TEST(should_not_send_pingreq_before_timeout);

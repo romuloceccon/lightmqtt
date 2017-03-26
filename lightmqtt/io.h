@@ -14,6 +14,7 @@ typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
 typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
 typedef void (*lmqtt_client_on_subscribe_t)(void *, lmqtt_subscribe_t *, int);
 typedef void (*lmqtt_client_on_unsubscribe_t)(void *, lmqtt_subscribe_t *, int);
+typedef void (*lmqtt_client_on_publish_t)(void *, lmqtt_publish_t *, int);
 
 struct _lmqtt_client_t;
 
@@ -29,6 +30,8 @@ typedef struct _lmqtt_client_t {
     void *on_subscribe_data;
     lmqtt_client_on_unsubscribe_t on_unsubscribe;
     void *on_unsubscribe_data;
+    lmqtt_client_on_publish_t on_publish;
+    void *on_publish_data;
 
     int failed;
 
@@ -44,10 +47,12 @@ typedef struct _lmqtt_client_t {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
         int (*subscribe)(struct _lmqtt_client_t *, lmqtt_subscribe_t *);
         int (*unsubscribe)(struct _lmqtt_client_t *, lmqtt_subscribe_t *);
+        int (*publish)(struct _lmqtt_client_t *, lmqtt_publish_t *);
         int (*pingreq)(struct _lmqtt_client_t *);
         int (*disconnect)(struct _lmqtt_client_t *);
 
-        lmqtt_callbacks_t rx_callbacks;
+        lmqtt_tx_buffer_callbacks_t tx_callbacks;
+        lmqtt_rx_buffer_callbacks_t rx_callbacks;
         int disconnecting;
     } internal;
 } lmqtt_client_t;
@@ -71,6 +76,7 @@ int lmqtt_client_subscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe);
 int lmqtt_client_unsubscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe);
+int lmqtt_client_publish(lmqtt_client_t *client, lmqtt_publish_t *publish);
 int lmqtt_client_disconnect(lmqtt_client_t *client);
 
 void lmqtt_client_set_on_connect(lmqtt_client_t *client,
@@ -79,6 +85,8 @@ void lmqtt_client_set_on_subscribe(lmqtt_client_t *client,
     lmqtt_client_on_subscribe_t on_subscribe, void *on_subscribe_data);
 void lmqtt_client_set_on_unsubscribe(lmqtt_client_t *client,
     lmqtt_client_on_unsubscribe_t on_unsubscribe, void *on_unsubscribe_data);
+void lmqtt_client_set_on_publish(lmqtt_client_t *client,
+    lmqtt_client_on_publish_t on_publish, void *on_publish_data);
 
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs);
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);

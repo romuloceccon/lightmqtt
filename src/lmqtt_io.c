@@ -272,6 +272,28 @@ static int client_on_unsuback(void *data, lmqtt_subscribe_t *subscribe)
     return 1;
 }
 
+static int client_on_publish_fail(void *data, lmqtt_publish_t *publish)
+{
+    lmqtt_client_t *client = (lmqtt_client_t *) data;
+
+    client->failed = 1;
+
+    if (client->on_publish)
+        client->on_publish(client->on_publish_data, publish, 0);
+
+    return 1;
+}
+
+static int client_on_publish(void *data, lmqtt_publish_t *publish)
+{
+    lmqtt_client_t *client = (lmqtt_client_t *) data;
+
+    if (client->on_publish)
+        client->on_publish(client->on_publish_data, publish, 1);
+
+    return 1;
+}
+
 static int client_on_pingresp_fail(void *data)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
@@ -329,6 +351,20 @@ static int client_do_unsubscribe(lmqtt_client_t *client,
         LMQTT_CLASS_UNSUBSCRIBE);
 }
 
+static int client_do_publish_fail(lmqtt_client_t *client,
+    lmqtt_publish_t *publish)
+{
+    return 0;
+}
+
+static int client_do_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
+{
+    if (!lmqtt_publish_validate(publish))
+        return 0;
+
+    return lmqtt_store_append(&client->store, LMQTT_CLASS_PUBLISH, 0, publish);
+}
+
 static int client_do_pingreq_fail(lmqtt_client_t *client)
 {
     return 0;
@@ -359,11 +395,14 @@ static void client_set_state_initial(lmqtt_client_t *client)
     client->internal.connect = client_do_connect;
     client->internal.subscribe = client_do_subscribe_fail;
     client->internal.unsubscribe = client_do_unsubscribe_fail;
+    client->internal.publish = client_do_publish_fail;
     client->internal.pingreq = client_do_pingreq;
     client->internal.disconnect = client_do_disconnect_fail;
+    client->internal.tx_callbacks.on_publish = client_on_publish_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_suback = client_on_suback_fail;
     client->internal.rx_callbacks.on_unsuback = client_on_unsuback_fail;
+    client->internal.rx_callbacks.on_publish = client_on_publish_fail;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp_fail;
 }
 
@@ -377,10 +416,13 @@ static void client_set_state_connected(lmqtt_client_t *client)
 {
     client->internal.subscribe = client_do_subscribe;
     client->internal.unsubscribe = client_do_unsubscribe;
+    client->internal.publish = client_do_publish;
     client->internal.disconnect = client_do_disconnect;
+    client->internal.tx_callbacks.on_publish = client_on_publish;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_suback = client_on_suback;
     client->internal.rx_callbacks.on_unsuback = client_on_unsuback;
+    client->internal.rx_callbacks.on_publish = client_on_publish;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp;
 }
 
@@ -389,11 +431,14 @@ static void client_set_state_disconnecting(lmqtt_client_t *client)
     client->internal.connect = client_do_connect_fail;
     client->internal.subscribe = client_do_subscribe_fail;
     client->internal.unsubscribe = client_do_unsubscribe_fail;
+    client->internal.publish = client_do_publish_fail;
     client->internal.pingreq = client_do_pingreq_fail;
     client->internal.disconnect = client_do_disconnect_fail;
+    client->internal.tx_callbacks.on_publish = client_on_publish_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
     client->internal.rx_callbacks.on_suback = client_on_suback_fail;
     client->internal.rx_callbacks.on_unsuback = client_on_unsuback_fail;
+    client->internal.rx_callbacks.on_publish = client_on_publish_fail;
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp_fail;
 }
 
@@ -408,6 +453,8 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
     client->rx_state.callbacks = &client->internal.rx_callbacks;
     client->rx_state.callbacks_data = client;
     client->rx_state.store = &client->store;
+    client->tx_state.callbacks = &client->internal.tx_callbacks;
+    client->tx_state.callbacks_data = client;
     client->tx_state.store = &client->store;
 
     client_set_state_initial(client);
@@ -436,6 +483,11 @@ int lmqtt_client_unsubscribe(lmqtt_client_t *client,
     return client->internal.unsubscribe(client, subscribe);
 }
 
+int lmqtt_client_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
+{
+    return client->internal.publish(client, publish);
+}
+
 int lmqtt_client_disconnect(lmqtt_client_t *client)
 {
     return client->internal.disconnect(client);
@@ -460,6 +512,13 @@ void lmqtt_client_set_on_unsubscribe(lmqtt_client_t *client,
 {
     client->on_unsubscribe = on_unsubscribe;
     client->on_unsubscribe_data = on_unsubscribe_data;
+}
+
+void lmqtt_client_set_on_publish(lmqtt_client_t *client,
+    lmqtt_client_on_publish_t on_publish, void *on_publish_data)
+{
+    client->on_publish = on_publish;
+    client->on_publish_data = on_publish_data;
 }
 
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs)

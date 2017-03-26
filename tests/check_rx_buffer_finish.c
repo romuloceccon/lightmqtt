@@ -4,7 +4,7 @@
     int data[10]; \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
-    lmqtt_callbacks_t callbacks; \
+    lmqtt_rx_buffer_callbacks_t callbacks; \
     test_cb_results_t cb_results; \
     memset(&data, 0, sizeof(data)); \
     memset(&state, 0, sizeof(state)); \

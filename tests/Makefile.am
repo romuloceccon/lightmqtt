@@ -8,6 +8,7 @@ TESTS = \
     .bin/check_connect_validate \
     .bin/check_subscribe_validate \
     .bin/check_publish_encode \
+    .bin/check_publish_validate \
     .bin/check_fixed_header_decode \
     .bin/check_tx_buffer_encode \
     .bin/check_tx_buffer_finders \
@@ -32,6 +33,7 @@ _bin_check_connect_encode_payload_SOURCES   = check_connect_encode_payload.c
 _bin_check_connect_validate_SOURCES         = check_connect_validate.c
 _bin_check_subscribe_validate_SOURCES       = check_subscribe_validate.c
 _bin_check_publish_encode_SOURCES           = check_publish_encode.c
+_bin_check_publish_validate_SOURCES         = check_publish_validate.c
 _bin_check_fixed_header_decode_SOURCES      = check_fixed_header_decode.c
 _bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c \
     check_lightmqtt.c
