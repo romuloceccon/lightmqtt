@@ -807,6 +807,11 @@ int tx_buffer_call_publish(lmqtt_tx_buffer_t *state, void *data)
         (lmqtt_publish_t *) data);
 }
 
+void tx_buffer_close(lmqtt_tx_buffer_t *state)
+{
+    state->closed = 1;
+}
+
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
@@ -819,7 +824,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int class;
     void *data;
 
-    while (lmqtt_store_peek(state->store, &class, &data)) {
+    while (!state->closed && lmqtt_store_peek(state->store, &class, &data)) {
         lmqtt_encoder_finder_t finder = TX_BUFFER_FINDER_BY_CLASS(class);
 
         if (!finder)
@@ -833,6 +838,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
             if (!encoder) {
                 if (class == LMQTT_CLASS_DISCONNECT) {
                     lmqtt_store_drop(state->store);
+                    tx_buffer_close(state);
                 } else if (class == LMQTT_CLASS_PUBLISH_0) {
                     lmqtt_store_drop(state->store);
                     tx_buffer_call_publish(state, data);
@@ -863,7 +869,8 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
         }
     }
 
-    return LMQTT_IO_SUCCESS;
+    return *bytes_written > 0 || state->closed ?
+        LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
 }
 
 /******************************************************************************

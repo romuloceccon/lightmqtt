@@ -130,6 +130,8 @@ typedef struct _lmqtt_tx_buffer_t {
     lmqtt_tx_buffer_callbacks_t *callbacks;
     void *callbacks_data;
 
+    int closed;
+
     struct {
         int pos;
         int offset;

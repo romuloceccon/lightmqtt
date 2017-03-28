@@ -270,7 +270,9 @@ START_TEST(should_not_encode_null_encoder)
     PREPARE;
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
-    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
+    ck_assert_int_eq(0, bytes_w);
 }
 END_TEST
 
@@ -310,6 +312,38 @@ START_TEST(should_not_track_disconnect_packet)
 
     res = lmqtt_store_pop_any(&store, &class, &data_addr);
     ck_assert_int_eq(0, res);
+}
+END_TEST
+
+START_TEST(should_close_tx_buffer_on_disconnect)
+{
+    PREPARE;
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, &data);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(10, bytes_w);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(0, bytes_w);
+}
+END_TEST
+
+START_TEST(should_not_process_packets_after_disconnect)
+{
+    int data2 = 100;
+    PREPARE;
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, &data);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data2);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(10, bytes_w);
 }
 END_TEST
 
@@ -356,6 +390,8 @@ START_TCASE("Tx buffer encode")
     ADD_TEST(should_not_encode_null_encoder);
     ADD_TEST(should_encode_two_packets_at_once);
     ADD_TEST(should_not_track_disconnect_packet);
+    ADD_TEST(should_close_tx_buffer_on_disconnect);
+    ADD_TEST(should_not_process_packets_after_disconnect);
     ADD_TEST(should_track_connect_packet);
     ADD_TEST(should_fail_if_finder_is_null);
 }

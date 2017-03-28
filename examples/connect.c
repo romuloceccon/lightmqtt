@@ -141,7 +141,6 @@ int main()
     struct timeval timeout;
     struct timeval *timeout_ptr;
     int cnt = 0;
-    int disconnecting = 0;
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
@@ -190,22 +189,21 @@ int main()
         lmqtt_io_status_t st_i = client_process_input(&client);
         lmqtt_io_status_t st_o = client_process_output(&client);
 
-        if (st_k == LMQTT_IO_STATUS_READY && st_i == LMQTT_IO_STATUS_READY && st_o == LMQTT_IO_STATUS_READY)
-            break;
-
-        if (st_i == LMQTT_IO_STATUS_BLOCK_DATA || st_o == LMQTT_IO_STATUS_BLOCK_DATA) {
-            fprintf(stderr, "client: block data\n");
-            exit(1);
+        if (st_i == LMQTT_IO_STATUS_READY) {
+            fprintf(stderr, "they disconnected!\n");
+            close(socket_fd);
+            exit(0);
+        }
+        if (st_o == LMQTT_IO_STATUS_READY) {
+            fprintf(stderr, "we disconnected!\n");
+            close(socket_fd);
+            exit(0);
         }
 
         if (st_k == LMQTT_IO_STATUS_ERROR || st_i == LMQTT_IO_STATUS_ERROR || st_o == LMQTT_IO_STATUS_ERROR) {
-            if (disconnecting) {
-                fprintf(stderr, "client: disconnect\n");
-                break;
-            } else {
-                fprintf(stderr, "client: error\n");
-                exit(1);
-            }
+            fprintf(stderr, "client: error\n");
+            close(socket_fd);
+            exit(1);
         }
 
         FD_ZERO(&read_set);
@@ -225,7 +223,6 @@ int main()
         cnt += 1;
         if (secs >= 2 && cnt >= 10) {
             lmqtt_client_disconnect(&client);
-            disconnecting = 1;
             continue;
         }
 
@@ -239,8 +236,4 @@ int main()
         else
             fprintf(stderr, "selected\n");
     }
-
-    close(socket_fd);
-    fprintf(stderr, "ok\n");
-    return 0;
 }

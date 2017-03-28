@@ -122,12 +122,10 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
     lmqtt_input_t input = { client->read, client->data };
     lmqtt_output_t output = { client_decode_wrapper, &client->rx_state };
 
-    lmqtt_io_status_t result = client_buffer_transfer(client,
+    return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_CONN,
         &output, LMQTT_IO_STATUS_BLOCK_DATA,
         client->read_buf, &client->read_buf_pos, sizeof(client->read_buf));
-
-    return result;
 }
 
 /*
@@ -140,21 +138,10 @@ lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
     lmqtt_input_t input = { client_encode_wrapper, &client->tx_state };
     lmqtt_output_t output = { client->write, client->data };
 
-    lmqtt_io_status_t result = client_buffer_transfer(client,
+    return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_DATA,
         &output, LMQTT_IO_STATUS_BLOCK_CONN,
         client->write_buf, &client->write_buf_pos, sizeof(client->write_buf));
-
-    /* If a disconnect was requested wait until the output buffer is flushed;
-     * then fail the connection. (In the future we may need to set an error code
-     * indicating the reason for the error. Meanwhile this trick will make our
-     * test client call close() on the socket.) */
-    if (result == LMQTT_IO_STATUS_READY && client->internal.disconnecting) {
-        client->failed = 1;
-        return LMQTT_IO_STATUS_ERROR;
-    }
-
-    return result;
 }
 
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
@@ -397,7 +384,6 @@ static int client_do_disconnect(lmqtt_client_t *client)
         return 0;
 
     client_set_state_disconnecting(client);
-    client->internal.disconnecting = 1;
     return 1;
 }
 

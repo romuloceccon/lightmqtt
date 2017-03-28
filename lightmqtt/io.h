@@ -53,12 +53,11 @@ typedef struct _lmqtt_client_t {
 
         lmqtt_tx_buffer_callbacks_t tx_callbacks;
         lmqtt_rx_buffer_callbacks_t rx_callbacks;
-        int disconnecting;
     } internal;
 } lmqtt_client_t;
 
 typedef enum {
-    LMQTT_IO_STATUS_READY = 0,
+    LMQTT_IO_STATUS_READY = 0, /* = EOF */
     LMQTT_IO_STATUS_BLOCK_CONN,
     LMQTT_IO_STATUS_BLOCK_DATA,
     LMQTT_IO_STATUS_ERROR
