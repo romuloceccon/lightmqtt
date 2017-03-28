@@ -14,7 +14,6 @@
         memset(&data, 0xcc, sizeof(data)); \
         memset(&store, 0, sizeof(store)); \
         store.get_time = &test_time_get; \
-        store.timeout = 10; \
     } while(0)
 
 START_TEST(should_get_id)
@@ -304,12 +303,14 @@ START_TEST(should_not_drop_nonexistent_object)
 }
 END_TEST
 
-START_TEST(should_get_timeout_before_next_without_keep_alive)
+START_TEST(should_get_timeout_before_append_or_touch)
 {
     PREPARE;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+    store.timeout = 10;
+    store.keep_alive = 15;
 
+    test_time_set(5, 0);
     res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
     ck_assert_int_eq(0, res);
     ck_assert_int_eq(0, count);
@@ -318,27 +319,36 @@ START_TEST(should_get_timeout_before_next_without_keep_alive)
 }
 END_TEST
 
-START_TEST(should_get_timeout_before_next_with_keep_alive)
+START_TEST(should_get_timeout_after_append)
 {
     PREPARE;
 
+    store.timeout = 10;
     store.keep_alive = 15;
+
+    test_time_set(2, 0);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+
+    /* should have no effect */
+    test_time_set(6, 0);
+    lmqtt_store_next(&store);
 
     test_time_set(7, 0);
     res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(0, count);
-    ck_assert_int_eq(8, secs);
+    ck_assert_int_eq(1, count);
+    ck_assert_int_eq(5, secs);
     ck_assert_int_eq(0, nsecs);
 }
 END_TEST
 
-START_TEST(should_get_timeout_before_next_after_touch)
+START_TEST(should_get_timeout_after_touch)
 {
     PREPARE;
 
+    store.timeout = 10;
     store.keep_alive = 15;
+
     test_time_set(4, 0);
     lmqtt_store_touch(&store);
 
@@ -351,34 +361,17 @@ START_TEST(should_get_timeout_before_next_after_touch)
 }
 END_TEST
 
-START_TEST(should_get_timeout_after_next)
-{
-    PREPARE;
-
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    test_time_set(10, 0);
-    lmqtt_store_next(&store);
-
-    test_time_set(11, 0);
-    res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(1, res);
-    ck_assert_int_eq(1, count);
-    ck_assert_int_eq(9, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_timeout_after_next_with_zero_timeout_and_nonzero_keep_alive)
+START_TEST(should_get_timeout_after_append_with_zeroed_timeout)
 {
     PREPARE;
 
     store.timeout = 0;
     store.keep_alive = 15;
 
+    test_time_set(2, 0);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    test_time_set(10, 0);
-    lmqtt_store_next(&store);
 
+    test_time_set(7, 0);
     res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
     ck_assert_int_eq(0, res);
     ck_assert_int_eq(0, count);
@@ -387,39 +380,42 @@ START_TEST(should_get_timeout_after_next_with_zero_timeout_and_nonzero_keep_aliv
 }
 END_TEST
 
-START_TEST(should_get_closest_timeout_after_multiple_next)
+START_TEST(should_get_timeout_after_touch_with_zeroed_keep_alive)
 {
     PREPARE;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
-    test_time_set(10, 0);
-    lmqtt_store_next(&store);
-    test_time_set(11, 0);
-    lmqtt_store_next(&store);
+    store.timeout = 10;
+    store.keep_alive = 0;
 
-    test_time_set(12, 0);
+    test_time_set(4, 0);
+    lmqtt_store_touch(&store);
+
+    test_time_set(10, 0);
     res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(1, res);
-    ck_assert_int_eq(2, count);
-    ck_assert_int_eq(8, secs);
+    ck_assert_int_eq(0, res);
+    ck_assert_int_eq(0, count);
+    ck_assert_int_eq(0, secs);
     ck_assert_int_eq(0, nsecs);
 }
 END_TEST
 
-START_TEST(should_get_timeout_after_two_appends_and_one_next)
+START_TEST(should_get_timeout_after_multiple_appends)
 {
     PREPARE;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
-    test_time_set(10, 0);
-    lmqtt_store_next(&store);
+    store.timeout = 10;
+    store.keep_alive = 15;
 
-    test_time_set(15, 0);
+    test_time_set(2, 0);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+
+    test_time_set(6, 0);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
+
+    test_time_set(7, 0);
     res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(1, count);
+    ck_assert_int_eq(2, count);
     ck_assert_int_eq(5, secs);
     ck_assert_int_eq(0, nsecs);
 }
@@ -446,12 +442,11 @@ START_TCASE("Store")
     ADD_TEST(should_peek_object_after_pop_any);
     ADD_TEST(should_drop_current_object);
     ADD_TEST(should_not_drop_nonexistent_object);
-    ADD_TEST(should_get_timeout_before_next_without_keep_alive);
-    ADD_TEST(should_get_timeout_before_next_with_keep_alive);
-    ADD_TEST(should_get_timeout_before_next_after_touch);
-    ADD_TEST(should_get_timeout_after_next);
-    ADD_TEST(should_get_timeout_after_next_with_zero_timeout_and_nonzero_keep_alive);
-    ADD_TEST(should_get_closest_timeout_after_multiple_next);
-    ADD_TEST(should_get_timeout_after_two_appends_and_one_next);
+    ADD_TEST(should_get_timeout_before_append_or_touch);
+    ADD_TEST(should_get_timeout_after_append);
+    ADD_TEST(should_get_timeout_after_touch);
+    ADD_TEST(should_get_timeout_after_append_with_zeroed_timeout);
+    ADD_TEST(should_get_timeout_after_touch_with_zeroed_keep_alive);
+    ADD_TEST(should_get_timeout_after_multiple_appends);
 }
 END_TCASE

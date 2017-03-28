@@ -56,6 +56,7 @@ int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
     entry->class = class;
     entry->data = data;
     entry->packet_id = packet_id;
+    lmqtt_time_touch(&entry->time, store->get_time);
 
     return 1;
 }
@@ -64,7 +65,6 @@ int lmqtt_store_next(lmqtt_store_t *store)
 {
     if (store->pos < store->count) {
         lmqtt_store_entry_t *entry = &store->entries[store->pos++];
-        lmqtt_time_touch(&entry->time, store->get_time);
         return 1;
     }
 
@@ -127,10 +127,10 @@ int lmqtt_store_pop_any(lmqtt_store_t *store, int *class, void **data)
 int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
     long *nsecs)
 {
-    lmqtt_time_t *tm;
+    lmqtt_time_t *tm = NULL;
     int when = 0;
 
-    if (store->pos > 0) {
+    if (store->count > 0) {
         tm = &store->entries[0].time;
         when = store->timeout;
     } else {
@@ -138,14 +138,14 @@ int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
         when = store->keep_alive;
     }
 
-    if (when == 0) {
+    if (when == 0 || tm->secs == 0 && tm->nsecs == 0) {
         *count = 0;
         *secs = 0;
         *nsecs = 0;
         return 0;
     }
 
-    *count = store->pos;
+    *count = store->count;
     return lmqtt_time_get_timeout_to(tm, store->get_time, when, secs, nsecs);
 }
 
