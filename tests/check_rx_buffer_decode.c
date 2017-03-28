@@ -406,6 +406,31 @@ START_TEST(should_decode_rx_buffer_after_packet_id)
 }
 END_TEST
 
+START_TEST(should_decode_pubrec)
+{
+    int store_class;
+    void *store_data;
+
+    PREPARE;
+
+    buf[0] = 0x50;
+    buf[1] = 2;
+    buf[2] = 0x00;
+    buf[3] = 0x03;
+
+    STORE_APPEND_NEXT(LMQTT_CLASS_PUBLISH_2, 3);
+    set_packet_result(0, LMQTT_IO_SUCCESS, 4);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(0, client.current_packet);
+    ck_assert_int_eq(1, lmqtt_store_pop_any(&store, &store_class, &store_data));
+    ck_assert_int_eq(LMQTT_CLASS_PUBREL, store_class);
+    ck_assert_ptr_eq(&data, store_data);
+}
+END_TEST
+
 START_TEST(should_fail_if_decoder_does_not_finish_when_expected)
 {
     PREPARE;
@@ -542,6 +567,7 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_decode_rx_buffer_with_invalid_response_packet);
     ADD_TEST(should_decode_rx_buffer_with_packet_id);
     ADD_TEST(should_decode_rx_buffer_after_packet_id);
+    ADD_TEST(should_decode_pubrec);
     ADD_TEST(should_fail_if_decoder_does_not_finish_when_expected);
     ADD_TEST(should_fail_if_decoder_finishes_before_expected);
     ADD_TEST(should_fail_if_connack_has_no_corresponding_connect);

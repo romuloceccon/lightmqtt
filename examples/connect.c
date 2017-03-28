@@ -21,8 +21,15 @@ lmqtt_io_result_t read_data(void *data, u8 *buf, int buf_len,
 
     res = read(socket_fd, buf, buf_len);
     if (res >= 0) {
+        int i;
         *bytes_read = res;
-        fprintf(stderr, "read ok: %d\n", res);
+        fprintf(stderr, "read ok: ");
+        if (res > 0)
+            for (i = 0; i < res; i++)
+                fprintf(stderr, "%02x ", (unsigned int) buf[i]);
+        else
+            fprintf(stderr, "eof");
+        fprintf(stderr, "\n");
         return LMQTT_IO_SUCCESS;
     }
 
@@ -44,8 +51,12 @@ lmqtt_io_result_t write_data(void *data, u8 *buf, int buf_len,
 
     res = write(socket_fd, buf, buf_len);
     if (res >= 0) {
+        int i;
         *bytes_written = res;
-        fprintf(stderr, "write ok: %d\n", res);
+        fprintf(stderr, "write ok: ");
+        for (i = 0; i < res; i++)
+            fprintf(stderr, "%02x ", (unsigned int) buf[i]);
+        fprintf(stderr, "\n");
         return LMQTT_IO_SUCCESS;
     }
 
@@ -77,7 +88,7 @@ static char *topic = "topic";
 static lmqtt_subscribe_t subscribe;
 static lmqtt_subscription_t subscriptions[1];
 static lmqtt_publish_t publish;
-static char payload[8192];
+static char payload[16];
 
 void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
@@ -107,7 +118,7 @@ void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
     client = (lmqtt_client_t *) data;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = 2;
     publish.topic.buf = "a/b/c";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = payload;
@@ -164,6 +175,7 @@ int main()
 
     memset(&connect_data, 0, sizeof(connect_data));
     connect_data.keep_alive = 3;
+    connect_data.clean_session = 1;
     connect_data.client_id.buf = "Rômulo";
     connect_data.client_id.len = 7;
 

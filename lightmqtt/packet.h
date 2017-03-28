@@ -147,7 +147,6 @@ typedef struct _lmqtt_rx_buffer_callbacks_t {
     int (*on_suback)(void *, lmqtt_subscribe_t *);
     int (*on_unsuback)(void *, lmqtt_subscribe_t *);
     int (*on_publish_tx)(void *, lmqtt_publish_t *);
-    int (*on_puback)(void *, lmqtt_publish_t *);
     int (*on_pingresp)(void *);
 } lmqtt_rx_buffer_callbacks_t;
 

@@ -8,6 +8,7 @@ typedef enum {
     TEST_SUBSCRIBE,
     TEST_UNSUBSCRIBE,
     TEST_PUBLISH,
+    TEST_PUBREL,
     TEST_PINGREQ,
     TEST_DISCONNECT
 } test_type_request_t;
@@ -18,6 +19,8 @@ typedef enum {
     TEST_SUBACK_SUCCESS,
     TEST_UNSUBACK_SUCCESS,
     TEST_PUBACK,
+    TEST_PUBREC,
+    TEST_PUBCOMP,
     TEST_PINGRESP
 } test_type_response_t;
 
@@ -88,8 +91,17 @@ static void test_socket_append(int val)
             src = "\xb0\x02\x00\x00";
             len = 4;
             break;
+        /* TODO: parameterize packet id */
         case TEST_PUBACK:
             src = "\x40\x02\x00\x01";
+            len = 4;
+            break;
+        case TEST_PUBREC:
+            src = "\x50\x02\x00\x01";
+            len = 4;
+            break;
+        case TEST_PUBCOMP:
+            src = "\x70\x02\x00\x01";
             len = 4;
             break;
         case TEST_PINGRESP:
@@ -144,6 +156,9 @@ static int test_socket_shift()
             break;
         case 0x30:
             result = TEST_PUBLISH;
+            break;
+        case 0x60:
+            result = TEST_PUBREL;
             break;
         case 0xc0:
             result = TEST_PINGREQ;
@@ -619,6 +634,51 @@ START_TEST(should_publish_with_qos_1)
 }
 END_TEST
 
+START_TEST(should_publish_with_qos_2)
+{
+    lmqtt_client_t client;
+    lmqtt_publish_t publish;
+    test_cb_result_t cb_result = { 0, 0 };
+
+    ck_assert_int_eq(1, do_connect_and_connack(&client, 5, 3));
+
+    lmqtt_client_set_on_publish(&client, on_publish, &cb_result);
+
+    memset(&publish, 0, sizeof(publish));
+    publish.qos = 2;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    lmqtt_store_get_id(&client.store);
+
+    ck_assert_int_eq(1, lmqtt_client_publish(&client, &publish));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+
+    /* should assign id to QoS 2 packet */
+    ck_assert_int_eq(1, publish.packet_id);
+    ck_assert_ptr_eq(0, cb_result.data);
+    ck_assert_int_eq(0, cb_result.succeeded);
+
+    test_socket_append(TEST_PUBREC);
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(TEST_PUBREL, test_socket_shift());
+
+    ck_assert_ptr_eq(0, cb_result.data);
+    ck_assert_int_eq(0, cb_result.succeeded);
+
+    test_socket_append(TEST_PUBCOMP);
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+
+    ck_assert_ptr_eq(&publish, cb_result.data);
+    ck_assert_int_eq(1, cb_result.succeeded);
+}
+END_TEST
+
 START_TEST(should_not_publish_invalid_packet)
 {
     lmqtt_client_t client;
@@ -925,6 +985,7 @@ START_TCASE("Client commands")
 
     ADD_TEST(should_publish_with_qos_0);
     ADD_TEST(should_publish_with_qos_1);
+    ADD_TEST(should_publish_with_qos_2);
     ADD_TEST(should_not_publish_invalid_packet);
 
     ADD_TEST(should_send_pingreq_after_timeout);
