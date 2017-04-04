@@ -25,14 +25,18 @@ typedef struct _lmqtt_store_t {
 } lmqtt_store_t;
 
 u16 lmqtt_store_get_id(lmqtt_store_t *store);
+int lmqtt_store_count(lmqtt_store_t *store);
 int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
     void *data);
+int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class, void **data);
+int lmqtt_store_delete_at(lmqtt_store_t *store, int pos);
 int lmqtt_store_peek(lmqtt_store_t *store, int *class, void **data);
-int lmqtt_store_next(lmqtt_store_t *store);
-int lmqtt_store_drop(lmqtt_store_t *store);
-int lmqtt_store_pop(lmqtt_store_t *store, int class, u16 packet_id,
+int lmqtt_store_mark_current(lmqtt_store_t *store);
+int lmqtt_store_drop_current(lmqtt_store_t *store);
+int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class, u16 packet_id,
     void **data);
-int lmqtt_store_pop_any(lmqtt_store_t *store, int *class, void **data);
+int lmqtt_store_shift(lmqtt_store_t *store, int *class, void **data);
+void lmqtt_store_unmark_all(lmqtt_store_t *store);
 int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
     long *nsecs);
 void lmqtt_store_touch(lmqtt_store_t *store);

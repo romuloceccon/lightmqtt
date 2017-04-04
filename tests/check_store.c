@@ -33,7 +33,7 @@ START_TEST(should_append_one_object)
     res = lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 1, &data[0]);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_CONNECT, class);
     ck_assert_ptr_eq(&data[0], data_addr);
@@ -49,11 +49,11 @@ START_TEST(should_append_multiple_objects)
     res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
     ck_assert_ptr_eq(&data[0], data_addr);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
     ck_assert_ptr_eq(&data[1], data_addr);
@@ -64,7 +64,7 @@ START_TEST(should_not_pop_nonexistent_object)
 {
     PREPARE;
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(0, res);
     ck_assert_int_eq(0, class);
     ck_assert_ptr_eq(NULL, data_addr);
@@ -90,12 +90,12 @@ START_TEST(should_pop_object)
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_ptr_eq(&data[0], data_addr);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -106,12 +106,12 @@ START_TEST(should_get_second_object_after_popping_first_one)
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
-    lmqtt_store_next(&store);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
+    lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
     ck_assert_ptr_eq(&data[1], data_addr);
@@ -124,34 +124,34 @@ START_TEST(should_get_first_object_after_popping_second_one)
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
-    lmqtt_store_next(&store);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
+    lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop(&store, LMQTT_CLASS_PUBLISH_1, 2, &data_addr);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 2, &data_addr);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
     ck_assert_ptr_eq(&data[0], data_addr);
 }
 END_TEST
 
-START_TEST(should_pop_any_object)
+START_TEST(should_shift_object)
 {
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
     ck_assert_ptr_eq(&data[0], data_addr);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
     ck_assert_ptr_eq(&data[1], data_addr);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -180,12 +180,12 @@ START_TEST(should_peek_object)
 }
 END_TEST
 
-START_TEST(should_not_peek_first_object_after_next)
+START_TEST(should_not_peek_first_object_after_mark)
 {
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    res = lmqtt_store_next(&store);
+    res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(1, res);
 
     res = lmqtt_store_peek(&store, &class, &data_addr);
@@ -193,13 +193,13 @@ START_TEST(should_not_peek_first_object_after_next)
 }
 END_TEST
 
-START_TEST(should_peek_second_object_after_next)
+START_TEST(should_peek_second_object_after_mark)
 {
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
-    res = lmqtt_store_next(&store);
+    res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(1, res);
 
     res = lmqtt_store_peek(&store, &class, &data_addr);
@@ -209,11 +209,11 @@ START_TEST(should_peek_second_object_after_next)
 }
 END_TEST
 
-START_TEST(should_append_and_peek_after_next)
+START_TEST(should_append_and_peek_after_mark)
 {
     PREPARE;
 
-    res = lmqtt_store_next(&store);
+    res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(0, res);
 
     res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
@@ -226,14 +226,14 @@ START_TEST(should_append_and_peek_after_next)
 }
 END_TEST
 
-START_TEST(should_not_pop_before_next)
+START_TEST(should_not_pop_before_mark)
 {
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
 
-    res = lmqtt_store_pop(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -244,9 +244,9 @@ START_TEST(should_peek_object_after_pop)
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1, &data_addr);
     ck_assert_int_eq(1, res);
     res = lmqtt_store_peek(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
@@ -255,14 +255,14 @@ START_TEST(should_peek_object_after_pop)
 }
 END_TEST
 
-START_TEST(should_peek_object_after_pop_any)
+START_TEST(should_peek_object_after_shift)
 {
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     res = lmqtt_store_peek(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
@@ -278,15 +278,15 @@ START_TEST(should_drop_current_object)
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
 
-    res = lmqtt_store_next(&store);
+    res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_drop(&store);
+    res = lmqtt_store_drop_current(&store);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(1, res);
     ck_assert_ptr_eq(&data[0], data_addr);
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -296,10 +296,94 @@ START_TEST(should_not_drop_nonexistent_object)
     PREPARE;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_drop(&store);
+    res = lmqtt_store_drop_current(&store);
     ck_assert_int_eq(0, res);
+}
+END_TEST
+
+START_TEST(should_unmark_all)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
+
+    lmqtt_store_mark_current(&store);
+    lmqtt_store_mark_current(&store);
+
+    lmqtt_store_unmark_all(&store);
+
+    res = lmqtt_store_peek(&store, &class, &data_addr);
+    ck_assert_int_eq(1, res);
+    ck_assert_ptr_eq(&data[0], data_addr);
+}
+END_TEST
+
+START_TEST(should_count_items)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
+    lmqtt_store_mark_current(&store);
+
+    ck_assert_int_eq(2, lmqtt_store_count(&store));
+}
+END_TEST
+
+START_TEST(should_get_item_at_position)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 3, &data[2]);
+    lmqtt_store_mark_current(&store);
+
+    res = lmqtt_store_get_at(&store, 1, &class, &data_addr);
+    ck_assert_int_eq(1, res);
+    ck_assert_ptr_eq(&data[1], data_addr);
+    ck_assert_int_eq(3, lmqtt_store_count(&store));
+}
+END_TEST
+
+START_TEST(should_not_get_nonexistent_item)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+
+    res = lmqtt_store_get_at(&store, 1, &class, &data_addr);
+    ck_assert_int_eq(0, res);
+}
+END_TEST
+
+START_TEST(should_delete_item_at_position)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 2, &data[1]);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 3, &data[2]);
+    lmqtt_store_mark_current(&store);
+
+    res = lmqtt_store_delete_at(&store, 1);
+    ck_assert_int_eq(1, res);
+    ck_assert_int_eq(2, lmqtt_store_count(&store));
+}
+END_TEST
+
+START_TEST(should_not_delete_nonexistent_item)
+{
+    PREPARE;
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &data[0]);
+
+    res = lmqtt_store_delete_at(&store, 1);
+    ck_assert_int_eq(0, res);
+    ck_assert_int_eq(1, lmqtt_store_count(&store));
 }
 END_TEST
 
@@ -331,7 +415,7 @@ START_TEST(should_get_timeout_after_append)
 
     /* should have no effect */
     test_time_set(6, 0);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     test_time_set(7, 0);
     res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
@@ -431,17 +515,23 @@ START_TCASE("Store")
     ADD_TEST(should_pop_object);
     ADD_TEST(should_get_second_object_after_popping_first_one);
     ADD_TEST(should_get_first_object_after_popping_second_one);
-    ADD_TEST(should_pop_any_object);
+    ADD_TEST(should_shift_object);
     ADD_TEST(should_not_peek_nonexistent_object);
     ADD_TEST(should_peek_object);
-    ADD_TEST(should_not_peek_first_object_after_next);
-    ADD_TEST(should_peek_second_object_after_next);
-    ADD_TEST(should_append_and_peek_after_next);
-    ADD_TEST(should_not_pop_before_next);
+    ADD_TEST(should_not_peek_first_object_after_mark);
+    ADD_TEST(should_peek_second_object_after_mark);
+    ADD_TEST(should_append_and_peek_after_mark);
+    ADD_TEST(should_not_pop_before_mark);
     ADD_TEST(should_peek_object_after_pop);
-    ADD_TEST(should_peek_object_after_pop_any);
+    ADD_TEST(should_peek_object_after_shift);
     ADD_TEST(should_drop_current_object);
     ADD_TEST(should_not_drop_nonexistent_object);
+    ADD_TEST(should_unmark_all);
+    ADD_TEST(should_count_items);
+    ADD_TEST(should_get_item_at_position);
+    ADD_TEST(should_not_get_nonexistent_item);
+    ADD_TEST(should_delete_item_at_position);
+    ADD_TEST(should_not_delete_nonexistent_item);
     ADD_TEST(should_get_timeout_before_append_or_touch);
     ADD_TEST(should_get_timeout_after_append);
     ADD_TEST(should_get_timeout_after_touch);

@@ -211,7 +211,7 @@ START_TEST(should_encode_publish_with_qos_0)
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(11, bytes_written);
 
-    ck_assert_int_eq(0, lmqtt_store_pop_any(&store, &store_class, &store_data));
+    ck_assert_int_eq(0, lmqtt_store_shift(&store, &store_class, &store_data));
     ck_assert_ptr_eq(0, store_data);
     ck_assert_ptr_eq(&publish, data);
 }
@@ -253,7 +253,7 @@ START_TEST(should_encode_publish_with_qos_1)
     ck_assert_uint_eq((u8) 'p', buf[11]);
     ck_assert_uint_eq((u8) 'd', buf[17]);
 
-    ck_assert_int_eq(1, lmqtt_store_pop_any(&store, &store_class, &store_data));
+    ck_assert_int_eq(1, lmqtt_store_shift(&store, &store_class, &store_data));
     ck_assert_ptr_eq(&publish, store_data);
     ck_assert_ptr_eq(0, data);
 }

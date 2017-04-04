@@ -66,7 +66,7 @@ START_TEST(should_finish_unused_store_items)
 
     // sent item with data
     lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &data[0]);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
     // unsent item with data
     lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 1, &data[1]);
     // unsent item without data

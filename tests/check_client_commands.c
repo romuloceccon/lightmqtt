@@ -350,7 +350,7 @@ START_TEST(should_not_connect_with_full_store)
         int class;
         void *data;
         res = test_socket_shift();
-        lmqtt_store_pop_any(&client.store, &class, &data);
+        lmqtt_store_shift(&client.store, &class, &data);
     } while (res == TEST_PINGREQ);
     ck_assert_int_eq(-1, res);
 
@@ -520,13 +520,13 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     ck_assert_uint_eq(1, subscribe[1].packet_id);
     ck_assert_uint_eq(2, subscribe[2].packet_id);
 
-    lmqtt_store_next(&client.store);
-    lmqtt_store_next(&client.store);
-    lmqtt_store_next(&client.store);
+    lmqtt_store_mark_current(&client.store);
+    lmqtt_store_mark_current(&client.store);
+    lmqtt_store_mark_current(&client.store);
 
-    ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 0, &data));
-    ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 1, &data));
-    ck_assert_int_eq(1, lmqtt_store_pop(&client.store, LMQTT_CLASS_SUBSCRIBE, 2, &data));
+    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store, LMQTT_CLASS_SUBSCRIBE, 0, &data));
+    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store, LMQTT_CLASS_SUBSCRIBE, 1, &data));
+    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store, LMQTT_CLASS_SUBSCRIBE, 2, &data));
 }
 END_TEST
 

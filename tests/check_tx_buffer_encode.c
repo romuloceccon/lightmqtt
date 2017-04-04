@@ -310,7 +310,7 @@ START_TEST(should_not_track_disconnect_packet)
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    res = lmqtt_store_pop_any(&store, &class, &data_addr);
+    res = lmqtt_store_shift(&store, &class, &data_addr);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -358,7 +358,7 @@ START_TEST(should_track_connect_packet)
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    res = lmqtt_store_pop(&store, LMQTT_CLASS_CONNECT, 1, &data_addr);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_CONNECT, 1, &data_addr);
     ck_assert_int_eq(1, res);
 }
 END_TEST

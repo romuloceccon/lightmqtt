@@ -23,10 +23,10 @@ static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b);
     state.store = &store; \
     store.get_time = &test_time_get
 
-#define STORE_APPEND_NEXT(class, packet_id) \
+#define STORE_APPEND_MARK(class, packet_id) \
     do { \
         ck_assert_int_eq(1, lmqtt_store_append(&store, class, packet_id, &data)); \
-        ck_assert_int_eq(1, lmqtt_store_next(&store)); \
+        ck_assert_int_eq(1, lmqtt_store_mark_current(&store)); \
     } while (0)
 
 typedef struct _test_packet_t {
@@ -83,7 +83,7 @@ START_TEST(should_process_complete_rx_buffer)
     buf[2] = 0;
     buf[3] = 5;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -105,7 +105,7 @@ START_TEST(should_process_partial_rx_buffer)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
@@ -124,7 +124,7 @@ START_TEST(should_decode_rx_buffer_continuation)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 1, &bytes_r);
@@ -145,7 +145,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_header)
 
     buf[1] = 2;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -165,7 +165,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_data)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -185,7 +185,7 @@ START_TEST(should_not_decode_rx_buffer_after_error)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -214,8 +214,8 @@ START_TEST(should_reset_rx_buffer_after_successful_processing)
     buf[0] = 0x20;
     buf[1] = 2;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
     set_packet_result(1, LMQTT_DECODE_FINISHED, 2);
 
@@ -241,8 +241,8 @@ START_TEST(should_decode_rx_buffer_with_two_packets)
     buf[4] = 0x20;
     buf[5] = 2;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
     set_packet_result(1, LMQTT_DECODE_FINISHED, 2);
 
@@ -272,7 +272,7 @@ START_TEST(should_touch_store_after_decode)
     store.timeout = 10;
     store.keep_alive = 20;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     test_time_set(8, 0);
@@ -298,9 +298,9 @@ START_TEST(should_decode_rx_buffer_with_allowed_null_data)
     buf[2] = 0xd0;
     buf[4] = 0xd0;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
-    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
-    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_PINGREQ, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_PINGREQ, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_PINGREQ, 0);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
 
@@ -317,7 +317,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_null_data)
     buf[1] = 0;
     buf[2] = 0xd0;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -336,7 +336,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_nonnull_data)
     buf[0] = 0xd0;
     buf[1] = 1;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_PINGREQ, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_PINGREQ, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 0);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
@@ -352,7 +352,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_response_packet)
 
     buf[0] = 0xe0;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_DISCONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_DISCONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 2, &bytes_r);
@@ -373,7 +373,7 @@ START_TEST(should_decode_rx_buffer_with_packet_id)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_PUBLISH_1, 0x0102);
+    STORE_APPEND_MARK(LMQTT_CLASS_PUBLISH_1, 0x0102);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
@@ -393,7 +393,7 @@ START_TEST(should_decode_rx_buffer_after_packet_id)
     buf[2] = 0x03;
     buf[3] = 0x04;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0304);
+    STORE_APPEND_MARK(LMQTT_CLASS_SUBSCRIBE, 0x0304);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
@@ -418,14 +418,14 @@ START_TEST(should_decode_pubrec)
     buf[2] = 0x00;
     buf[3] = 0x03;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_PUBLISH_2, 3);
+    STORE_APPEND_MARK(LMQTT_CLASS_PUBLISH_2, 3);
     set_packet_result(0, LMQTT_IO_SUCCESS, 4);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
     ck_assert_int_eq(0, client.current_packet);
-    ck_assert_int_eq(1, lmqtt_store_pop_any(&store, &store_class, &store_data));
+    ck_assert_int_eq(1, lmqtt_store_shift(&store, &store_class, &store_data));
     ck_assert_int_eq(LMQTT_CLASS_PUBREL, store_class);
     ck_assert_ptr_eq(&data, store_data);
 }
@@ -440,7 +440,7 @@ START_TEST(should_fail_if_decoder_does_not_finish_when_expected)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0102);
+    STORE_APPEND_MARK(LMQTT_CLASS_SUBSCRIBE, 0x0102);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
@@ -462,7 +462,7 @@ START_TEST(should_fail_if_decoder_finishes_before_expected)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0102);
+    STORE_APPEND_MARK(LMQTT_CLASS_SUBSCRIBE, 0x0102);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
@@ -502,7 +502,7 @@ START_TEST(should_fail_if_suback_has_no_corresponding_subscribe)
     buf[2] = 0x01;
     buf[3] = 0x02;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_SUBSCRIBE, 0x0111);
+    STORE_APPEND_MARK(LMQTT_CLASS_SUBSCRIBE, 0x0111);
     set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
@@ -538,7 +538,7 @@ START_TEST(should_finish_failed_buffer)
     buf[1] = 2;
     buf[2] = 0x0f;
 
-    STORE_APPEND_NEXT(LMQTT_CLASS_CONNECT, 0);
+    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
     set_packet_result(0, LMQTT_DECODE_ERROR, 1);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);

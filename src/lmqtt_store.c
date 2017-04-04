@@ -21,16 +21,17 @@ static int store_find(lmqtt_store_t *store, int class, u16 packet_id, int *pos)
     return 0;
 }
 
-static void store_pop_at(lmqtt_store_t *store, int pos, int *class, void **data)
+static int store_pop_at(lmqtt_store_t *store, int pos, int *class, void **data)
 {
-    lmqtt_store_entry_t *entry = &store->entries[pos];
-    *class = entry->class;
-    *data = entry->data;
+    if (!lmqtt_store_get_at(store, pos, class, data))
+        return 0;
+
     store->count -= 1;
     if (store->pos > pos)
         store->pos -= 1;
     memmove(&store->entries[pos], &store->entries[pos + 1],
-        sizeof(*entry) * (LMQTT_STORE_SIZE - pos - 1));
+        sizeof(&store->entries[0]) * (LMQTT_STORE_SIZE - pos - 1));
+    return 1;
 }
 
 /******************************************************************************
@@ -40,6 +41,11 @@ static void store_pop_at(lmqtt_store_t *store, int pos, int *class, void **data)
 u16 lmqtt_store_get_id(lmqtt_store_t *store)
 {
     return store->next_packet_id++;
+}
+
+int lmqtt_store_count(lmqtt_store_t *store)
+{
+    return store->count;
 }
 
 int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
@@ -61,67 +67,75 @@ int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
     return 1;
 }
 
-int lmqtt_store_next(lmqtt_store_t *store)
+int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class, void **data)
 {
-    if (store->pos < store->count) {
-        lmqtt_store_entry_t *entry = &store->entries[store->pos++];
-        return 1;
+    lmqtt_store_entry_t *entry;
+
+    if (pos < 0 || pos >= store->count) {
+        *class = 0;
+        *data = NULL;
+        return 0;
     }
 
-    return 0;
+    entry = &store->entries[pos];
+    *class = entry->class;
+    *data = entry->data;
+    return 1;
 }
 
-int lmqtt_store_drop(lmqtt_store_t *store)
+int lmqtt_store_delete_at(lmqtt_store_t *store, int pos)
 {
     int class;
     void *data;
 
+    return store_pop_at(store, pos, &class, &data);
+}
+
+int lmqtt_store_mark_current(lmqtt_store_t *store)
+{
     if (store->pos < store->count) {
-        store_pop_at(store, store->pos, &class, &data);
+        store->pos++;
         return 1;
     }
 
     return 0;
+}
+
+int lmqtt_store_drop_current(lmqtt_store_t *store)
+{
+    int class;
+    void *data;
+
+    return store_pop_at(store, store->pos, &class, &data);
 }
 
 int lmqtt_store_peek(lmqtt_store_t *store, int *class, void **data)
 {
-    if (store->pos < store->count) {
-        lmqtt_store_entry_t *entry = &store->entries[store->pos];
-        *class = entry->class;
-        *data = entry->data;
-        return 1;
-    }
-
-    *class = 0;
-    *data = NULL;
-    return 0;
+    return lmqtt_store_get_at(store, store->pos, class, data);
 }
 
-int lmqtt_store_pop(lmqtt_store_t *store, int class, u16 packet_id, void **data)
+int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class, u16 packet_id,
+    void **data)
 {
     int pos;
 
     if (store_find(store, class, packet_id, &pos)) {
-        int class;
-        store_pop_at(store, pos, &class, data);
-        return 1;
+        int class_tmp;
+        return store_pop_at(store, pos, &class_tmp, data);
     }
 
     *data = NULL;
     return 0;
 }
 
-int lmqtt_store_pop_any(lmqtt_store_t *store, int *class, void **data)
+int lmqtt_store_shift(lmqtt_store_t *store, int *class, void **data)
 {
-    if (store->count > 0) {
-        store_pop_at(store, 0, class, data);
-        return 1;
-    }
+    return store_pop_at(store, 0, class, data);
+}
 
-    *class = 0;
-    *data = NULL;
-    return 0;
+void lmqtt_store_unmark_all(lmqtt_store_t *store)
+{
+    store->pos = 0;
 }
 
 int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,

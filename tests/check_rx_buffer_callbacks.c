@@ -50,7 +50,7 @@ START_TEST(should_call_connack_callback)
     callbacks.on_connack = &test_on_connack;
 
     lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &connect);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -73,7 +73,7 @@ START_TEST(should_call_suback_callback)
     subscribe.subscriptions = subscriptions;
 
     lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0304, &subscribe);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -96,7 +96,7 @@ START_TEST(should_call_unsuback_callback)
     subscribe.subscriptions = subscriptions;
 
     lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0304, &subscribe);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -119,7 +119,7 @@ START_TEST(should_call_publish_callback_with_qos_1)
     callbacks.on_publish_tx = &test_on_publish;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0506, &publish);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -143,13 +143,13 @@ START_TEST(should_call_publish_callback_with_qos_2)
     callbacks.on_publish_tx = &test_on_publish;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, 0x0a0b, &publish);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf_1, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(NULL, callbacks_data);
 
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
     res = lmqtt_rx_buffer_decode(&state, buf_2, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&publish, callbacks_data);
@@ -171,7 +171,7 @@ START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
     callbacks.on_publish_tx = &test_on_publish;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, 0x0a0b, &publish);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
@@ -188,7 +188,7 @@ START_TEST(should_call_pingresp_callback)
     callbacks.on_pingresp = &test_on_pingresp;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, NULL);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 2, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -206,7 +206,7 @@ START_TEST(should_not_call_null_decode_byte)
     callbacks.on_pingresp = &test_on_pingresp;
 
     lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, NULL);
-    lmqtt_store_next(&store);
+    lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
