@@ -961,6 +961,30 @@ START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
 }
 END_TEST
 
+START_TEST(should_close_encoder_after_socket_close)
+{
+    lmqtt_client_t client;
+    lmqtt_publish_t publish;
+
+    init_connect_and_connack(&client, 5, 3);
+
+    memset(&publish, 0, sizeof(publish));
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    ck_assert_int_eq(1, lmqtt_client_publish(&client, &publish));
+
+    test_socket.read_buf.len = 0;
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(1, lmqtt_store_count(&client.store));
+}
+END_TEST
+
 START_TEST(should_reconnect_after_close)
 {
     lmqtt_client_t client;
@@ -1091,6 +1115,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_send_pingreq_with_zeroed_keep_alive);
 
     ADD_TEST(should_clean_pingreq_and_disconnect_packets_after_close);
+    ADD_TEST(should_close_encoder_after_socket_close);
     ADD_TEST(should_reconnect_after_close);
     ADD_TEST(should_reconnect_after_disconnect);
     ADD_TEST(should_finalize_client);

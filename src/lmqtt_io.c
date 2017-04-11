@@ -111,6 +111,7 @@ static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     if (result == LMQTT_IO_STATUS_READY) {
         client_cleanup_store(client);
         client_set_state_initial(client);
+        lmqtt_tx_buffer_close(&client->tx_state);
     }
     return result;
 }
