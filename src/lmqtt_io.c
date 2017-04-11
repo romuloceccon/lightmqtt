@@ -46,6 +46,11 @@ static lmqtt_io_result_t output_write(lmqtt_output_t *output, u8 *buf,
  * lmqtt_client_t PRIVATE functions
  ******************************************************************************/
 
+static void client_set_state_initial(lmqtt_client_t *client);
+static void client_set_state_connecting(lmqtt_client_t *client);
+static void client_set_state_connected(lmqtt_client_t *client);
+static void client_set_state_failed(lmqtt_client_t *client);
+
 static int client_buffer_check(lmqtt_client_t *client, lmqtt_io_result_t io_res,
     int *cnt, lmqtt_io_status_t block_status, lmqtt_io_status_t *transfer_res)
 {
@@ -58,7 +63,7 @@ static int client_buffer_check(lmqtt_client_t *client, lmqtt_io_result_t io_res,
 
     if (io_res == LMQTT_IO_ERROR || client->failed) {
         *transfer_res = LMQTT_IO_STATUS_ERROR;
-        client->failed = 1;
+        client_set_state_failed(client);
         return 0;
     }
 
@@ -103,8 +108,10 @@ static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
                 buf, buf_pos, &cnt), &cnt, writer_block, &result);
     }
 
-    if (result == LMQTT_IO_STATUS_READY)
+    if (result == LMQTT_IO_STATUS_READY) {
         client_cleanup_store(client);
+        client_set_state_initial(client);
+    }
     return result;
 }
 
@@ -173,18 +180,13 @@ lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
         return LMQTT_IO_STATUS_READY;
 
     if (cnt > 0) {
-        client->failed = 1;
+        client_set_state_failed(client);
         return LMQTT_IO_STATUS_ERROR;
     }
 
     client->internal.pingreq(client);
     return LMQTT_IO_STATUS_READY;
 }
-
-static void client_set_state_initial(lmqtt_client_t *client);
-static void client_set_state_connecting(lmqtt_client_t *client);
-static void client_set_state_connected(lmqtt_client_t *client);
-static void client_set_state_disconnecting(lmqtt_client_t *client);
 
 static int client_subscribe_with_class(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe, lmqtt_class_t class)
@@ -203,7 +205,7 @@ static int client_on_connack_fail(void *data, lmqtt_connect_t *connect)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client->failed = 1;
+    client_set_state_failed(client);
 
     if (client->on_connect)
         client->on_connect(client->on_connect_data, connect, 0);
@@ -222,7 +224,7 @@ static int client_on_connack(void *data, lmqtt_connect_t *connect)
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 1);
     } else {
-        client->failed = 1;
+        client_set_state_failed(client);
 
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 0);
@@ -235,7 +237,7 @@ static int client_on_suback_fail(void *data, lmqtt_subscribe_t *subscribe)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client->failed = 1;
+    client_set_state_failed(client);
 
     if (client->on_subscribe)
         client->on_subscribe(client->on_subscribe_data, subscribe, 0);
@@ -257,7 +259,7 @@ static int client_on_unsuback_fail(void *data, lmqtt_subscribe_t *subscribe)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client->failed = 1;
+    client_set_state_failed(client);
 
     if (client->on_unsubscribe)
         client->on_unsubscribe(client->on_unsubscribe_data, subscribe, 0);
@@ -279,7 +281,7 @@ static int client_on_publish_fail(void *data, lmqtt_publish_t *publish)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client->failed = 1;
+    client_set_state_failed(client);
 
     if (client->on_publish)
         client->on_publish(client->on_publish_data, publish, 0);
@@ -301,7 +303,7 @@ static int client_on_pingresp_fail(void *data)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    client->failed = 1;
+    client_set_state_failed(client);
 
     return 1;
 }
@@ -324,6 +326,7 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
     if (!lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect))
         return 0;
 
+    lmqtt_tx_buffer_open(&client->tx_state);
     client_set_state_connecting(client);
     return 1;
 }
@@ -396,20 +399,18 @@ static int client_do_disconnect_fail(lmqtt_client_t *client)
 
 static int client_do_disconnect(lmqtt_client_t *client)
 {
-    if (!lmqtt_store_append(&client->store, LMQTT_CLASS_DISCONNECT, 0, NULL))
-        return 0;
-
-    client_set_state_disconnecting(client);
-    return 1;
+    return lmqtt_store_append(&client->store, LMQTT_CLASS_DISCONNECT, 0, NULL);
 }
 
 static void client_set_state_initial(lmqtt_client_t *client)
 {
+    client->failed = 0;
+
     client->internal.connect = client_do_connect;
     client->internal.subscribe = client_do_subscribe_fail;
     client->internal.unsubscribe = client_do_unsubscribe_fail;
     client->internal.publish = client_do_publish_fail;
-    client->internal.pingreq = client_do_pingreq;
+    client->internal.pingreq = client_do_pingreq_fail;
     client->internal.disconnect = client_do_disconnect_fail;
     client->internal.tx_callbacks.on_publish = client_on_publish_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
@@ -421,15 +422,20 @@ static void client_set_state_initial(lmqtt_client_t *client)
 
 static void client_set_state_connecting(lmqtt_client_t *client)
 {
+    client->failed = 0;
+
     client->internal.connect = client_do_connect_fail;
     client->internal.rx_callbacks.on_connack = client_on_connack;
 }
 
 static void client_set_state_connected(lmqtt_client_t *client)
 {
+    client->failed = 0;
+
     client->internal.subscribe = client_do_subscribe;
     client->internal.unsubscribe = client_do_unsubscribe;
     client->internal.publish = client_do_publish;
+    client->internal.pingreq = client_do_pingreq;
     client->internal.disconnect = client_do_disconnect;
     client->internal.tx_callbacks.on_publish = client_on_publish;
     client->internal.rx_callbacks.on_connack = client_on_connack_fail;
@@ -439,8 +445,10 @@ static void client_set_state_connected(lmqtt_client_t *client)
     client->internal.rx_callbacks.on_pingresp = client_on_pingresp;
 }
 
-static void client_set_state_disconnecting(lmqtt_client_t *client)
+static void client_set_state_failed(lmqtt_client_t *client)
 {
+    client->failed = 1;
+
     client->internal.connect = client_do_connect_fail;
     client->internal.subscribe = client_do_subscribe_fail;
     client->internal.unsubscribe = client_do_unsubscribe_fail;
@@ -475,7 +483,7 @@ void lmqtt_client_initialize(lmqtt_client_t *client)
 
 void lmqtt_client_finalize(lmqtt_client_t *client)
 {
-    client_set_state_disconnecting(client);
+    client_set_state_failed(client);
 
     lmqtt_rx_buffer_finish(&client->rx_state);
 }

@@ -807,14 +807,19 @@ int tx_buffer_call_publish(lmqtt_tx_buffer_t *state, void *data)
         (lmqtt_publish_t *) data);
 }
 
-void tx_buffer_close(lmqtt_tx_buffer_t *state)
-{
-    state->closed = 1;
-}
-
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
+
+void lmqtt_tx_buffer_open(lmqtt_tx_buffer_t *state)
+{
+    state->closed = 0;
+}
+
+void lmqtt_tx_buffer_close(lmqtt_tx_buffer_t *state)
+{
+    state->closed = 1;
+}
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written)
@@ -838,7 +843,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
             if (!encoder) {
                 if (class == LMQTT_CLASS_DISCONNECT) {
                     lmqtt_store_drop_current(state->store);
-                    tx_buffer_close(state);
+                    lmqtt_tx_buffer_close(state);
                 } else if (class == LMQTT_CLASS_PUBLISH_0) {
                     lmqtt_store_drop_current(state->store);
                     tx_buffer_call_publish(state, data);
