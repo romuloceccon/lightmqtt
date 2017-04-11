@@ -34,6 +34,7 @@ typedef struct _lmqtt_client_t {
     void *on_publish_data;
 
     int failed;
+    int connect_count;
 
     lmqtt_rx_buffer_t rx_state;
     lmqtt_tx_buffer_t tx_state;

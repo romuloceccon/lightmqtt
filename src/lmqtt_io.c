@@ -219,13 +219,15 @@ static int client_on_connack(void *data, lmqtt_connect_t *connect)
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
     if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
+        client->connect_count++;
         client->store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
 
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 1);
     } else {
-        client_set_state_failed(client);
+        lmqtt_tx_buffer_close(&client->tx_state);
+        client_set_state_initial(client);
 
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 0);
@@ -322,6 +324,7 @@ static int client_do_connect_fail(lmqtt_client_t *client,
 
 static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
+    connect->clean_session = client->connect_count == 0;
     if (!lmqtt_connect_validate(connect))
         return 0;
     if (!lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, connect))
