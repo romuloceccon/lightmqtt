@@ -227,7 +227,7 @@ START_TEST(should_encode_publish_with_qos_1)
     memset(&publish, 0, sizeof(publish));
     publish.packet_id = 0x0708;
     publish.retain = 1;
-    publish.dup = 1;
+    publish.internal.encode_count++;
     publish.qos = 1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
@@ -256,6 +256,31 @@ START_TEST(should_encode_publish_with_qos_1)
     ck_assert_int_eq(1, lmqtt_store_shift(&store, &store_class, &store_data));
     ck_assert_ptr_eq(&publish, store_data);
     ck_assert_ptr_eq(0, data);
+}
+END_TEST
+
+START_TEST(should_increment_publish_encode_count_after_encode)
+{
+    lmqtt_publish_t publish;
+
+    PREPARE;
+    memset(&publish, 0, sizeof(publish));
+    publish.packet_id = 0x0708;
+    publish.qos = 1;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &publish);
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_uint_eq(0x32, buf[0]);
+
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &publish);
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_uint_eq(0x3a, buf[0]);
 }
 END_TEST
 
@@ -323,6 +348,7 @@ START_TCASE("Tx buffer finders")
     ADD_TEST(should_encode_unsubscribe_to_multiple_topics);
     ADD_TEST(should_encode_publish_with_qos_0);
     ADD_TEST(should_encode_publish_with_qos_1);
+    ADD_TEST(should_increment_publish_encode_count_after_encode);
     ADD_TEST(should_encode_pubrel);
     ADD_TEST(should_encode_pingreq);
     ADD_TEST(should_encode_disconnect);

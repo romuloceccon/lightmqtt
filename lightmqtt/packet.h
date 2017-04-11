@@ -113,11 +113,13 @@ typedef struct _lmqtt_subscribe_t {
 
 typedef struct _lmqtt_publish_t {
     u16 packet_id;
-    int dup;
     int qos;
     int retain;
     lmqtt_string_t topic;
     lmqtt_string_t payload;
+    struct {
+        int encode_count;
+    } internal;
 } lmqtt_publish_t;
 
 typedef struct _lmqtt_tx_buffer_callbacks_t {

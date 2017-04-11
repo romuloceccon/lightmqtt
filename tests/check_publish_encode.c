@@ -97,7 +97,7 @@ START_TEST(should_encode_dup)
     PREPARE;
     INIT_TOPIC("x");
 
-    publish.dup = 1;
+    publish.internal.encode_count++;
 
     res = publish_build_fixed_header(&publish, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);

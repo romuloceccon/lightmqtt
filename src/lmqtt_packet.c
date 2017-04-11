@@ -549,7 +549,7 @@ static lmqtt_encode_result_t publish_build_fixed_header(
     type = LMQTT_TYPE_PUBLISH << 4;
     type |= publish->retain ? 0x01 : 0x00;
     type |= (publish->qos & 0x03) << 1;
-    type |= publish->dup ? 0x08 : 0x00;
+    type |= publish->internal.encode_count > 0 ? 0x08 : 0x00;
     encode_buffer->buf[0] = type;
     encode_buffer->buf_len = 1 + v;
     return LMQTT_ENCODE_FINISHED;
@@ -747,12 +747,16 @@ static lmqtt_encoder_t tx_buffer_finder_unsubscribe(
 static lmqtt_encoder_t tx_buffer_finder_publish(lmqtt_tx_buffer_t *tx_buffer,
     void *data)
 {
+    lmqtt_publish_t *publish = data;
+
     switch (tx_buffer->internal.pos) {
         case 0: return (lmqtt_encoder_t) publish_encode_fixed_header;
         case 1: return (lmqtt_encoder_t) publish_encode_topic;
         case 2: return (lmqtt_encoder_t) publish_encode_packet_id;
         case 3: return (lmqtt_encoder_t) publish_encode_payload;
     }
+
+    publish->internal.encode_count++;
     return 0;
 }
 
