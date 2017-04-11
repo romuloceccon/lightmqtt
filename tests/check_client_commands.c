@@ -918,6 +918,39 @@ START_TEST(should_not_send_pingreq_with_zeroed_keep_alive)
 }
 END_TEST
 
+START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
+{
+    lmqtt_client_t client;
+    lmqtt_publish_t publish;
+    int class;
+    void *data;
+
+    test_time_set(10, 0);
+    do_connect_and_connack(&client, 5, 3);
+
+    test_time_set(16, 0);
+
+    memset(&publish, 0, sizeof(publish));
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
+    ck_assert_int_eq(1, lmqtt_client_publish(&client, &publish));
+    ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
+    ck_assert_int_eq(3, lmqtt_store_count(&client.store));
+
+    test_socket.read_buf.len = 0;
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+
+    ck_assert_int_eq(1, lmqtt_store_count(&client.store));
+    lmqtt_store_shift(&client.store, &class, &data);
+    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_0, class);
+    ck_assert_ptr_eq(&publish, data);
+}
+END_TEST
+
 START_TEST(should_finalize_client)
 {
     lmqtt_client_t client;
@@ -1003,6 +1036,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_fail_client_before_connection_timeout);
     ADD_TEST(should_not_send_pingreq_with_zeroed_keep_alive);
 
+    ADD_TEST(should_clean_pingreq_and_disconnect_packets_after_close);
     ADD_TEST(should_finalize_client);
 }
 END_TCASE

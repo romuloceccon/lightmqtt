@@ -65,6 +65,20 @@ static int client_buffer_check(lmqtt_client_t *client, lmqtt_io_result_t io_res,
     return *cnt > 0;
 }
 
+static void client_cleanup_store(lmqtt_client_t *client)
+{
+    int i = 0;
+    int class;
+    void *data;
+
+    while (lmqtt_store_get_at(&client->store, i, &class, &data)) {
+        if (class == LMQTT_CLASS_PINGREQ || class == LMQTT_CLASS_DISCONNECT)
+            lmqtt_store_delete_at(&client->store, i);
+        else
+            i++;
+    }
+}
+
 static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     lmqtt_input_t *input, lmqtt_io_status_t reader_block,
     lmqtt_output_t *output, lmqtt_io_status_t writer_block,
@@ -89,6 +103,8 @@ static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
                 buf, buf_pos, &cnt), &cnt, writer_block, &result);
     }
 
+    if (result == LMQTT_IO_STATUS_READY)
+        client_cleanup_store(client);
     return result;
 }
 
