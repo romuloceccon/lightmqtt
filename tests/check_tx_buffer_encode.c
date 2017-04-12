@@ -378,6 +378,29 @@ START_TEST(should_fail_if_finder_is_null)
 }
 END_TEST
 
+START_TEST(should_clear_encoder_state_after_reset)
+{
+    PREPARE;
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    lmqtt_store_append(&store, 0, 0, &data);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, 4, &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    lmqtt_tx_buffer_reset(&state);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(10, bytes_w);
+
+    ck_assert_uint_eq(0, buf[0]);
+    ck_assert_uint_eq(4, buf[4]);
+    ck_assert_uint_eq(9, buf[9]);
+    ck_assert_uint_eq(BUF_PLACEHOLDER, buf[10]);
+}
+END_TEST
+
 START_TCASE("Tx buffer encode")
 {
     ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
@@ -394,5 +417,6 @@ START_TCASE("Tx buffer encode")
     ADD_TEST(should_not_process_packets_after_disconnect);
     ADD_TEST(should_track_connect_packet);
     ADD_TEST(should_fail_if_finder_is_null);
+    ADD_TEST(should_clear_encoder_state_after_reset);
 }
 END_TCASE

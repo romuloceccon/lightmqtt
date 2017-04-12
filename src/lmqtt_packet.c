@@ -815,12 +815,13 @@ int tx_buffer_call_publish(lmqtt_tx_buffer_t *state, void *data)
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
 
-void lmqtt_tx_buffer_open(lmqtt_tx_buffer_t *state)
+void lmqtt_tx_buffer_reset(lmqtt_tx_buffer_t *state)
 {
     state->closed = 0;
+    memset(&state->internal, 0, sizeof(state->internal));
 }
 
-void lmqtt_tx_buffer_close(lmqtt_tx_buffer_t *state)
+void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state)
 {
     state->closed = 1;
 }
@@ -847,14 +848,15 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
             if (!encoder) {
                 if (class == LMQTT_CLASS_DISCONNECT) {
                     lmqtt_store_drop_current(state->store);
-                    lmqtt_tx_buffer_close(state);
+                    lmqtt_tx_buffer_finish(state);
+                    break;
                 } else if (class == LMQTT_CLASS_PUBLISH_0) {
                     lmqtt_store_drop_current(state->store);
                     tx_buffer_call_publish(state, data);
                 } else {
                     lmqtt_store_mark_current(state->store);
                 }
-                memset(&state->internal, 0, sizeof(state->internal));
+                lmqtt_tx_buffer_reset(state);
                 break;
             }
 
@@ -1051,7 +1053,7 @@ static int rx_buffer_finish_packet(lmqtt_rx_buffer_t *state)
     else
         result = RX_BUFFER_CALL_CALLBACK(state);
 
-    memset(&state->internal, 0, sizeof(state->internal));
+    lmqtt_rx_buffer_reset(state);
 
     return result;
 }
@@ -1200,6 +1202,25 @@ static struct _lmqtt_rx_buffer_decoder_t const
  * lmqtt_rx_buffer_t PUBLIC functions
  ******************************************************************************/
 
+void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state)
+{
+    memset(&state->internal, 0, sizeof(state->internal));
+}
+
+void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
+{
+    int class;
+    void *data;
+
+    if (state->internal.packet_data)
+        RX_BUFFER_CALL_CALLBACK(state);
+
+    while (lmqtt_store_shift(state->store, &class, &data)) {
+        if (data)
+            rx_buffer_callback_by_class(class)(state, data);
+    }
+}
+
 /*
  * TODO: lmqtt_rx_buffer_decode() should be able to handle cases where the buffer
  * cannot be completely read (for example, if a callback which is being invoked
@@ -1257,18 +1278,4 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
 
     lmqtt_store_touch(state->store);
     return LMQTT_IO_SUCCESS;
-}
-
-void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
-{
-    int class;
-    void *data;
-
-    if (state->internal.packet_data)
-        RX_BUFFER_CALL_CALLBACK(state);
-
-    while (lmqtt_store_shift(state->store, &class, &data)) {
-        if (data)
-            rx_buffer_callback_by_class(class)(state, data);
-    }
 }

@@ -186,13 +186,14 @@ int lmqtt_connect_validate(lmqtt_connect_t *connect);
 int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe);
 int lmqtt_publish_validate(lmqtt_publish_t *publish);
 
-void lmqtt_tx_buffer_open(lmqtt_tx_buffer_t *state);
-void lmqtt_tx_buffer_close(lmqtt_tx_buffer_t *state);
+void lmqtt_tx_buffer_reset(lmqtt_tx_buffer_t *state);
+void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state);
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written);
 
+void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state);
+void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read);
-void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 
 #endif
