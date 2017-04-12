@@ -16,16 +16,20 @@ static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b);
     int bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
     int data = 0; \
+    lmqtt_store_value_t value; \
     memset(&client, 0, sizeof(client)); \
     memset(&buf, 0, sizeof(buf)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
+    memset(&value, 0, sizeof(value)); \
     state.store = &store; \
-    store.get_time = &test_time_get
+    store.get_time = &test_time_get; \
+    value.value = &data
 
 #define STORE_APPEND_MARK(class, packet_id) \
     do { \
-        ck_assert_int_eq(1, lmqtt_store_append(&store, class, packet_id, &data)); \
+        ck_assert_int_eq(1, lmqtt_store_append(&store, class, packet_id, \
+            &value)); \
         ck_assert_int_eq(1, lmqtt_store_mark_current(&store)); \
     } while (0)
 
@@ -50,7 +54,7 @@ static int test_call_callback(lmqtt_rx_buffer_t *state)
     test_packet_t *packet = &client.packets[client.current_packet++];
 
     packet->packet_id = state->internal.packet_id;
-    packet->packet_data = state->internal.packet_data;
+    packet->packet_data = state->internal.value.value;
 
     return 1;
 }
@@ -409,7 +413,7 @@ END_TEST
 START_TEST(should_decode_pubrec)
 {
     int store_class;
-    void *store_data;
+    lmqtt_store_value_t store_value;
 
     PREPARE;
 
@@ -425,9 +429,9 @@ START_TEST(should_decode_pubrec)
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
     ck_assert_int_eq(0, client.current_packet);
-    ck_assert_int_eq(1, lmqtt_store_shift(&store, &store_class, &store_data));
+    ck_assert_int_eq(1, lmqtt_store_shift(&store, &store_class, &store_value));
     ck_assert_int_eq(LMQTT_CLASS_PUBREL, store_class);
-    ck_assert_ptr_eq(&data, store_data);
+    ck_assert_ptr_eq(&data, store_value.value);
 }
 END_TEST
 

@@ -7,36 +7,39 @@
     int bytes_r; \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
-    lmqtt_rx_buffer_callbacks_t callbacks; \
     void *callbacks_data = 0; \
+    lmqtt_store_value_t value; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
-    memset(&callbacks, 0, sizeof(callbacks)); \
+    memset(&value, 0, sizeof(value)); \
     state.store = &store; \
-    state.callbacks_data = &callbacks_data; \
-    state.callbacks = &callbacks; \
-    store.get_time = &test_time_get
+    store.get_time = &test_time_get; \
+    value.callback_data = &callbacks_data
 
 static int pingresp_data = 0;
 
 int test_on_connack(void *data, lmqtt_connect_t *connect)
 {
     *((void **) data) = connect;
+    return 1;
 }
 
 int test_on_suback(void *data, lmqtt_subscribe_t *subscribe)
 {
     *((void **) data) = subscribe;
+    return 1;
 }
 
 int test_on_publish(void *data, lmqtt_publish_t *publish)
 {
     *((void **) data) = publish;
+    return 1;
 }
 
-int test_on_pingresp(void *data)
+int test_on_pingresp(void *data, void *unused)
 {
     *((void **) data) = &pingresp_data;
+    return 1;
 }
 
 START_TEST(should_call_connack_callback)
@@ -47,9 +50,10 @@ START_TEST(should_call_connack_callback)
     PREPARE;
 
     memset(&connect, 0, sizeof(connect));
-    callbacks.on_connack = &test_on_connack;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &connect);
+    value.value = &connect;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_connack;
+    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -68,11 +72,12 @@ START_TEST(should_call_suback_callback)
     PREPARE;
 
     memset(&subscribe, 0, sizeof(subscribe));
-    callbacks.on_suback = &test_on_suback;
     subscribe.count = 1;
     subscribe.subscriptions = subscriptions;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0304, &subscribe);
+    value.value = &subscribe;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_suback;
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0304, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
@@ -91,11 +96,12 @@ START_TEST(should_call_unsuback_callback)
     PREPARE;
 
     memset(&subscribe, 0, sizeof(subscribe));
-    callbacks.on_unsuback = &test_on_suback;
     subscribe.count = 1;
     subscribe.subscriptions = subscriptions;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0304, &subscribe);
+    value.value = &subscribe;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_suback;
+    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0304, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -116,9 +122,10 @@ START_TEST(should_call_publish_callback_with_qos_1)
     publish.qos = 1;
     publish.topic.buf = "a";
     publish.topic.len = 1;
-    callbacks.on_publish_tx = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0506, &publish);
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0506, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -140,9 +147,10 @@ START_TEST(should_call_publish_callback_with_qos_2)
     publish.qos = 2;
     publish.topic.buf = "a";
     publish.topic.len = 1;
-    callbacks.on_publish_tx = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, 0x0a0b, &publish);
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, 0x0a0b, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf_1, 4, &bytes_r);
@@ -168,9 +176,10 @@ START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
     publish.qos = 2;
     publish.topic.buf = "a";
     publish.topic.len = 1;
-    callbacks.on_publish_tx = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, 0x0a0b, &publish);
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, 0x0a0b, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
@@ -185,9 +194,8 @@ START_TEST(should_call_pingresp_callback)
 
     PREPARE;
 
-    callbacks.on_pingresp = &test_on_pingresp;
-
-    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, NULL);
+    value.callback = &test_on_pingresp;
+    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 2, &bytes_r);
@@ -203,9 +211,8 @@ START_TEST(should_not_call_null_decode_byte)
 
     PREPARE;
 
-    callbacks.on_pingresp = &test_on_pingresp;
-
-    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, NULL);
+    value.callback = &test_on_pingresp;
+    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);

@@ -51,9 +51,6 @@ typedef struct _lmqtt_client_t {
         int (*publish)(struct _lmqtt_client_t *, lmqtt_publish_t *);
         int (*pingreq)(struct _lmqtt_client_t *);
         int (*disconnect)(struct _lmqtt_client_t *);
-
-        lmqtt_tx_buffer_callbacks_t tx_callbacks;
-        lmqtt_rx_buffer_callbacks_t rx_callbacks;
     } internal;
 } lmqtt_client_t;
 

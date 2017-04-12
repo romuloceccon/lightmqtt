@@ -3,19 +3,16 @@
 #include "../src/lmqtt_packet.c"
 
 #define PREPARE \
-    void *data = 0; \
     u8 buf[512]; \
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_io_result_t res; \
-    lmqtt_tx_buffer_callbacks_t tx_callbacks; \
     int bytes_written; \
+    lmqtt_store_value_t value; \
     memset(buf, 0xcc, sizeof(buf)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
-    memset(&tx_callbacks, 0, sizeof(tx_callbacks)); \
-    state.callbacks = &tx_callbacks; \
-    state.callbacks_data = &data; \
+    memset(&value, 0, sizeof(value)); \
     state.store = &store; \
     store.get_time = &test_time_get
 
@@ -46,7 +43,8 @@ START_TEST(should_encode_connect)
     connect.password.buf = "e";
     connect.password.len = 1;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &connect);
+    value.value = &connect;
+    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -80,7 +78,8 @@ START_TEST(should_encode_subscribe_to_one_topic)
     subscription.topic.buf = "test";
     subscription.topic.len = 4;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0a0b, &subscribe);
+    value.value = &subscribe;
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0a0b, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -118,7 +117,8 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
     subscriptions[1].topic.buf = topic_2;
     subscriptions[1].topic.len = sizeof(topic_2);
 
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0c0d, &subscribe);
+    value.value = &subscribe;
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0c0d, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -166,7 +166,8 @@ START_TEST(should_encode_unsubscribe_to_multiple_topics)
     subscriptions[1].topic.buf = topic_2;
     subscriptions[1].topic.len = sizeof(topic_2);
 
-    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0c0d, &subscribe);
+    value.value = &subscribe;
+    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0c0d, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -194,25 +195,28 @@ END_TEST
 START_TEST(should_encode_publish_with_qos_0)
 {
     lmqtt_publish_t publish;
-    int store_class;
-    void *store_data;
+    int class;
+    void *data = NULL;
+    lmqtt_store_value_t value_out;
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
     publish.packet_id = 0x0102;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
-    tx_callbacks.on_publish = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_0, 0x0102, &publish);
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
+    value.callback_data = &data;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_0, 0x0102, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(11, bytes_written);
 
-    ck_assert_int_eq(0, lmqtt_store_shift(&store, &store_class, &store_data));
-    ck_assert_ptr_eq(0, store_data);
+    ck_assert_int_eq(0, lmqtt_store_shift(&store, &class, &value_out));
+    ck_assert_ptr_eq(NULL, value_out.value);
     ck_assert_ptr_eq(&publish, data);
 }
 END_TEST
@@ -220,8 +224,9 @@ END_TEST
 START_TEST(should_encode_publish_with_qos_1)
 {
     lmqtt_publish_t publish;
-    int store_class;
-    void *store_data;
+    int class;
+    void *data = NULL;
+    lmqtt_store_value_t value_out;
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
@@ -233,9 +238,11 @@ START_TEST(should_encode_publish_with_qos_1)
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
-    tx_callbacks.on_publish = &test_on_publish;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &publish);
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
+    value.callback_data = &data;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -253,9 +260,9 @@ START_TEST(should_encode_publish_with_qos_1)
     ck_assert_uint_eq((u8) 'p', buf[11]);
     ck_assert_uint_eq((u8) 'd', buf[17]);
 
-    ck_assert_int_eq(1, lmqtt_store_shift(&store, &store_class, &store_data));
-    ck_assert_ptr_eq(&publish, store_data);
-    ck_assert_ptr_eq(0, data);
+    ck_assert_int_eq(1, lmqtt_store_shift(&store, &class, &value_out));
+    ck_assert_ptr_eq(&publish, value_out.value);
+    ck_assert_ptr_eq(NULL, data);
 }
 END_TEST
 
@@ -272,12 +279,14 @@ START_TEST(should_increment_publish_encode_count_after_encode)
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &publish);
+    value.value = &publish;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &value);
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_uint_eq(0x32, buf[0]);
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &publish);
+    value.value = &publish;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &value);
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_uint_eq(0x3a, buf[0]);
@@ -294,7 +303,8 @@ START_TEST(should_encode_pubrel)
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBREL, 0x0102, &publish);
+    value.value = &publish;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBREL, 0x0102, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 

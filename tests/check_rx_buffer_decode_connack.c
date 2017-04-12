@@ -8,7 +8,7 @@
     lmqtt_connect_t connect; \
     memset(&state, 0, sizeof(state)); \
     memset(&connect, 0, sizeof(connect)); \
-    state.internal.packet_data = &connect
+    state.internal.value.value = &connect
 
 START_TEST(should_decode_connack_valid_first_byte)
 {

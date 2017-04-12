@@ -802,15 +802,6 @@ static lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class)
     return NULL;
 }
 
-int tx_buffer_call_publish(lmqtt_tx_buffer_t *state, void *data)
-{
-    if (!state->callbacks->on_publish)
-        return 0;
-
-    return state->callbacks->on_publish(state->callbacks_data,
-        (lmqtt_publish_t *) data);
-}
-
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
@@ -832,9 +823,9 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int offset = 0;
     *bytes_written = 0;
     int class;
-    void *data;
+    lmqtt_store_value_t value;
 
-    while (!state->closed && lmqtt_store_peek(state->store, &class, &data)) {
+    while (!state->closed && lmqtt_store_peek(state->store, &class, &value)) {
         lmqtt_encoder_finder_t finder = TX_BUFFER_FINDER_BY_CLASS(class);
 
         if (!finder)
@@ -843,7 +834,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
         while (1) {
             int result;
             int cur_bytes;
-            lmqtt_encoder_t encoder = finder(state, data);
+            lmqtt_encoder_t encoder = finder(state, value.value);
 
             if (!encoder) {
                 if (class == LMQTT_CLASS_DISCONNECT) {
@@ -852,7 +843,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
                     break;
                 } else if (class == LMQTT_CLASS_PUBLISH_0) {
                     lmqtt_store_drop_current(state->store);
-                    tx_buffer_call_publish(state, data);
+                    value.callback(value.callback_data, value.value);
                 } else {
                     lmqtt_store_mark_current(state->store);
                 }
@@ -860,7 +851,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
                 break;
             }
 
-            result = encoder(data, &state->internal.buffer,
+            result = encoder(value.value, &state->internal.buffer,
                 state->internal.offset, buf + offset, buf_len - offset,
                 &cur_bytes);
             if (result == LMQTT_ENCODE_WOULD_BLOCK)
@@ -891,7 +882,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
 static lmqtt_decode_result_t rx_buffer_decode_connack(lmqtt_rx_buffer_t *state,
     u8 b)
 {
-    lmqtt_connect_t *connect = (lmqtt_connect_t *) state->internal.packet_data;
+    lmqtt_connect_t *connect = (lmqtt_connect_t *) state->internal.value.value;
 
     switch (state->internal.remain_buf_pos) {
         case 0:
@@ -913,7 +904,7 @@ static lmqtt_decode_result_t rx_buffer_decode_suback(lmqtt_rx_buffer_t *state,
     u8 b)
 {
     lmqtt_subscribe_t *subscribe =
-        (lmqtt_subscribe_t *) state->internal.packet_data;
+        (lmqtt_subscribe_t *) state->internal.value.value;
 
     int pos = state->internal.remain_buf_pos - LMQTT_PACKET_ID_SIZE;
 
@@ -929,71 +920,6 @@ static lmqtt_decode_result_t rx_buffer_decode_suback(lmqtt_rx_buffer_t *state,
     subscribe->subscriptions[pos].return_code = b;
     return pos + 1 >= subscribe->count ?
         LMQTT_DECODE_FINISHED : LMQTT_DECODE_CONTINUE;
-}
-
-static int rx_buffer_call_connack(lmqtt_rx_buffer_t *state, void *data)
-{
-    if (!state->callbacks->on_connack)
-        return 0;
-
-    return state->callbacks->on_connack(state->callbacks_data,
-        (lmqtt_connect_t *) data);
-}
-
-static int rx_buffer_call_suback(lmqtt_rx_buffer_t *state, void *data)
-{
-    if (!state->callbacks->on_suback)
-        return 0;
-
-    return state->callbacks->on_suback(state->callbacks_data,
-        (lmqtt_subscribe_t *) data);
-}
-
-static int rx_buffer_call_unsuback(lmqtt_rx_buffer_t *state, void *data)
-{
-    if (!state->callbacks->on_unsuback)
-        return 0;
-
-    return state->callbacks->on_unsuback(state->callbacks_data,
-        (lmqtt_subscribe_t *) data);
-}
-
-static int rx_buffer_call_publish_tx(lmqtt_rx_buffer_t *state, void *data)
-{
-    if (!state->callbacks->on_publish_tx)
-        return 0;
-
-    return state->callbacks->on_publish_tx(state->callbacks_data,
-        (lmqtt_publish_t *) data);
-}
-
-static int rx_buffer_call_pingresp(lmqtt_rx_buffer_t *state, void *data)
-{
-    if (!state->callbacks->on_pingresp)
-        return 0;
-
-    return state->callbacks->on_pingresp(state->callbacks_data);
-}
-
-static int (*rx_buffer_callback_by_class(int class))(struct _lmqtt_rx_buffer_t *, void *)
-{
-    switch (class) {
-        case LMQTT_CLASS_CONNECT:
-            return rx_buffer_call_connack;
-        case LMQTT_CLASS_PUBLISH_0:
-        case LMQTT_CLASS_PUBLISH_1:
-        case LMQTT_CLASS_PUBLISH_2:
-        case LMQTT_CLASS_PUBREL:
-            return rx_buffer_call_publish_tx;
-        case LMQTT_CLASS_SUBSCRIBE:
-            return rx_buffer_call_suback;
-        case LMQTT_CLASS_UNSUBSCRIBE:
-            return rx_buffer_call_unsuback;
-        case LMQTT_CLASS_PINGREQ:
-            return rx_buffer_call_pingresp;
-        default:
-            assert(0);
-    }
 }
 
 /*
@@ -1012,8 +938,12 @@ static int (*rx_buffer_callback_by_class(int class))(struct _lmqtt_rx_buffer_t *
  */
 static int rx_buffer_call_callback(lmqtt_rx_buffer_t *state)
 {
-    return rx_buffer_callback_by_class(state->internal.decoder->class)(state,
-        state->internal.packet_data);
+    lmqtt_store_value_t *value = &state->internal.value;
+
+    if (value->callback)
+        return value->callback(value->callback_data, value->value);
+
+    return 0;
 }
 
 static lmqtt_decode_result_t rx_buffer_decode_type(lmqtt_rx_buffer_t *state,
@@ -1033,8 +963,8 @@ static lmqtt_io_result_t rx_buffer_fail(lmqtt_rx_buffer_t *state)
 
 static int rx_buffer_pop_packet(lmqtt_rx_buffer_t *state, u16 packet_id)
 {
-    return lmqtt_store_pop_marked_by(state->store, state->internal.decoder->class,
-        packet_id, &state->internal.packet_data);
+    return lmqtt_store_pop_marked_by(state->store,
+        state->internal.decoder->class, packet_id, &state->internal.value);
 }
 
 static int rx_buffer_is_packet_finished(lmqtt_rx_buffer_t *state)
@@ -1049,7 +979,7 @@ static int rx_buffer_finish_packet(lmqtt_rx_buffer_t *state)
 
     if (state->internal.decoder->class == LMQTT_CLASS_PUBLISH_2)
         result = lmqtt_store_append(state->store, LMQTT_CLASS_PUBREL,
-            state->internal.packet_id, state->internal.packet_data);
+            state->internal.packet_id, &state->internal.value);
     else
         result = RX_BUFFER_CALL_CALLBACK(state);
 
@@ -1209,15 +1139,13 @@ void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state)
 
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
 {
-    int class;
-    void *data;
+    lmqtt_store_value_t value;
 
-    if (state->internal.packet_data)
-        RX_BUFFER_CALL_CALLBACK(state);
+    RX_BUFFER_CALL_CALLBACK(state);
 
-    while (lmqtt_store_shift(state->store, &class, &data)) {
-        if (data)
-            rx_buffer_callback_by_class(class)(state, data);
+    while (lmqtt_store_shift(state->store, NULL, &value)) {
+        if (value.callback)
+            value.callback(value.callback_data, value.value);
     }
 }
 

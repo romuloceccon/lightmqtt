@@ -122,15 +122,8 @@ typedef struct _lmqtt_publish_t {
     } internal;
 } lmqtt_publish_t;
 
-typedef struct _lmqtt_tx_buffer_callbacks_t {
-    int (*on_publish)(void *, lmqtt_publish_t *);
-} lmqtt_tx_buffer_callbacks_t;
-
 typedef struct _lmqtt_tx_buffer_t {
     lmqtt_store_t *store;
-
-    lmqtt_tx_buffer_callbacks_t *callbacks;
-    void *callbacks_data;
 
     int closed;
 
@@ -146,14 +139,6 @@ typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
 
 typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *, void *);
 
-typedef struct _lmqtt_rx_buffer_callbacks_t {
-    int (*on_connack)(void *, lmqtt_connect_t *);
-    int (*on_suback)(void *, lmqtt_subscribe_t *);
-    int (*on_unsuback)(void *, lmqtt_subscribe_t *);
-    int (*on_publish_tx)(void *, lmqtt_publish_t *);
-    int (*on_pingresp)(void *);
-} lmqtt_rx_buffer_callbacks_t;
-
 struct _lmqtt_rx_buffer_t;
 
 struct _lmqtt_rx_buffer_decoder_t {
@@ -168,16 +153,13 @@ struct _lmqtt_rx_buffer_decoder_t {
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
 
-    lmqtt_rx_buffer_callbacks_t *callbacks;
-    void *callbacks_data;
-
     struct {
         lmqtt_fixed_header_t header;
         int header_finished;
         struct _lmqtt_rx_buffer_decoder_t const *decoder;
         int remain_buf_pos;
         u16 packet_id;
-        void *packet_data;
+        lmqtt_store_value_t value;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;

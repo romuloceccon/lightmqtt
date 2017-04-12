@@ -381,7 +381,8 @@ START_TEST(should_not_connect_with_full_store)
     lmqtt_client_initialize(&client);
     test_socket_init_with_client(&client);
 
-    for (i = 0; lmqtt_store_append(&client.store, LMQTT_CLASS_PINGREQ, 0, 0); i++)
+    for (i = 0; lmqtt_store_append(&client.store, LMQTT_CLASS_PINGREQ, 0,
+            NULL); i++)
         ;
 
     memset(&connect, 0, sizeof(connect));
@@ -392,9 +393,8 @@ START_TEST(should_not_connect_with_full_store)
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
     do {
         int class;
-        void *data;
         res = test_socket_shift();
-        lmqtt_store_shift(&client.store, &class, &data);
+        lmqtt_store_shift(&client.store, &class, NULL);
     } while (res == TEST_PINGREQ);
     ck_assert_int_eq(-1, res);
 
@@ -541,6 +541,7 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     lmqtt_subscribe_t subscribe[3];
     lmqtt_subscription_t subscriptions[3];
     void *data;
+    lmqtt_store_entry_callback_t cb;
     int i;
 
     memset(&subscribe, 0, sizeof(subscribe));
@@ -566,9 +567,12 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     lmqtt_store_mark_current(&client.store);
     lmqtt_store_mark_current(&client.store);
 
-    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store, LMQTT_CLASS_SUBSCRIBE, 0, &data));
-    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store, LMQTT_CLASS_SUBSCRIBE, 1, &data));
-    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store, LMQTT_CLASS_SUBSCRIBE, 2, &data));
+    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store,
+        LMQTT_CLASS_SUBSCRIBE, 0, NULL));
+    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store,
+        LMQTT_CLASS_SUBSCRIBE, 1, NULL));
+    ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.store,
+        LMQTT_CLASS_SUBSCRIBE, 2, NULL));
 }
 END_TEST
 
@@ -604,7 +608,8 @@ START_TEST(should_not_subscribe_with_full_store)
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
 
-    for (i = 0; lmqtt_store_append(&client.store, LMQTT_CLASS_PINGREQ, 0, 0); i++)
+    for (i = 0; lmqtt_store_append(&client.store, LMQTT_CLASS_PINGREQ, 0,
+            NULL); i++)
         ;
 
     ck_assert_int_eq(0, lmqtt_client_subscribe(&client, &subscribe));
@@ -965,7 +970,7 @@ START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
     lmqtt_client_t client;
     lmqtt_publish_t publish;
     int class;
-    void *data;
+    lmqtt_store_value_t value;
 
     test_time_set(10, 0);
     init_connect_and_connack(&client, 5, 3);
@@ -987,9 +992,9 @@ START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     ck_assert_int_eq(1, lmqtt_store_count(&client.store));
-    lmqtt_store_shift(&client.store, &class, &data);
+    lmqtt_store_shift(&client.store, &class, &value);
     ck_assert_int_eq(LMQTT_CLASS_PUBLISH_0, class);
-    ck_assert_ptr_eq(&publish, data);
+    ck_assert_ptr_eq(&publish, value.value);
 }
 END_TEST
 

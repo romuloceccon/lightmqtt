@@ -10,7 +10,7 @@
     memset(&state, 0, sizeof(state)); \
     memset(&subscribe, 0, sizeof(subscribe)); \
     memset(&subscriptions, 0, sizeof(subscriptions)); \
-    state.internal.packet_data = &subscribe; \
+    state.internal.value.value = &subscribe; \
     subscribe.subscriptions = subscriptions
 
 START_TEST(should_decode_invalid_suback_return_code)

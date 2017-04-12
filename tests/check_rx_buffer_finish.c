@@ -4,20 +4,16 @@
     int data[10]; \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
-    lmqtt_rx_buffer_callbacks_t callbacks; \
+    lmqtt_store_value_t value; \
     test_cb_results_t cb_results; \
     memset(&data, 0, sizeof(data)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
-    memset(&callbacks, 0, sizeof(callbacks)); \
+    memset(&value, 0, sizeof(value)); \
     memset(&cb_results, 0xcc, sizeof(cb_results)); \
     state.store = &store; \
-    state.callbacks_data = &cb_results; \
-    state.callbacks = &callbacks; \
-    callbacks.on_connack = &test_on_connack; \
-    callbacks.on_suback = &test_on_suback; \
-    callbacks.on_pingresp = &test_on_pingresp; \
     store.get_time = &test_time_get; \
+    value.callback_data = &cb_results; \
     cb_results.count = 0
 
 typedef struct _test_cb_results_t {
@@ -45,11 +41,6 @@ int test_on_suback(void *data, lmqtt_subscribe_t *subscribe)
     return test_set_result(data, subscribe);
 }
 
-int test_on_pingresp(void *data)
-{
-    return test_set_result(data, 0);
-}
-
 START_TEST(should_finish_unused_buffer)
 {
     PREPARE;
@@ -64,16 +55,22 @@ START_TEST(should_finish_unused_store_items)
 {
     PREPARE;
 
-    // sent item with data
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &data[0]);
+    // sent item with callback
+    value.value = &data[0];
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_connack;
+    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &value);
     lmqtt_store_mark_current(&store);
-    // unsent item with data
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 1, &data[1]);
-    // unsent item without data
-    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 2, 0);
+    // unsent item with callback
+    value.value = &data[1];
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_suback;
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 1, &value);
+    // unsent item without callback
+    value.value = &data[2];
+    value.callback = NULL;
+    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 2, &value);
 
     lmqtt_rx_buffer_finish(&state);
-    // should call callbacks only for items with data
+    // should call callbacks only for items with callback
     ck_assert_int_eq(2, cb_results.count);
     ck_assert_ptr_eq(&data[0], cb_results.results[0]);
     ck_assert_ptr_eq(&data[1], cb_results.results[1]);
