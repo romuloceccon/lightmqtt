@@ -216,7 +216,6 @@ static int client_on_connack(void *data, lmqtt_connect_t *connect)
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 0);
     } else if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
-        client->connect_count++;
         client->store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
 
@@ -280,8 +279,6 @@ static int client_do_connect_fail(lmqtt_client_t *client,
 static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
 {
     lmqtt_store_value_t value;
-
-    connect->clean_session = client->connect_count == 0;
 
     if (!lmqtt_connect_validate(connect))
         return 0;
