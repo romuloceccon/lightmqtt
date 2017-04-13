@@ -294,6 +294,19 @@ START_TEST(should_touch_store_after_decode)
 }
 END_TEST
 
+START_TEST(should_not_touch_store_after_decoding_empty_buffer)
+{
+    PREPARE;
+
+    test_time_set(10, 0);
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 0, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(0, store.last_touch.secs);
+}
+END_TEST
+
 START_TEST(should_decode_rx_buffer_with_allowed_null_data)
 {
     PREPARE;
@@ -565,6 +578,7 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_reset_rx_buffer_after_successful_processing);
     ADD_TEST(should_decode_rx_buffer_with_two_packets);
     ADD_TEST(should_touch_store_after_decode);
+    ADD_TEST(should_not_touch_store_after_decoding_empty_buffer);
     ADD_TEST(should_decode_rx_buffer_with_allowed_null_data);
     ADD_TEST(should_decode_rx_buffer_with_disallowed_null_data);
     ADD_TEST(should_decode_rx_buffer_with_disallowed_nonnull_data);

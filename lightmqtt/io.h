@@ -33,6 +33,7 @@ typedef struct _lmqtt_client_t {
     lmqtt_client_on_publish_t on_publish;
     void *on_publish_data;
 
+    int closed;
     int failed;
 
     lmqtt_rx_buffer_t rx_state;
@@ -41,7 +42,9 @@ typedef struct _lmqtt_client_t {
     int read_buf_pos;
     u8 write_buf[LMQTT_TX_BUFFER_SIZE];
     int write_buf_pos;
-    lmqtt_store_t store;
+    lmqtt_store_t main_store;
+    lmqtt_store_t connect_store;
+    lmqtt_store_t *current_store;
 
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);

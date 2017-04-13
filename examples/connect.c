@@ -166,7 +166,8 @@ int main()
     client.read = read_data;
     client.write = write_data;
     client.get_time = get_time;
-    client.store.get_time = get_time;
+    client.main_store.get_time = get_time;
+    client.connect_store.get_time = get_time;
     lmqtt_client_set_on_connect(&client, on_connect, &client);
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &client);
     lmqtt_client_set_on_publish(&client, on_publish, &client);

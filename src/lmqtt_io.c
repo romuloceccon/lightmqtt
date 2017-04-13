@@ -74,13 +74,37 @@ static void client_cleanup_store(lmqtt_client_t *client)
 {
     int i = 0;
     int class;
+    lmqtt_store_value_t value;
 
-    while (lmqtt_store_get_at(&client->store, i, &class, NULL)) {
+    while (lmqtt_store_get_at(&client->main_store, i, &class, NULL)) {
         if (class == LMQTT_CLASS_PINGREQ || class == LMQTT_CLASS_DISCONNECT)
-            lmqtt_store_delete_at(&client->store, i);
+            lmqtt_store_delete_at(&client->main_store, i);
         else
             i++;
     }
+
+    while (lmqtt_store_get_at(&client->connect_store, 0, NULL, &value)) {
+        lmqtt_store_delete_at(&client->connect_store, 0);
+        value.callback(value.callback_data, value.value);
+    }
+}
+
+static void client_flush_store(lmqtt_client_t *client, lmqtt_store_t *store)
+{
+    lmqtt_store_value_t value;
+
+    while (lmqtt_store_shift(store, NULL, &value)) {
+        if (value.callback)
+            value.callback(value.callback_data, value.value);
+    }
+}
+
+static void client_set_current_store(lmqtt_client_t *client,
+    lmqtt_store_t *store)
+{
+    client->current_store = store;
+    client->rx_state.store = store;
+    client->tx_state.store = store;
 }
 
 static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
@@ -108,8 +132,8 @@ static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     }
 
     if (result == LMQTT_IO_STATUS_READY) {
-        client_cleanup_store(client);
         client_set_state_initial(client);
+        client_cleanup_store(client);
         lmqtt_tx_buffer_finish(&client->tx_state);
     }
     return result;
@@ -175,7 +199,7 @@ lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
     if (client->failed)
         return LMQTT_IO_STATUS_ERROR;
 
-    if (!lmqtt_store_get_timeout(&client->store, &cnt, &s, &ns) ||
+    if (!lmqtt_store_get_timeout(client->current_store, &cnt, &s, &ns) ||
             s != 0 || ns != 0)
         return LMQTT_IO_STATUS_READY;
 
@@ -198,26 +222,27 @@ static int client_subscribe_with_class(lmqtt_client_t *client,
     if (!lmqtt_subscribe_validate(subscribe))
         return 0;
 
-    packet_id = lmqtt_store_get_id(&client->store);
+    packet_id = lmqtt_store_get_id(&client->main_store);
     subscribe->packet_id = packet_id;
 
     value.value = subscribe;
     value.callback = cb;
     value.callback_data = client;
 
-    return lmqtt_store_append(&client->store, class, packet_id, &value);
+    return lmqtt_store_append(&client->main_store, class, packet_id, &value);
 }
 
 static int client_on_connack(void *data, lmqtt_connect_t *connect)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
-    if (client->failed) {
+    if (client->closed) {
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 0);
     } else if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
-        client->store.keep_alive = connect->keep_alive;
+        client->main_store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
+        lmqtt_store_unmark_all(&client->main_store);
 
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 1);
@@ -238,7 +263,7 @@ static int client_on_suback(void *data, lmqtt_subscribe_t *subscribe)
 
     if (client->on_subscribe)
         client->on_subscribe(client->on_subscribe_data, subscribe,
-            !client->failed);
+            !client->closed);
 
     return 1;
 }
@@ -249,7 +274,7 @@ static int client_on_unsuback(void *data, lmqtt_subscribe_t *subscribe)
 
     if (client->on_unsubscribe)
         client->on_unsubscribe(client->on_unsubscribe_data, subscribe,
-            !client->failed);
+            !client->closed);
 
     return 1;
 }
@@ -260,7 +285,7 @@ static int client_on_publish(void *data, lmqtt_publish_t *publish)
 
     if (client->on_publish)
         client->on_publish(client->on_publish_data, publish,
-            !client->failed);
+            !client->closed);
 
     return 1;
 }
@@ -287,7 +312,8 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
     value.callback = (lmqtt_store_entry_callback_t) &client_on_connack;
     value.callback_data = client;
 
-    if (!lmqtt_store_append(&client->store, LMQTT_CLASS_CONNECT, 0, &value))
+    if (!lmqtt_store_append(&client->connect_store, LMQTT_CLASS_CONNECT, 0,
+            &value))
         return 0;
 
     lmqtt_rx_buffer_reset(&client->rx_state);
@@ -352,14 +378,14 @@ static int client_do_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
         publish->packet_id = 0;
     } else {
         class = qos == 1 ? LMQTT_CLASS_PUBLISH_1 : LMQTT_CLASS_PUBLISH_2;
-        publish->packet_id = lmqtt_store_get_id(&client->store);
+        publish->packet_id = lmqtt_store_get_id(&client->main_store);
     }
 
     value.value = publish;
     value.callback = (lmqtt_store_entry_callback_t) &client_on_publish;
     value.callback_data = client;
 
-    return lmqtt_store_append(&client->store, class, publish->packet_id,
+    return lmqtt_store_append(&client->main_store, class, publish->packet_id,
         &value);
 }
 
@@ -376,7 +402,8 @@ static int client_do_pingreq(lmqtt_client_t *client)
     value.callback = &client_on_pingresp;
     value.callback_data = client;
 
-    return lmqtt_store_append(&client->store, LMQTT_CLASS_PINGREQ, 0, &value);
+    return lmqtt_store_append(&client->main_store, LMQTT_CLASS_PINGREQ, 0,
+        &value);
 }
 
 static int client_do_disconnect_fail(lmqtt_client_t *client)
@@ -386,12 +413,16 @@ static int client_do_disconnect_fail(lmqtt_client_t *client)
 
 static int client_do_disconnect(lmqtt_client_t *client)
 {
-    return lmqtt_store_append(&client->store, LMQTT_CLASS_DISCONNECT, 0, NULL);
+    return lmqtt_store_append(&client->main_store, LMQTT_CLASS_DISCONNECT, 0,
+        NULL);
 }
 
 static void client_set_state_initial(lmqtt_client_t *client)
 {
+    client->closed = 1;
     client->failed = 0;
+
+    client_set_current_store(client, &client->connect_store);
 
     client->internal.connect = client_do_connect;
     client->internal.subscribe = client_do_subscribe_fail;
@@ -403,6 +434,7 @@ static void client_set_state_initial(lmqtt_client_t *client)
 
 static void client_set_state_connecting(lmqtt_client_t *client)
 {
+    client->closed = 0;
     client->failed = 0;
 
     client->internal.connect = client_do_connect_fail;
@@ -410,7 +442,10 @@ static void client_set_state_connecting(lmqtt_client_t *client)
 
 static void client_set_state_connected(lmqtt_client_t *client)
 {
+    client->closed = 0;
     client->failed = 0;
+
+    client_set_current_store(client, &client->main_store);
 
     client->internal.subscribe = client_do_subscribe;
     client->internal.unsubscribe = client_do_unsubscribe;
@@ -421,6 +456,7 @@ static void client_set_state_connected(lmqtt_client_t *client)
 
 static void client_set_state_failed(lmqtt_client_t *client)
 {
+    client->closed = 1;
     client->failed = 1;
 
     client->internal.connect = client_do_connect_fail;
@@ -438,8 +474,6 @@ static void client_set_state_failed(lmqtt_client_t *client)
 void lmqtt_client_initialize(lmqtt_client_t *client)
 {
     memset(client, 0, sizeof(*client));
-    client->rx_state.store = &client->store;
-    client->tx_state.store = &client->store;
 
     client_set_state_initial(client);
 }
@@ -449,6 +483,8 @@ void lmqtt_client_finalize(lmqtt_client_t *client)
     client_set_state_failed(client);
 
     lmqtt_rx_buffer_finish(&client->rx_state);
+    client_flush_store(client, &client->main_store);
+    client_flush_store(client, &client->connect_store);
 }
 
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
@@ -507,12 +543,13 @@ void lmqtt_client_set_on_publish(lmqtt_client_t *client,
 
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs)
 {
-    client->store.timeout = secs;
+    client->main_store.timeout = secs;
+    client->connect_store.timeout = secs;
 }
 
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 {
     int cnt;
 
-    return lmqtt_store_get_timeout(&client->store, &cnt, secs, nsecs);
+    return lmqtt_store_get_timeout(&client->main_store, &cnt, secs, nsecs);
 }

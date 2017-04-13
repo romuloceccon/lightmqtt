@@ -1139,14 +1139,7 @@ void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state)
 
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
 {
-    lmqtt_store_value_t value;
-
     RX_BUFFER_CALL_CALLBACK(state);
-
-    while (lmqtt_store_shift(state->store, NULL, &value)) {
-        if (value.callback)
-            value.callback(value.callback_data, value.value);
-    }
 }
 
 /*
@@ -1204,6 +1197,10 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
             rx_buffer_finish_packet(state);
     }
 
-    lmqtt_store_touch(state->store);
+    /* Even when processing a CONNACK this will touch the correct store, because
+       lmqtt_client_t will change the current store during the callback, which
+       is called from state->internal.decoder->decode_remaining() */
+    if (*bytes_read > 0)
+        lmqtt_store_touch(state->store);
     return LMQTT_IO_SUCCESS;
 }
