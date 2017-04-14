@@ -139,7 +139,15 @@ int lmqtt_store_shift(lmqtt_store_t *store, int *class,
 
 void lmqtt_store_unmark_all(lmqtt_store_t *store)
 {
+    lmqtt_time_t tm;
+    int i;
+
     store->pos = 0;
+
+    lmqtt_time_touch(&tm, store->get_time);
+    memcpy(&store->last_touch, &tm, sizeof(tm));
+    for (i = 0; i < store->count; i++)
+        memcpy(&store->entries[i].time, &tm, sizeof(tm));
 }
 
 int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
