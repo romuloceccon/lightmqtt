@@ -70,25 +70,6 @@ static int client_buffer_check(lmqtt_client_t *client, lmqtt_io_result_t io_res,
     return *cnt > 0;
 }
 
-static void client_cleanup_store(lmqtt_client_t *client)
-{
-    int i = 0;
-    int class;
-    lmqtt_store_value_t value;
-
-    while (lmqtt_store_get_at(&client->main_store, i, &class, NULL)) {
-        if (class == LMQTT_CLASS_PINGREQ || class == LMQTT_CLASS_DISCONNECT)
-            lmqtt_store_delete_at(&client->main_store, i);
-        else
-            i++;
-    }
-
-    while (lmqtt_store_get_at(&client->connect_store, 0, NULL, &value)) {
-        lmqtt_store_delete_at(&client->connect_store, 0);
-        value.callback(value.callback_data, value.value);
-    }
-}
-
 static void client_flush_store(lmqtt_client_t *client, lmqtt_store_t *store)
 {
     lmqtt_store_value_t value;
@@ -97,6 +78,26 @@ static void client_flush_store(lmqtt_client_t *client, lmqtt_store_t *store)
         if (value.callback)
             value.callback(value.callback_data, value.value);
     }
+}
+
+static void client_cleanup_stores(lmqtt_client_t *client, int keep_session)
+{
+    int i = 0;
+    int class;
+    lmqtt_store_value_t value;
+
+    if (keep_session) {
+        while (lmqtt_store_get_at(&client->main_store, i, &class, NULL)) {
+            if (class == LMQTT_CLASS_PINGREQ || class == LMQTT_CLASS_DISCONNECT)
+                lmqtt_store_delete_at(&client->main_store, i);
+            else
+                i++;
+        }
+    } else {
+        client_flush_store(client, &client->main_store);
+    }
+
+    client_flush_store(client, &client->connect_store);
 }
 
 static void client_set_current_store(lmqtt_client_t *client,
@@ -131,11 +132,9 @@ static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
                 buf, buf_pos, &cnt), &cnt, writer_block, &result);
     }
 
-    if (result == LMQTT_IO_STATUS_READY) {
+    if (result == LMQTT_IO_STATUS_READY)
         client_set_state_initial(client);
-        client_cleanup_store(client);
-        lmqtt_tx_buffer_finish(&client->tx_state);
-    }
+
     return result;
 }
 
@@ -240,14 +239,13 @@ static int client_on_connack(void *data, lmqtt_connect_t *connect)
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 0);
     } else if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
+        client->clean_session = connect->clean_session;
         client->main_store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
-        lmqtt_store_unmark_all(&client->main_store);
 
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 1);
     } else {
-        lmqtt_tx_buffer_finish(&client->tx_state);
         client_set_state_initial(client);
 
         if (client->on_connect)
@@ -316,16 +314,6 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
             &value))
         return 0;
 
-    lmqtt_rx_buffer_reset(&client->rx_state);
-    lmqtt_tx_buffer_reset(&client->tx_state);
-    /* TODO: When lmqtt_rx_buffer_decode implements handling of blocking writes
-       (for example, when writing the contents of a PUBLISH packet to a file) it
-       may be possible for client->read_buf_pos to not be 0 before a reconnect.
-       We need to write a test-case for that, like the one for
-       client->write_buf_pos (see `should_reset_output_buffer_on_reconnect` in
-       check_client_commands.c). */
-    client->read_buf_pos = 0;
-    client->write_buf_pos = 0;
     client_set_state_connecting(client);
     return 1;
 }
@@ -423,6 +411,9 @@ static void client_set_state_initial(lmqtt_client_t *client)
     client->failed = 0;
 
     client_set_current_store(client, &client->connect_store);
+    client_cleanup_stores(client, !client->clean_session);
+
+    lmqtt_tx_buffer_finish(&client->tx_state);
 
     client->internal.connect = client_do_connect;
     client->internal.subscribe = client_do_subscribe_fail;
@@ -437,6 +428,17 @@ static void client_set_state_connecting(lmqtt_client_t *client)
     client->closed = 0;
     client->failed = 0;
 
+    lmqtt_rx_buffer_reset(&client->rx_state);
+    lmqtt_tx_buffer_reset(&client->tx_state);
+    /* TODO: When lmqtt_rx_buffer_decode implements handling of blocking writes
+       (for example, when writing the contents of a PUBLISH packet to a file) it
+       may be possible for client->read_buf_pos to not be 0 before a reconnect.
+       We need to write a test-case for that, like the one for
+       client->write_buf_pos (see `should_reset_output_buffer_on_reconnect` in
+       check_client_commands.c). */
+    client->read_buf_pos = 0;
+    client->write_buf_pos = 0;
+
     client->internal.connect = client_do_connect_fail;
 }
 
@@ -446,6 +448,9 @@ static void client_set_state_connected(lmqtt_client_t *client)
     client->failed = 0;
 
     client_set_current_store(client, &client->main_store);
+    client_cleanup_stores(client, !client->clean_session);
+
+    lmqtt_store_unmark_all(&client->main_store);
 
     client->internal.subscribe = client_do_subscribe;
     client->internal.unsubscribe = client_do_unsubscribe;
@@ -483,8 +488,7 @@ void lmqtt_client_finalize(lmqtt_client_t *client)
     client_set_state_failed(client);
 
     lmqtt_rx_buffer_finish(&client->rx_state);
-    client_flush_store(client, &client->main_store);
-    client_flush_store(client, &client->connect_store);
+    client_cleanup_stores(client, 0);
 }
 
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)

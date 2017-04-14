@@ -35,6 +35,7 @@ typedef struct _lmqtt_client_t {
 
     int closed;
     int failed;
+    int clean_session;
 
     lmqtt_rx_buffer_t rx_state;
     lmqtt_tx_buffer_t tx_state;

@@ -242,11 +242,12 @@ static void do_init(lmqtt_client_t *client, long timeout)
     test_socket_init_with_client(client);
 }
 
-static int do_connect(lmqtt_client_t *client, long keep_alive)
+static int do_connect(lmqtt_client_t *client, long keep_alive,
+    int clean_session)
 {
     memset(&connect, 0, sizeof(connect));
     connect.keep_alive = keep_alive;
-    connect.clean_session = 0;
+    connect.clean_session = clean_session;
     connect.client_id.buf = "test";
     connect.client_id.len = 4;
 
@@ -255,7 +256,7 @@ static int do_connect(lmqtt_client_t *client, long keep_alive)
 
 static int do_connect_connack_process(lmqtt_client_t *client, long keep_alive)
 {
-    do_connect(client, keep_alive);
+    do_connect(client, keep_alive, 0);
     test_socket_append(TEST_CONNACK_SUCCESS);
 
     return LMQTT_IO_STATUS_BLOCK_DATA == client_process_output(client) &&
@@ -272,7 +273,7 @@ static int do_init_connect_connack_process(lmqtt_client_t *client,
 
 static int do_connect_process(lmqtt_client_t *client, long keep_alive)
 {
-    do_connect(client, keep_alive);
+    do_connect(client, keep_alive, 0);
 
     return LMQTT_IO_STATUS_BLOCK_DATA == client_process_output(client) &&
         TEST_CONNECT == test_socket_shift();
@@ -307,6 +308,36 @@ static int close_read_buf(lmqtt_client_t *client)
     test_socket.read_buf.len = previous_len;
 
     return result;
+}
+
+static void check_resend_packets_with_clean_session(int first, int second)
+{
+    lmqtt_client_t client;
+
+    do_init(&client, 3);
+
+    do_connect(&client, 5, first);
+    client_process_output(&client);
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+
+    test_socket_append(TEST_CONNACK_SUCCESS);
+    client_process_input(&client);
+
+    do_publish(&client, 1);
+    client_process_output(&client);
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+
+    close_read_buf(&client);
+
+    do_connect(&client, 5, second);
+    client_process_output(&client);
+
+    test_socket_append(TEST_CONNACK_SUCCESS);
+    client_process_input(&client);
+
+    client_process_output(&client);
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift());
 }
 
 START_TEST(should_initialize_client)
@@ -373,7 +404,7 @@ START_TEST(should_not_prepare_invalid_connect)
     connect.clean_session = 0; /* invalid; should have a non-empty client_id */
 
     ck_assert_int_eq(0, lmqtt_client_connect(&client, &connect));
-    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
     ck_assert_int_eq(-1, test_socket_shift());
 }
 END_TEST
@@ -1218,6 +1249,18 @@ START_TEST(should_not_resend_connect_from_previous_connection)
 }
 END_TEST
 
+START_TEST(should_not_resend_packets_if_previous_connection_had_clean_session_set)
+{
+    check_resend_packets_with_clean_session(1, 0);
+}
+END_TEST
+
+START_TEST(should_not_resend_packets_if_new_connection_has_clean_session_set)
+{
+    check_resend_packets_with_clean_session(0, 1);
+}
+END_TEST
+
 START_TCASE("Client commands")
 {
     ADD_TEST(should_initialize_client);
@@ -1269,5 +1312,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_wait_connack_to_resend_packets_from_previous_connection);
     ADD_TEST(should_wait_connack_to_send_unsent_packets_from_previous_connection);
     ADD_TEST(should_not_resend_connect_from_previous_connection);
+    ADD_TEST(should_not_resend_packets_if_previous_connection_had_clean_session_set);
+    ADD_TEST(should_not_resend_packets_if_new_connection_has_clean_session_set);
 }
 END_TCASE
