@@ -3,198 +3,12 @@
 
 #include "../src/lmqtt_io.c"
 
-typedef enum {
-    TEST_CONNECT = 5000,
-    TEST_SUBSCRIBE,
-    TEST_UNSUBSCRIBE,
-    TEST_PUBLISH,
-    TEST_PUBREL,
-    TEST_PINGREQ,
-    TEST_DISCONNECT
-} test_type_request_t;
-
-typedef enum {
-    TEST_CONNACK_SUCCESS = 5100,
-    TEST_CONNACK_FAILURE,
-    TEST_SUBACK_SUCCESS,
-    TEST_UNSUBACK_SUCCESS,
-    TEST_PUBACK,
-    TEST_PUBREC,
-    TEST_PUBCOMP,
-    TEST_PINGRESP
-} test_type_response_t;
-
-typedef struct {
-    test_buffer_t read_buf;
-    test_buffer_t write_buf;
-    int test_pos_read;
-    int test_pos_write;
-} test_socket_t;
-
 typedef struct {
     void *data;
     int succeeded;
 } test_cb_result_t;
 
-static test_socket_t test_socket;
-
-static lmqtt_io_result_t test_socket_read(void *data, u8 *buf, int buf_len,
-    int *bytes_read)
-{
-    test_socket_t *sock = (test_socket_t *) data;
-    return test_buffer_read(&sock->read_buf, buf, buf_len, bytes_read);
-}
-
-static lmqtt_io_result_t test_socket_write(void *data, u8 *buf, int buf_len,
-    int *bytes_written)
-{
-    test_socket_t *sock = (test_socket_t *) data;
-    return test_buffer_write(&sock->write_buf, buf, buf_len, bytes_written);
-}
-
-static void test_socket_init()
-{
-    memset(&test_socket, 0, sizeof(test_socket));
-    test_socket.read_buf.len = sizeof(test_socket.read_buf.buf);
-    test_socket.write_buf.len = sizeof(test_socket.write_buf.buf);
-    test_socket.write_buf.available_len = test_socket.write_buf.len;
-}
-
-static void test_socket_append_param(int val, int param)
-{
-    test_buffer_t *buf = &test_socket.read_buf;
-
-    char src[5];
-    int len = 0;
-
-    switch (val) {
-        case TEST_CONNACK_SUCCESS:
-            memcpy(src, "\x20\x02\x00\x00", 4);
-            len = 4;
-            break;
-        case TEST_CONNACK_FAILURE:
-            memcpy(src, "\x20\x02\x00\x01", 4);
-            len = 4;
-            break;
-        case TEST_SUBACK_SUCCESS:
-            memcpy(src, "\x90\x03\x00\x00\x00", 5);
-            src[2] = param >> 8;
-            src[3] = param;
-            len = 5;
-            break;
-        case TEST_UNSUBACK_SUCCESS:
-            memcpy(src, "\xb0\x02\x00\x00", 4);
-            src[2] = param >> 8;
-            src[3] = param;
-            len = 4;
-            break;
-        case TEST_PUBACK:
-            memcpy(src, "\x40\x02\x00\x00", 4);
-            src[2] = param >> 8;
-            src[3] = param;
-            len = 4;
-            break;
-        case TEST_PUBREC:
-            memcpy(src, "\x50\x02\x00\x00", 4);
-            src[2] = param >> 8;
-            src[3] = param;
-            len = 4;
-            break;
-        case TEST_PUBCOMP:
-            memcpy(src, "\x70\x02\x00\x00", 4);
-            src[2] = param >> 8;
-            src[3] = param;
-            len = 4;
-            break;
-        case TEST_PINGRESP:
-            memcpy(src, "\xd0\x00", 2);
-            len = 2;
-            break;
-    }
-
-    if (src) {
-        memcpy(&buf->buf[test_socket.test_pos_read], src, len);
-        test_socket.test_pos_read += len;
-        buf->available_len += len;
-    }
-}
-
-static void test_socket_append(int val)
-{
-    test_socket_append_param(val, 0);
-}
-
-static int test_socket_shift()
-{
-    test_buffer_t *buf = &test_socket.write_buf;
-
-    test_type_request_t result = -4; /* invalid command */
-    u8 cmd;
-    u8 remain_len;
-    int len;
-    int available = buf->pos - test_socket.test_pos_write;
-
-    if (available <= 0)
-        return -1; /* eof */
-    if (available < 2)
-        return -2; /* partial buffer */
-
-    cmd = buf->buf[test_socket.test_pos_write];
-    remain_len = buf->buf[test_socket.test_pos_write + 1];
-
-    if (remain_len & 0x80)
-        return -3; /* invalid remaining length (for simplicity we do not
-                      implement here decoding for values larger than 127) */
-
-    len = 2 + remain_len;
-    if (available < len)
-        return -2; /* partial buffer */
-
-    switch (cmd & 0xf0) {
-        case 0x10:
-            result = TEST_CONNECT;
-            break;
-        case 0x80:
-            result = TEST_SUBSCRIBE;
-            break;
-        case 0xa0:
-            result = TEST_UNSUBSCRIBE;
-            break;
-        case 0x30:
-            result = TEST_PUBLISH;
-            break;
-        case 0x60:
-            result = TEST_PUBREL;
-            break;
-        case 0xc0:
-            result = TEST_PINGREQ;
-            break;
-        case 0xe0:
-            result = TEST_DISCONNECT;
-            break;
-    }
-
-    test_socket.test_pos_write += len;
-    return result;
-}
-
-static lmqtt_io_result_t read_buf(void *data, u8 *buf, int buf_len,
-    int *bytes_read)
-{
-    test_buffer_t *source = (test_buffer_t *) data;
-
-    return test_buffer_move(source, buf, &source->buf[source->pos], buf_len,
-        bytes_read);
-}
-
-static lmqtt_io_result_t write_buf(void *data, u8 *buf, int buf_len,
-    int *bytes_written)
-{
-    test_buffer_t *destination = (test_buffer_t *) data;
-
-    return test_buffer_move(destination, &destination->buf[destination->pos],
-        buf, buf_len, bytes_written);
-}
+static test_socket_t ts;
 
 static void test_cb_result_set(void *cb_result, void *data, int succeeded)
 {
@@ -232,12 +46,12 @@ static void do_init(lmqtt_client_t *client, long timeout)
 
     callbacks.read = test_socket_read;
     callbacks.write = test_socket_write;
-    callbacks.data = &test_socket;
+    callbacks.data = &ts;
     callbacks.get_time = test_time_get;
 
     lmqtt_client_initialize(client, &callbacks);
     lmqtt_client_set_default_timeout(client, timeout);
-    test_socket_init();
+    test_socket_init(&ts);
 }
 
 static int do_connect(lmqtt_client_t *client, long keep_alive,
@@ -255,11 +69,11 @@ static int do_connect(lmqtt_client_t *client, long keep_alive,
 static int do_connect_connack_process(lmqtt_client_t *client, long keep_alive)
 {
     do_connect(client, keep_alive, 0);
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
 
     return LMQTT_IO_STATUS_BLOCK_DATA == client_process_output(client) &&
         LMQTT_IO_STATUS_BLOCK_CONN == client_process_input(client) &&
-        TEST_CONNECT == test_socket_shift();
+        TEST_CONNECT == test_socket_shift(&ts);
 }
 
 static int do_init_connect_connack_process(lmqtt_client_t *client,
@@ -274,7 +88,7 @@ static int do_connect_process(lmqtt_client_t *client, long keep_alive)
     do_connect(client, keep_alive, 0);
 
     return LMQTT_IO_STATUS_BLOCK_DATA == client_process_output(client) &&
-        TEST_CONNECT == test_socket_shift();
+        TEST_CONNECT == test_socket_shift(&ts);
 }
 
 static int do_init_connect_process(lmqtt_client_t *client, long keep_alive,
@@ -298,12 +112,12 @@ static int do_publish(lmqtt_client_t *client, int qos)
 
 static int close_read_buf(lmqtt_client_t *client)
 {
-    int previous_len = test_socket.read_buf.len;
+    int previous_len = ts.read_buf.len;
     int result;
 
-    test_socket.read_buf.len = test_socket.read_buf.available_len;
+    ts.read_buf.len = ts.read_buf.available_len;
     result = LMQTT_IO_STATUS_READY == client_process_input(client);
-    test_socket.read_buf.len = previous_len;
+    ts.read_buf.len = previous_len;
 
     return result;
 }
@@ -316,26 +130,26 @@ static void check_resend_packets_with_clean_session(int first, int second)
 
     do_connect(&client, 5, first);
     client_process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
 
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     client_process_input(&client);
 
     do_publish(&client, 1);
     client_process_output(&client);
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
     close_read_buf(&client);
 
     do_connect(&client, 5, second);
     client_process_output(&client);
 
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     client_process_input(&client);
 
     client_process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 
 START_TEST(should_initialize_client)
@@ -347,12 +161,12 @@ START_TEST(should_initialize_client)
 
     callbacks.read = test_socket_read;
     callbacks.write = test_socket_write;
-    callbacks.data = &test_socket;
+    callbacks.data = &ts;
     callbacks.get_time = test_time_get;
 
     lmqtt_client_initialize(&client, &callbacks);
 
-    ck_assert_ptr_eq(&test_socket, client.callbacks.data);
+    ck_assert_ptr_eq(&ts, client.callbacks.data);
     ck_assert(client.callbacks.read);
     ck_assert(client.callbacks.write);
     ck_assert(client.main_store.get_time);
@@ -375,7 +189,7 @@ START_TEST(should_prepare_connect_after_initialize)
 
     ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -391,11 +205,11 @@ START_TEST(should_not_prepare_connect_twice)
 
     ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
     client_process_output(&client);
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
 
     ck_assert_int_eq(0, lmqtt_client_connect(&client, &connect));
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -411,7 +225,7 @@ START_TEST(should_not_prepare_invalid_connect)
 
     ck_assert_int_eq(0, lmqtt_client_connect(&client, &connect));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -430,14 +244,14 @@ START_TEST(should_receive_connack_after_connect)
     lmqtt_client_connect(&client, &connect);
     client_process_output(&client);
 
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
     ck_assert_ptr_eq(&connect, cb_result.data);
     ck_assert_int_eq(1, cb_result.succeeded);
 
     /* should not receive connack twice */
     cb_result.data = 0;
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
     ck_assert_ptr_eq(0, cb_result.data);
 }
@@ -459,7 +273,7 @@ START_TEST(should_call_connect_callback_on_connect_failure)
     client_process_output(&client);
 
     cb_result.data = 0;
-    test_socket_append(TEST_CONNACK_FAILURE);
+    test_socket_append(&ts, TEST_CONNACK_FAILURE);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
 
     ck_assert_ptr_eq(&connect, cb_result.data);
@@ -481,7 +295,7 @@ START_TEST(should_not_receive_connack_before_connect)
     lmqtt_client_set_on_connect(&client, on_connect, &cb_result);
 
     cb_result.data = 0;
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
     ck_assert_ptr_eq(0, cb_result.data);
 }
@@ -508,9 +322,9 @@ START_TEST(should_subscribe)
 
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_SUBSCRIBE, test_socket_shift());
+    ck_assert_int_eq(TEST_SUBSCRIBE, test_socket_shift(&ts));
 
-    test_socket_append(TEST_SUBACK_SUCCESS);
+    test_socket_append(&ts, TEST_SUBACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
     ck_assert_ptr_eq(&subscribe, cb_result.data);
     ck_assert_int_eq(1, cb_result.succeeded);
@@ -537,9 +351,9 @@ START_TEST(should_unsubscribe)
 
     ck_assert_int_eq(1, lmqtt_client_unsubscribe(&client, &subscribe));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_UNSUBSCRIBE, test_socket_shift());
+    ck_assert_int_eq(TEST_UNSUBSCRIBE, test_socket_shift(&ts));
 
-    test_socket_append(TEST_UNSUBACK_SUCCESS);
+    test_socket_append(&ts, TEST_UNSUBACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
     ck_assert_ptr_eq(&subscribe, cb_result.data);
     ck_assert_int_eq(1, cb_result.succeeded);
@@ -598,7 +412,7 @@ START_TEST(should_not_subscribe_with_invalid_packet)
 
     ck_assert_int_eq(0, lmqtt_client_subscribe(&client, &subscribe));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -638,7 +452,7 @@ START_TEST(should_publish_with_qos_0)
     lmqtt_store_get_id(&client.main_store);
     ck_assert_int_eq(1, do_publish(&client, 0));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
     /* should NOT assign id to QoS 0 packet */
     ck_assert_int_eq(0, publish.packet_id);
@@ -658,14 +472,14 @@ START_TEST(should_publish_with_qos_1)
     lmqtt_store_get_id(&client.main_store);
     ck_assert_int_eq(1, do_publish(&client, 1));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
     /* should assign id to QoS 1 packet */
     ck_assert_int_eq(1, publish.packet_id);
     ck_assert_ptr_eq(0, cb_result.data);
     ck_assert_int_eq(0, cb_result.succeeded);
 
-    test_socket_append_param(TEST_PUBACK, 1);
+    test_socket_append_param(&ts, TEST_PUBACK, 1);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
 
     ck_assert_ptr_eq(&publish, cb_result.data);
@@ -685,23 +499,23 @@ START_TEST(should_publish_with_qos_2)
     lmqtt_store_get_id(&client.main_store);
     ck_assert_int_eq(1, do_publish(&client, 2));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
     /* should assign id to QoS 2 packet */
     ck_assert_int_eq(1, publish.packet_id);
     ck_assert_ptr_eq(0, cb_result.data);
     ck_assert_int_eq(0, cb_result.succeeded);
 
-    test_socket_append_param(TEST_PUBREC, 1);
+    test_socket_append_param(&ts, TEST_PUBREC, 1);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
 
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBREL, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBREL, test_socket_shift(&ts));
 
     ck_assert_ptr_eq(0, cb_result.data);
     ck_assert_int_eq(0, cb_result.succeeded);
 
-    test_socket_append_param(TEST_PUBCOMP, 1);
+    test_socket_append_param(&ts, TEST_PUBCOMP, 1);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
 
     ck_assert_ptr_eq(&publish, cb_result.data);
@@ -720,7 +534,7 @@ START_TEST(should_not_publish_invalid_packet)
 
     ck_assert_int_eq(0, lmqtt_client_publish(&client, &publish));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -738,7 +552,7 @@ START_TEST(should_send_pingreq_after_timeout)
 
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift());
+    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift(&ts));
 
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
     ck_assert_int_eq(3, secs);
@@ -759,7 +573,7 @@ START_TEST(should_not_send_pingreq_before_timeout)
 
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
     ck_assert_int_eq(1, secs);
@@ -777,12 +591,12 @@ START_TEST(should_not_send_pingreq_with_response_pending)
     test_time_set(16, 0);
     client_keep_alive(&client);
     client_process_output(&client);
-    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift());
+    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift(&ts));
 
     test_time_set(17, 0);
     client_keep_alive(&client);
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -797,14 +611,14 @@ START_TEST(should_send_pingreq_after_pingresp)
     test_time_set(16, 0);
     client_keep_alive(&client);
     client_process_output(&client);
-    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift());
-    test_socket_append(TEST_PINGRESP);
+    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift(&ts));
+    test_socket_append(&ts, TEST_PINGRESP);
     client_process_input(&client);
 
     test_time_set(22, 0);
     client_keep_alive(&client);
     client_process_output(&client);
-    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift());
+    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -822,12 +636,12 @@ START_TEST(should_fail_client_after_pingreq_timeout)
 
     client_keep_alive(&client);
     client_process_output(&client);
-    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift());
+    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift(&ts));
 
     test_time_set(20, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -839,7 +653,7 @@ START_TEST(should_disconnect)
 
     ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift());
+    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -855,8 +669,8 @@ START_TEST(should_not_send_pingreq_after_disconnect)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
 
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift());
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -868,7 +682,7 @@ START_TEST(should_not_disconnect_before_connack)
 
     ck_assert_int_eq(0, lmqtt_client_disconnect(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -879,13 +693,13 @@ START_TEST(should_not_send_pingreq_after_failure)
     test_time_set(10, 0);
     do_init_connect_process(&client, 5, 0);
 
-    test_socket_append(TEST_SUBACK_SUCCESS);
+    test_socket_append(&ts, TEST_SUBACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
 
     test_time_set(16, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -899,7 +713,7 @@ START_TEST(should_not_send_pingreq_before_connack)
     test_time_set(16, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -913,7 +727,7 @@ START_TEST(should_fail_client_after_connection_timeout)
     test_time_set(14, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -927,7 +741,7 @@ START_TEST(should_not_fail_client_before_connection_timeout)
     test_time_set(16, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -938,13 +752,13 @@ START_TEST(should_not_send_pingreq_with_zeroed_keep_alive)
     test_time_set(10, 0);
     do_init_connect_process(&client, 0, 0);
 
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
 
     test_time_set(11, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_keep_alive(&client));
     client_process_output(&client);
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -964,7 +778,7 @@ START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
     ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
     ck_assert_int_eq(3, lmqtt_store_count(&client.main_store));
 
-    test_socket.read_buf.len = 0;
+    ts.read_buf.len = 0;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     ck_assert_int_eq(1, lmqtt_store_count(&client.main_store));
@@ -981,11 +795,11 @@ START_TEST(should_close_encoder_after_socket_close)
     do_init_connect_connack_process(&client, 5, 3);
     ck_assert_int_eq(1, do_publish(&client, 0));
 
-    test_socket.read_buf.len = 0;
+    ts.read_buf.len = 0;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
     ck_assert_int_eq(1, lmqtt_store_count(&client.main_store));
 }
 END_TEST
@@ -996,7 +810,7 @@ START_TEST(should_close_encoder_after_connect_failure)
 
     do_init_connect_process(&client, 5, 3);
 
-    test_socket_append(TEST_CONNACK_FAILURE);
+    test_socket_append(&ts, TEST_CONNACK_FAILURE);
 
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
@@ -1010,10 +824,10 @@ START_TEST(should_reconnect_after_close)
 
     do_init_connect_connack_process(&client, 5, 3);
 
-    test_socket.read_buf.len = 0;
+    ts.read_buf.len = 0;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
-    test_socket.read_buf.len = sizeof(test_socket.read_buf.buf);
+    ts.read_buf.len = sizeof(ts.read_buf.buf);
     ck_assert_int_eq(1, do_connect_connack_process(&client, 5));
 }
 END_TEST
@@ -1026,7 +840,7 @@ START_TEST(should_reconnect_after_disconnect)
 
     ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift());
+    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift(&ts));
 
     ck_assert_int_eq(1, do_connect_connack_process(&client, 5));
 }
@@ -1040,11 +854,11 @@ START_TEST(should_reset_output_buffer_on_reconnect)
     ck_assert_int_eq(1, do_publish(&client, 0));
 
     /* Fill tx buffer, but do not flush it */
-    test_socket.write_buf.available_len = test_socket.write_buf.pos;
+    ts.write_buf.available_len = ts.write_buf.pos;
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_output(&client));
 
     /* Close remote side of connection */
-    test_socket.read_buf.len = 0;
+    ts.read_buf.len = 0;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     memset(&connect, 0, sizeof(connect));
@@ -1052,11 +866,11 @@ START_TEST(should_reset_output_buffer_on_reconnect)
     connect.client_id.len = 4;
     ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
 
-    test_socket.write_buf.available_len = test_socket.write_buf.len;
+    ts.write_buf.available_len = ts.write_buf.len;
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
     /* PUBLISH (QoS 0) packet should have been discarded */
-    ck_assert_int_eq(TEST_CONNECT, test_socket_shift());
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -1068,12 +882,12 @@ START_TEST(should_reset_decoder_on_reconnect)
     ck_assert_int_eq(1, do_publish(&client, 1));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
 
-    test_socket_append(TEST_PUBACK);
+    test_socket_append(&ts, TEST_PUBACK);
 
     /* Close remote side of connection after reading partial buffer */
-    test_socket.read_buf.available_len -= 1;
-    test_socket.read_buf.len = test_socket.read_buf.available_len;
-    test_socket.test_pos_read -= 1;
+    ts.read_buf.available_len -= 1;
+    ts.read_buf.len = ts.read_buf.available_len;
+    ts.test_pos_read -= 1;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     memset(&connect, 0, sizeof(connect));
@@ -1083,8 +897,8 @@ START_TEST(should_reset_decoder_on_reconnect)
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
 
     /* should discard partial buffer */
-    test_socket.read_buf.len = sizeof(test_socket.read_buf.buf);
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    ts.read_buf.len = sizeof(ts.read_buf.buf);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
 }
 END_TEST
@@ -1163,11 +977,11 @@ START_TEST(should_finalize_client_after_partial_decode)
     lmqtt_client_set_on_connect(&client, &on_connect, &cb_result);
     ck_assert(do_connect_process(&client, 3));
 
-    test_socket_append(TEST_CONNACK_FAILURE);
+    test_socket_append(&ts, TEST_CONNACK_FAILURE);
 
-    test_socket.read_buf.available_len -= 1;
-    test_socket.read_buf.len = test_socket.read_buf.available_len;
-    test_socket.test_pos_read -= 1;
+    ts.read_buf.available_len -= 1;
+    ts.read_buf.len = ts.read_buf.available_len;
+    ts.test_pos_read -= 1;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     lmqtt_client_finalize(&client);
@@ -1199,17 +1013,17 @@ START_TEST(should_wait_connack_to_resend_packets_from_previous_connection)
     do_init_connect_connack_process(&client, 5, 3);
     ck_assert(do_publish(&client, 1));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
     ck_assert(close_read_buf(&client));
     ck_assert(do_connect_process(&client, 5));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -1221,13 +1035,13 @@ START_TEST(should_wait_connack_to_send_unsent_packets_from_previous_connection)
     ck_assert(do_publish(&client, 1));
     ck_assert(close_read_buf(&client));
     ck_assert(do_connect_process(&client, 5));
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 
-    test_socket_append(TEST_CONNACK_SUCCESS);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift());
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
 END_TEST
 
@@ -1249,7 +1063,7 @@ START_TEST(should_not_resend_connect_from_previous_connection)
     ck_assert(close_read_buf(&client));
     ck_assert(do_connect_process(&client, 5));
 
-    ck_assert_int_eq(-1, test_socket_shift());
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
     ck_assert_ptr_eq(&connect_2, cb_result.data);
     ck_assert_int_eq(0, cb_result.succeeded);
 }

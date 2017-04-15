@@ -46,6 +46,34 @@ typedef struct {
     int call_count;
 } test_buffer_t;
 
+typedef struct {
+    test_buffer_t read_buf;
+    test_buffer_t write_buf;
+    int test_pos_read;
+    int test_pos_write;
+} test_socket_t;
+
+typedef enum {
+    TEST_CONNECT = 5000,
+    TEST_SUBSCRIBE,
+    TEST_UNSUBSCRIBE,
+    TEST_PUBLISH,
+    TEST_PUBREL,
+    TEST_PINGREQ,
+    TEST_DISCONNECT
+} test_type_request_t;
+
+typedef enum {
+    TEST_CONNACK_SUCCESS = 5100,
+    TEST_CONNACK_FAILURE,
+    TEST_SUBACK_SUCCESS,
+    TEST_UNSUBACK_SUCCESS,
+    TEST_PUBACK,
+    TEST_PUBREC,
+    TEST_PUBCOMP,
+    TEST_PINGRESP
+} test_type_response_t;
+
 lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
     int len, int *bytes_written);
 lmqtt_io_result_t test_buffer_read(void *data, u8 *buf, int buf_len,
@@ -55,5 +83,15 @@ lmqtt_io_result_t test_buffer_write(void *data, u8 *buf, int buf_len,
 
 lmqtt_io_result_t test_time_get(long *secs, long *nsecs);
 void test_time_set(long secs, long nsecs);
+
+lmqtt_io_result_t test_socket_read(void *data, u8 *buf, int buf_len,
+    int *bytes_read);
+lmqtt_io_result_t test_socket_write(void *data, u8 *buf, int buf_len,
+    int *bytes_written);
+
+void test_socket_init(test_socket_t *socket);
+void test_socket_append_param(test_socket_t *socket, int val, int param);
+void test_socket_append(test_socket_t *socket, int val);
+int test_socket_shift(test_socket_t *socket);
 
 #endif
