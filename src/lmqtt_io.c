@@ -165,7 +165,7 @@ static lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf, int buf_len,
  */
 lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 {
-    lmqtt_input_t input = { client->read, client->data };
+    lmqtt_input_t input = { client->callbacks.read, client->callbacks.data };
     lmqtt_output_t output = { client_decode_wrapper, &client->rx_state };
 
     return client_buffer_transfer(client,
@@ -182,7 +182,7 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 {
     lmqtt_input_t input = { client_encode_wrapper, &client->tx_state };
-    lmqtt_output_t output = { client->write, client->data };
+    lmqtt_output_t output = { client->callbacks.write, client->callbacks.data };
 
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_DATA,
@@ -476,9 +476,14 @@ static void client_set_state_failed(lmqtt_client_t *client)
  * lmqtt_client_t PUBLIC functions
  ******************************************************************************/
 
-void lmqtt_client_initialize(lmqtt_client_t *client)
+void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_callbacks_t
+    *callbacks)
 {
     memset(client, 0, sizeof(*client));
+
+    memcpy(&client->callbacks, callbacks, sizeof(*callbacks));
+    client->main_store.get_time = callbacks->get_time;
+    client->connect_store.get_time = callbacks->get_time;
 
     client_set_state_initial(client);
 }

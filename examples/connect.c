@@ -144,6 +144,7 @@ int main()
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
+    lmqtt_callbacks_t callbacks;
 
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);
@@ -161,13 +162,13 @@ int main()
         exit(1);
     }
 
-    lmqtt_client_initialize(&client);
-    client.data = &socket_fd;
-    client.read = read_data;
-    client.write = write_data;
-    client.get_time = get_time;
-    client.main_store.get_time = get_time;
-    client.connect_store.get_time = get_time;
+    callbacks.data = &socket_fd;
+    callbacks.read = read_data;
+    callbacks.write = write_data;
+    callbacks.get_time = get_time;
+
+    lmqtt_client_initialize(&client, &callbacks);
+
     lmqtt_client_set_on_connect(&client, on_connect, &client);
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &client);
     lmqtt_client_set_on_publish(&client, on_publish, &client);

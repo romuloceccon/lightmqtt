@@ -52,21 +52,12 @@ static lmqtt_io_result_t test_socket_write(void *data, u8 *buf, int buf_len,
     return test_buffer_write(&sock->write_buf, buf, buf_len, bytes_written);
 }
 
-static void test_socket_init_with_client(lmqtt_client_t *client)
+static void test_socket_init()
 {
     memset(&test_socket, 0, sizeof(test_socket));
     test_socket.read_buf.len = sizeof(test_socket.read_buf.buf);
     test_socket.write_buf.len = sizeof(test_socket.write_buf.buf);
     test_socket.write_buf.available_len = test_socket.write_buf.len;
-
-    if (client) {
-        client->get_time = test_time_get;
-        client->connect_store.get_time = test_time_get;
-        client->main_store.get_time = test_time_get;
-        client->read = test_socket_read;
-        client->write = test_socket_write;
-        client->data = &test_socket;
-    }
 }
 
 static void test_socket_append_param(int val, int param)
@@ -237,9 +228,16 @@ static lmqtt_publish_t publish;
 
 static void do_init(lmqtt_client_t *client, long timeout)
 {
-    lmqtt_client_initialize(client);
+    lmqtt_callbacks_t callbacks;
+
+    callbacks.read = test_socket_read;
+    callbacks.write = test_socket_write;
+    callbacks.data = &test_socket;
+    callbacks.get_time = test_time_get;
+
+    lmqtt_client_initialize(client, &callbacks);
     lmqtt_client_set_default_timeout(client, timeout);
-    test_socket_init_with_client(client);
+    test_socket_init();
 }
 
 static int do_connect(lmqtt_client_t *client, long keep_alive,
@@ -343,14 +341,22 @@ static void check_resend_packets_with_clean_session(int first, int second)
 START_TEST(should_initialize_client)
 {
     lmqtt_client_t client;
+    lmqtt_callbacks_t callbacks;
 
     memset(&client, -1, sizeof(client));
 
-    lmqtt_client_initialize(&client);
+    callbacks.read = test_socket_read;
+    callbacks.write = test_socket_write;
+    callbacks.data = &test_socket;
+    callbacks.get_time = test_time_get;
 
-    ck_assert_ptr_eq(0, client.data);
-    ck_assert(!client.read);
-    ck_assert(!client.write);
+    lmqtt_client_initialize(&client, &callbacks);
+
+    ck_assert_ptr_eq(&test_socket, client.callbacks.data);
+    ck_assert(client.callbacks.read);
+    ck_assert(client.callbacks.write);
+    ck_assert(client.main_store.get_time);
+    ck_assert(client.connect_store.get_time);
     ck_assert_int_eq(0, client.failed);
     ck_assert_ptr_eq(&client.connect_store, client.rx_state.store);
     ck_assert_ptr_eq(&client.connect_store, client.tx_state.store);

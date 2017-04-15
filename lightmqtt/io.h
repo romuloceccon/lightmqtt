@@ -8,8 +8,14 @@
 #define LMQTT_TX_BUFFER_SIZE 512
 
 typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
-
 typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
+
+typedef struct _lmqtt_callbacks_t {
+    void *data;
+    lmqtt_read_t read;
+    lmqtt_write_t write;
+    lmqtt_get_time_t get_time;
+} lmqtt_callbacks_t;
 
 typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
 typedef void (*lmqtt_client_on_subscribe_t)(void *, lmqtt_subscribe_t *, int);
@@ -19,11 +25,6 @@ typedef void (*lmqtt_client_on_publish_t)(void *, lmqtt_publish_t *, int);
 struct _lmqtt_client_t;
 
 typedef struct _lmqtt_client_t {
-    void *data;
-    lmqtt_get_time_t get_time;
-    lmqtt_read_t read;
-    lmqtt_write_t write;
-
     lmqtt_client_on_connect_t on_connect;
     void *on_connect_data;
     lmqtt_client_on_subscribe_t on_subscribe;
@@ -47,6 +48,8 @@ typedef struct _lmqtt_client_t {
     lmqtt_store_t connect_store;
     lmqtt_store_t *current_store;
 
+    lmqtt_callbacks_t callbacks;
+
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
         int (*subscribe)(struct _lmqtt_client_t *, lmqtt_subscribe_t *);
@@ -68,7 +71,8 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client);
 lmqtt_io_status_t client_process_output(lmqtt_client_t *client);
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
 
-void lmqtt_client_initialize(lmqtt_client_t *client);
+void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_callbacks_t
+    *callbacks);
 void lmqtt_client_finalize(lmqtt_client_t *client);
 
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);

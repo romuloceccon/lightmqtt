@@ -10,8 +10,8 @@
         memset(&client, 0, sizeof(client)); \
         memset(&test_src, 0, sizeof(test_src)); \
         memset(&test_dst, 0, sizeof(test_dst)); \
-        client.data = &test_src; \
-        client.read = test_buffer_read; \
+        client.callbacks.data = &test_src; \
+        client.callbacks.read = test_buffer_read; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -24,8 +24,8 @@
         memset(&client, 0, sizeof(client)); \
         memset(&test_dst, 0, sizeof(test_dst)); \
         memset(&test_src, 0, sizeof(test_src)); \
-        client.data = &test_dst; \
-        client.write = test_buffer_write; \
+        client.callbacks.data = &test_dst; \
+        client.callbacks.write = test_buffer_write; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -279,7 +279,7 @@ START_TEST(should_not_decode_remaining_buffer_if_read_fails)
 
     PREPARE_READ;
 
-    client.read = read_test_buf_fail;
+    client.callbacks.read = read_test_buf_fail;
     test_src.available_len = test_src.len;
     test_dst.available_len = test_dst.len;
 
