@@ -34,6 +34,7 @@ typedef struct _lmqtt_store_t {
 
 u16 lmqtt_store_get_id(lmqtt_store_t *store);
 int lmqtt_store_count(lmqtt_store_t *store);
+int lmqtt_store_is_queueable(lmqtt_store_t *store);
 int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
     lmqtt_store_value_t *value);
 int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class,

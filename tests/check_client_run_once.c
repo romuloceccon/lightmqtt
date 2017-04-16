@@ -1,0 +1,440 @@
+#include "check_lightmqtt.h"
+#include "lightmqtt/io.h"
+
+static test_socket_t ts;
+
+static lmqtt_read_result_t test_read_blocked(void *data, u8 *buf, int buf_len,
+    int *bytes_read)
+{
+    *bytes_read = 0;
+    return LMQTT_READ_WOULD_BLOCK;
+}
+
+static lmqtt_read_result_t test_read_fail(void *data, u8 *buf, int buf_len,
+    int *bytes_read)
+{
+    *bytes_read = 0;
+    return LMQTT_READ_ERROR;
+}
+
+static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
+{
+    int *connected = (int *) data;
+    *connected = (succeeded && connect->response.return_code == 0);
+}
+
+static void do_client_initialize(lmqtt_client_t *client)
+{
+    lmqtt_callbacks_t callbacks;
+
+    test_socket_init(&ts);
+    callbacks.read = test_socket_read;
+    callbacks.write = test_socket_write;
+    callbacks.data = &ts;
+    callbacks.get_time = test_time_get;
+
+    lmqtt_client_initialize(client, &callbacks);
+}
+
+START_TEST(should_run_before_connect)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    int res;
+
+    do_client_initialize(&client);
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(LMQTT_IS_EOF(res)); /* encoder is closed; act like at eof */
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_after_connect)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+    int connected = -1;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    lmqtt_client_set_on_connect(&client, on_connect, &connected);
+    lmqtt_client_connect(&client, &connect);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+    ck_assert_int_eq(1, connected);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_output_blocked)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    lmqtt_client_connect(&client, &connect);
+    ts.write_buf.available_len = 2;
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert_int_eq(-2, test_socket_shift(&ts));
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_data_blocked_for_read)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+    connect.client_id.len = 10;
+    connect.client_id.read = test_read_blocked;
+
+    lmqtt_client_connect(&client, &connect);
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_read_error)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+    connect.client_id.len = 10;
+    connect.client_id.read = test_read_fail;
+
+    lmqtt_client_connect(&client, &connect);
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_output_closed)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    lmqtt_client_connect(&client, &connect);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+
+    ts.write_buf.len = 0;
+    ts.write_buf.available_len = 0;
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_input_closed)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    lmqtt_client_connect(&client, &connect);
+
+    ts.read_buf.len = 0;
+    ts.read_buf.available_len = 0;
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(LMQTT_IS_EOF(res));
+    ck_assert(LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_queue_full)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    lmqtt_publish_t publish;
+    char message[LMQTT_TX_BUFFER_SIZE * 2];
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    lmqtt_client_connect(&client, &connect);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    memset(message, 'x', sizeof(message));
+    memset(&publish, 0, sizeof(publish));
+    publish.qos = 1;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = message;
+    publish.payload.len = sizeof(message);
+
+    while (lmqtt_client_publish(&client, &publish))
+        ;
+
+    ts.write_buf.available_len = ts.write_buf.pos;
+
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+}
+END_TEST
+
+START_TEST(should_run_with_existing_session)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    lmqtt_publish_t publish;
+    lmqtt_store_value_t value;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&publish, 0, sizeof(publish));
+    publish.qos = 1;
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
+    value.value = &publish;
+    value.callback = NULL;
+    value.callback_data = &client;
+    lmqtt_store_append(&client.main_store, LMQTT_CLASS_PUBLISH_1, 0, &value);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 0;
+    connect.client_id.buf = "test";
+    connect.client_id.len = 4;
+
+    lmqtt_client_connect(&client, &connect);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+    ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
+}
+END_TEST
+
+START_TEST(should_run_with_keep_alive)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+    connect.keep_alive = 10;
+
+    test_time_set(5, 0);
+    lmqtt_client_connect(&client, &connect);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+
+    test_time_set(16, 0);
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_int_eq(TEST_PINGREQ, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
+}
+END_TEST
+
+START_TEST(should_run_after_timeout)
+{
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+
+    test_time_set(5, 0);
+    lmqtt_client_set_default_timeout(&client, 10);
+    lmqtt_client_connect(&client, &connect);
+    lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+
+    test_time_set(16, 0);
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
+}
+END_TEST
+
+START_TCASE("Client run once")
+{
+    ADD_TEST(should_run_before_connect);
+    ADD_TEST(should_run_after_connect);
+    ADD_TEST(should_run_with_output_blocked);
+    ADD_TEST(should_run_with_data_blocked_for_read);
+    ADD_TEST(should_run_with_read_error);
+    ADD_TEST(should_run_with_output_closed);
+    ADD_TEST(should_run_with_input_closed);
+    ADD_TEST(should_run_with_queue_full);
+    ADD_TEST(should_run_with_existing_session);
+    ADD_TEST(should_run_with_keep_alive);
+    ADD_TEST(should_run_after_timeout);
+}
+END_TCASE

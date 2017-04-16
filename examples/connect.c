@@ -60,7 +60,7 @@ lmqtt_io_result_t write_data(void *data, u8 *buf, int buf_len,
         return LMQTT_IO_SUCCESS;
     }
 
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EPIPE) {
         *bytes_written = 0;
         fprintf(stderr, "write again\n");
         return LMQTT_IO_AGAIN;
@@ -172,7 +172,7 @@ int main()
     lmqtt_client_set_on_connect(&client, on_connect, &client);
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &client);
     lmqtt_client_set_on_publish(&client, on_publish, &client);
-    lmqtt_client_set_default_timeout(&client, 2);
+    lmqtt_client_set_default_timeout(&client, 5);
 
     memset(&connect_data, 0, sizeof(connect_data));
     connect_data.keep_alive = 3;
@@ -187,32 +187,32 @@ int main()
         int max_fd = socket_fd + 1;
         fd_set read_set;
         fd_set write_set;
-        lmqtt_io_status_t st_k = client_keep_alive(&client);
-        lmqtt_io_status_t st_i = client_process_input(&client);
-        lmqtt_io_status_t st_o = client_process_output(&client);
+        lmqtt_string_t *str_rd, *str_wr;
+        int res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
-        if (st_i == LMQTT_IO_STATUS_READY) {
-            fprintf(stderr, "they disconnected!\n");
-            close(socket_fd);
-            exit(0);
-        }
-        if (st_o == LMQTT_IO_STATUS_READY) {
-            fprintf(stderr, "we disconnected!\n");
-            close(socket_fd);
-            exit(0);
-        }
-
-        if (st_k == LMQTT_IO_STATUS_ERROR || st_i == LMQTT_IO_STATUS_ERROR || st_o == LMQTT_IO_STATUS_ERROR) {
+        if (LMQTT_IS_ERROR(res)) {
             fprintf(stderr, "client: error\n");
             close(socket_fd);
             exit(1);
         }
 
+        if (LMQTT_IS_EOF_RD(res)) {
+            fprintf(stderr, "they disconnected!\n");
+            close(socket_fd);
+            exit(0);
+        }
+
+        if (LMQTT_IS_EOF_WR(res)) {
+            fprintf(stderr, "we disconnected!\n");
+            close(socket_fd);
+            exit(0);
+        }
+
         FD_ZERO(&read_set);
         FD_ZERO(&write_set);
-        if (st_i == LMQTT_IO_STATUS_BLOCK_CONN)
+        if (LMQTT_WOULD_BLOCK_CONN_RD(res))
             FD_SET(socket_fd, &read_set);
-        if (st_o == LMQTT_IO_STATUS_BLOCK_CONN)
+        if (LMQTT_WOULD_BLOCK_CONN_WR(res))
             FD_SET(socket_fd, &write_set);
         if (lmqtt_client_get_timeout(&client, &secs, &nsecs)) {
             timeout.tv_sec = secs;
@@ -228,14 +228,20 @@ int main()
             continue;
         }
 
-        if (select(max_fd, &read_set, &write_set, NULL, timeout_ptr) == -1) {
-            fprintf(stderr, "select failed: %d\n", errno);
-            exit(1);
-        }
-
         if (timeout_ptr)
-            fprintf(stderr, "selected (%ld, %ld)\n", secs, nsecs);
+            fprintf(stderr, "selecting (%ld, %ld) ... ", secs, nsecs);
         else
-            fprintf(stderr, "selected\n");
+            fprintf(stderr, "selecting ... ");
+
+        switch (select(max_fd, &read_set, &write_set, NULL, timeout_ptr)) {
+            case -1:
+                fprintf(stderr, "failed: %d!\n", errno);
+                exit(1);
+            case 0:
+                fprintf(stderr, "timed out\n");
+                break;
+            default:
+                fprintf(stderr, "signaled\n");
+        }
     }
 }

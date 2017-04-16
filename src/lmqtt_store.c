@@ -49,12 +49,17 @@ int lmqtt_store_count(lmqtt_store_t *store)
     return store->count;
 }
 
+int lmqtt_store_is_queueable(lmqtt_store_t *store)
+{
+    return store->count < LMQTT_STORE_SIZE;
+}
+
 int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
     lmqtt_store_value_t *value)
 {
     lmqtt_store_entry_t *entry;
 
-    if (store->count >= LMQTT_STORE_SIZE)
+    if (!lmqtt_store_is_queueable(store))
         return 0;
 
     entry = &store->entries[store->count++];
