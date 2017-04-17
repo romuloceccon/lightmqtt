@@ -574,13 +574,16 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
 {
     int result;
     int st_i, st_o;
-    int class;
-    lmqtt_store_value_t value;
 
-    if (client_keep_alive(client) == LMQTT_IO_STATUS_ERROR)
+    if (client_keep_alive(client) == LMQTT_IO_STATUS_ERROR) {
+        *str_rd = NULL;
+        *str_wr = NULL;
         return LMQTT_RES_ERROR;
+    }
 
     do {
+        *str_rd = NULL;
+        *str_wr = NULL;
         result = 0;
 
         st_i = client_process_output(client);
@@ -591,8 +594,11 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
 
         if (st_i == LMQTT_IO_STATUS_BLOCK_CONN)
             result |= LMQTT_RES_WOULD_BLOCK_CONN_WR;
-        if (st_i == LMQTT_IO_STATUS_BLOCK_DATA && lmqtt_store_peek(client->current_store, &class, &value))
-            result |= LMQTT_RES_WOULD_BLOCK_DATA_RD;
+        if (st_i == LMQTT_IO_STATUS_BLOCK_DATA) {
+            *str_rd = lmqtt_tx_buffer_get_blocking_str(&client->tx_state);
+            if (*str_rd) /* implies: lmqtt_store_has_current(store) */
+                result |= LMQTT_RES_WOULD_BLOCK_DATA_RD;
+        }
 
         st_o = client_process_input(client);
         if (st_o == LMQTT_IO_STATUS_READY)
@@ -607,9 +613,8 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
 
         /* repeat if queue was empty after client_process_output() and new
            packets were added during client_process_input() */
-    } while (!LMQTT_WOULD_BLOCK_DATA_RD(result) && \
-        st_i == LMQTT_IO_STATUS_BLOCK_DATA && \
-        lmqtt_store_peek(client->current_store, &class, &value));
+    } while (!*str_rd && st_i == LMQTT_IO_STATUS_BLOCK_DATA && \
+        lmqtt_store_has_current(client->current_store));
 
     if (lmqtt_store_is_queueable(client->current_store))
         result |= LMQTT_RES_QUEUEABLE;

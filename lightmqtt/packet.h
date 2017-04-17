@@ -47,21 +47,22 @@ typedef enum {
     LMQTT_READ_ERROR
 } lmqtt_read_result_t;
 
-typedef struct _lmqtt_encode_buffer_t {
-    int encoded;
-    int buf_len;
-    u8 buf[16];
-} lmqtt_encode_buffer_t;
-
-typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(void *,
-    lmqtt_encode_buffer_t *);
-
 typedef struct _lmqtt_string_t {
     int len;
     char *buf;
     void *data;
     lmqtt_read_result_t (*read)(void *, u8 *, int, int *);
 } lmqtt_string_t;
+
+typedef struct _lmqtt_encode_buffer_t {
+    int encoded;
+    int buf_len;
+    u8 buf[16];
+    lmqtt_string_t *blocking_str;
+} lmqtt_encode_buffer_t;
+
+typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(void *,
+    lmqtt_encode_buffer_t *);
 
 /* TODO: review this; only remaining_length is actually part of the fixed
  * header */
@@ -172,6 +173,7 @@ void lmqtt_tx_buffer_reset(lmqtt_tx_buffer_t *state);
 void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state);
 lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_written);
+lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state);
 
 void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state);
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);

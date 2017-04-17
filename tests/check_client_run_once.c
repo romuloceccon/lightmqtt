@@ -61,8 +61,9 @@ END_TEST
 
 START_TEST(should_run_after_connect)
 {
+    lmqtt_string_t dummy;
     lmqtt_client_t client;
-    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_string_t *str_rd = &dummy, *str_wr = &dummy;
     lmqtt_connect_t connect;
     int res;
     int connected = -1;
@@ -91,13 +92,17 @@ START_TEST(should_run_after_connect)
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
     ck_assert(LMQTT_IS_QUEUEABLE(res));
     ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_ptr_eq(NULL, str_rd);
+    ck_assert_ptr_eq(NULL, str_wr);
 }
 END_TEST
 
 START_TEST(should_run_with_output_blocked)
 {
+    lmqtt_string_t dummy;
     lmqtt_client_t client;
-    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_string_t *str_rd = &dummy, *str_wr = &dummy;
     lmqtt_connect_t connect;
     int res;
 
@@ -123,13 +128,17 @@ START_TEST(should_run_with_output_blocked)
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
     ck_assert(LMQTT_IS_QUEUEABLE(res));
     ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_ptr_eq(NULL, str_rd);
+    ck_assert_ptr_eq(NULL, str_wr);
 }
 END_TEST
 
 START_TEST(should_run_with_data_blocked_for_read)
 {
+    lmqtt_string_t dummy;
     lmqtt_client_t client;
-    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_string_t *str_rd = &dummy, *str_wr = &dummy;
     lmqtt_connect_t connect;
     int res;
 
@@ -154,6 +163,9 @@ START_TEST(should_run_with_data_blocked_for_read)
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
     ck_assert(LMQTT_IS_QUEUEABLE(res));
     ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_ptr_eq(&connect.client_id, str_rd);
+    ck_assert_ptr_eq(NULL, str_wr);
 }
 END_TEST
 

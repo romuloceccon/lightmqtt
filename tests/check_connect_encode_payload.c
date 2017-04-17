@@ -359,6 +359,7 @@ START_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size)
 
     ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
     ck_assert_int_eq(7, bytes_w);
+    ck_assert_ptr_eq(NULL, encode_buffer.blocking_str);
 
     ck_assert_uint_eq(0, buf[0]);
     ck_assert_uint_eq(10, buf[1]);
@@ -370,6 +371,7 @@ START_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size)
 
     ck_assert_int_eq(LMQTT_ENCODE_WOULD_BLOCK, res);
     ck_assert_int_eq(0, bytes_w);
+    ck_assert_ptr_eq(&connect.user_name, encode_buffer.blocking_str);
 
     read_buf.available_len = 10;
 
@@ -378,6 +380,7 @@ START_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size)
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(5, bytes_w);
+    ck_assert_ptr_eq(NULL, encode_buffer.blocking_str);
 }
 END_TEST
 

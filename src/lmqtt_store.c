@@ -49,6 +49,14 @@ int lmqtt_store_count(lmqtt_store_t *store)
     return store->count;
 }
 
+int lmqtt_store_has_current(lmqtt_store_t *store)
+{
+    int class;
+    lmqtt_store_value_t value;
+
+    return lmqtt_store_peek(store, &class, &value);
+}
+
 int lmqtt_store_is_queueable(lmqtt_store_t *store)
 {
     return store->count < LMQTT_STORE_SIZE;
