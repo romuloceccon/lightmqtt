@@ -908,6 +908,39 @@ static lmqtt_decode_result_t rx_buffer_decode_connack(lmqtt_rx_buffer_t *state,
     }
 }
 
+static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
+    u8 b)
+{
+    int rem_len = state->internal.header.remaining_length;
+    int rem_pos = state->internal.remain_buf_pos + 1;
+    static const int s_len = LMQTT_STRING_LEN_SIZE;
+    static const int p_len = LMQTT_PACKET_ID_SIZE;
+    lmqtt_publish_t *publish;
+
+    if (rem_pos <= s_len) {
+        state->internal.topic_len |= b << ((s_len - rem_pos) * 8);
+        if (rem_pos == s_len && (state->internal.topic_len == 0 ||
+                state->internal.topic_len + s_len + p_len > rem_len))
+            return LMQTT_DECODE_ERROR;
+    } else {
+        int p_start = s_len + state->internal.topic_len;
+        if (rem_pos >= p_start && rem_pos <= p_start + p_len)
+            state->internal.packet_id |= b << ((p_len - rem_pos + p_start) * 8);
+    }
+
+    if (rem_len > rem_pos)
+        return LMQTT_DECODE_CONTINUE;
+
+    publish = &state->internal.publish;
+    publish->packet_id = state->internal.packet_id;
+    publish->qos = state->internal.header.qos;
+    publish->retain = state->internal.header.retain;
+
+    if (state->on_publish)
+        state->on_publish(state->on_publish_data, &state->internal.publish);
+    return LMQTT_DECODE_FINISHED;
+}
+
 static lmqtt_decode_result_t rx_buffer_decode_suback(lmqtt_rx_buffer_t *state,
     u8 b)
 {
@@ -1058,7 +1091,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_publish = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_decode_remaining_without_id,
-    NULL
+    &rx_buffer_decode_publish
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_puback = {
     2,

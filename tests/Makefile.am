@@ -14,6 +14,7 @@ TESTS = \
     .bin/check_tx_buffer_finders \
     .bin/check_rx_buffer_decode \
     .bin/check_rx_buffer_decode_connack \
+    .bin/check_rx_buffer_decode_publish \
     .bin/check_rx_buffer_decode_suback \
     .bin/check_rx_buffer_callbacks \
     .bin/check_client_buffers \
@@ -42,6 +43,7 @@ _bin_check_tx_buffer_finders_SOURCES        = check_tx_buffer_finders.c \
 _bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c \
     check_lightmqtt.c
 _bin_check_rx_buffer_decode_connack_SOURCES = check_rx_buffer_decode_connack.c
+_bin_check_rx_buffer_decode_publish_SOURCES = check_rx_buffer_decode_publish.c
 _bin_check_rx_buffer_decode_suback_SOURCES  = check_rx_buffer_decode_suback.c
 _bin_check_rx_buffer_callbacks_SOURCES      = check_rx_buffer_callbacks.c \
     check_lightmqtt.c

@@ -151,16 +151,23 @@ struct _lmqtt_rx_buffer_decoder_t {
     lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
 };
 
+typedef int (*lmqtt_rx_buffer_on_publish_t)(void *, lmqtt_publish_t *);
+
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
+
+    lmqtt_rx_buffer_on_publish_t on_publish;
+    void *on_publish_data;
 
     struct {
         lmqtt_fixed_header_t header;
         int header_finished;
         struct _lmqtt_rx_buffer_decoder_t const *decoder;
         int remain_buf_pos;
+        int topic_len;
         u16 packet_id;
         lmqtt_store_value_t value;
+        lmqtt_publish_t publish;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;

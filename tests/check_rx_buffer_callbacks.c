@@ -13,6 +13,7 @@
     memset(&store, 0, sizeof(store)); \
     memset(&value, 0, sizeof(value)); \
     state.store = &store; \
+    state.on_publish = &test_on_message_received; \
     store.get_time = &test_time_get; \
     value.callback_data = &callbacks_data
 
@@ -39,6 +40,13 @@ int test_on_publish(void *data, lmqtt_publish_t *publish)
 int test_on_pingresp(void *data, void *unused)
 {
     *((void **) data) = &pingresp_data;
+    return 1;
+}
+
+int test_on_message_received(void *data, lmqtt_publish_t *publish)
+{
+    lmqtt_publish_t *dst = (lmqtt_publish_t *) data;
+    memcpy(dst, publish, sizeof(*publish));
     return 1;
 }
 
@@ -204,6 +212,43 @@ START_TEST(should_call_pingresp_callback)
 }
 END_TEST
 
+START_TEST(should_call_message_received_callback)
+{
+    u8 *buf = (u8 *) "\x30\x06\x00\x01X\x02\x03X";
+    lmqtt_publish_t publish;
+
+    PREPARE;
+
+    memset(&publish, 0, sizeof(publish));
+    state.on_publish_data = &publish;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_uint_eq(0x203, publish.packet_id);
+    ck_assert_uint_eq(0, publish.qos);
+    ck_assert_uint_eq(0, publish.retain);
+}
+END_TEST
+
+START_TEST(should_decode_qos_and_retain_flag)
+{
+    u8 *buf = (u8 *) "\x35\x06\x00\x01X\x00\x01X";
+    lmqtt_publish_t publish;
+
+    PREPARE;
+
+    memset(&publish, 0, sizeof(publish));
+    state.on_publish_data = &publish;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_uint_eq(2, publish.qos);
+    ck_assert_uint_eq(1, publish.retain);
+}
+END_TEST
+
 /* PINGRESP has no decode_byte callback; should return an error */
 START_TEST(should_not_call_null_decode_byte)
 {
@@ -230,6 +275,8 @@ START_TCASE("Rx buffer callbacks")
     ADD_TEST(should_call_publish_callback_with_qos_2);
     ADD_TEST(should_not_release_publish_with_qos_2_without_pubrec);
     ADD_TEST(should_call_pingresp_callback);
+    ADD_TEST(should_call_message_received_callback);
+    ADD_TEST(should_decode_qos_and_retain_flag);
     ADD_TEST(should_not_call_null_decode_byte);
 }
 END_TCASE
