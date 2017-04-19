@@ -930,6 +930,8 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
     static const int s_len = LMQTT_STRING_LEN_SIZE;
     static const int p_len = LMQTT_PACKET_ID_SIZE;
     lmqtt_publish_t *publish;
+    lmqtt_store_value_t value;
+    int qos = state->internal.header.qos;
 
     if (rem_pos <= s_len) {
         state->internal.topic_len |= b << ((s_len - rem_pos) * 8);
@@ -945,8 +947,15 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
     if (rem_len > rem_pos)
         return LMQTT_DECODE_CONTINUE;
 
+    if (qos > 0) {
+        memset(&value, 0, sizeof(value));
+        value.packet_id = state->internal.packet_id;
+        lmqtt_store_append(state->store, qos == 2 ? LMQTT_CLASS_PUBREC :
+            LMQTT_CLASS_PUBACK, &value);
+    }
+
     publish = &state->internal.publish;
-    publish->qos = state->internal.header.qos;
+    publish->qos = qos;
     publish->retain = state->internal.header.retain;
 
     if (state->on_publish)

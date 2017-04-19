@@ -8,12 +8,12 @@
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
     void *callbacks_data = 0; \
+    int class; \
     lmqtt_store_value_t value; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&value, 0, sizeof(value)); \
     state.store = &store; \
-    state.on_publish = &test_on_message_received; \
     store.get_time = &test_time_get; \
     value.callback_data = &callbacks_data
 
@@ -222,6 +222,7 @@ START_TEST(should_call_message_received_callback)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
+    state.on_publish = &test_on_message_received;
     state.on_publish_data = &publish;
 
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
@@ -240,6 +241,7 @@ START_TEST(should_decode_qos_and_retain_flag)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
+    state.on_publish = &test_on_message_received;
     state.on_publish_data = &publish;
 
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
@@ -267,6 +269,49 @@ START_TEST(should_not_call_null_decode_byte)
 }
 END_TEST
 
+START_TEST(should_not_reply_to_publish_with_qos_0)
+{
+    u8 *buf = (u8 *) "\x30\x06\x00\x01X\x00\x00X";
+
+    PREPARE;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(0, lmqtt_store_peek(&store, &class, &value));
+}
+END_TEST
+
+START_TEST(should_reply_to_publish_with_qos_1)
+{
+    u8 *buf = (u8 *) "\x32\x06\x00\x01X\x02\x05X";
+
+    PREPARE;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
+    ck_assert_int_eq(LMQTT_CLASS_PUBACK, class);
+    ck_assert_int_eq(0x0205, value.packet_id);
+}
+END_TEST
+
+START_TEST(should_reply_to_publish_with_qos_2)
+{
+    u8 *buf = (u8 *) "\x34\x06\x00\x01X\x02\x05X";
+
+    PREPARE;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
+    ck_assert_int_eq(LMQTT_CLASS_PUBREC, class);
+    ck_assert_int_eq(0x0205, value.packet_id);
+}
+END_TEST
+
 START_TCASE("Rx buffer callbacks")
 {
     ADD_TEST(should_call_connack_callback);
@@ -279,5 +324,8 @@ START_TCASE("Rx buffer callbacks")
     ADD_TEST(should_call_message_received_callback);
     ADD_TEST(should_decode_qos_and_retain_flag);
     ADD_TEST(should_not_call_null_decode_byte);
+    ADD_TEST(should_not_reply_to_publish_with_qos_0);
+    ADD_TEST(should_reply_to_publish_with_qos_1);
+    ADD_TEST(should_reply_to_publish_with_qos_2);
 }
 END_TCASE

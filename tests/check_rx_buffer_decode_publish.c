@@ -13,7 +13,11 @@ static void do_decode(lmqtt_rx_buffer_t *state, u8 val,
 START_TEST(should_decode_one_byte_topic_and_payload)
 {
     lmqtt_rx_buffer_t state;
+    lmqtt_store_t store;
     memset(&state, 0, sizeof(state));
+    memset(&store, 0, sizeof(store));
+    state.store = &store;
+    store.get_time = &test_time_get;
     state.internal.header.remaining_length = 6;
 
     do_decode(&state, 0, LMQTT_DECODE_CONTINUE);
@@ -32,7 +36,11 @@ START_TEST(should_decode_long_topic_and_payload)
 {
     int i;
     lmqtt_rx_buffer_t state;
+    lmqtt_store_t store;
     memset(&state, 0, sizeof(state));
+    memset(&store, 0, sizeof(store));
+    state.store = &store;
+    store.get_time = &test_time_get;
     state.internal.header.remaining_length = 0x203 + 6;
 
     do_decode(&state, 2, LMQTT_DECODE_CONTINUE);
@@ -52,7 +60,11 @@ END_TEST
 START_TEST(should_decode_empty_topic)
 {
     lmqtt_rx_buffer_t state;
+    lmqtt_store_t store;
     memset(&state, 0, sizeof(state));
+    memset(&store, 0, sizeof(store));
+    state.store = &store;
+    store.get_time = &test_time_get;
     state.internal.header.remaining_length = 10;
 
     do_decode(&state, 0, LMQTT_DECODE_CONTINUE);
@@ -63,7 +75,11 @@ END_TEST
 START_TEST(should_decode_invalid_remaining_length)
 {
     lmqtt_rx_buffer_t state;
+    lmqtt_store_t store;
     memset(&state, 0, sizeof(state));
+    memset(&store, 0, sizeof(store));
+    state.store = &store;
+    store.get_time = &test_time_get;
     state.internal.header.remaining_length = 8;
 
     do_decode(&state, 0, LMQTT_DECODE_CONTINUE);
@@ -74,7 +90,11 @@ END_TEST
 START_TEST(should_decode_empty_payload)
 {
     lmqtt_rx_buffer_t state;
+    lmqtt_store_t store;
     memset(&state, 0, sizeof(state));
+    memset(&store, 0, sizeof(store));
+    state.store = &store;
+    store.get_time = &test_time_get;
     state.internal.header.remaining_length = 7;
 
     do_decode(&state, 0, LMQTT_DECODE_CONTINUE);
