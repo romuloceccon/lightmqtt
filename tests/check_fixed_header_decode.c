@@ -139,6 +139,15 @@ START_TEST(should_decode_fixed_header_invalid_zero_representation)
 }
 END_TEST
 
+START_TEST(should_decode_invalid_dup_flag)
+{
+    lmqtt_fixed_header_t header;
+    memset(&header, 0, sizeof(header));
+
+    ck_assert_int_eq(LMQTT_DECODE_ERROR, fixed_header_decode(&header, 0x38));
+}
+END_TEST
+
 START_TEST(should_not_decode_after_remaining_length)
 {
     int res;
@@ -180,6 +189,7 @@ START_TCASE("Decode fixed header")
     ADD_TEST(should_decode_fixed_header_invalid_fourth_byte);
     ADD_TEST(should_decode_fixed_header_valid_zero_representation);
     ADD_TEST(should_decode_fixed_header_invalid_zero_representation);
+    ADD_TEST(should_decode_invalid_dup_flag);
     ADD_TEST(should_not_decode_after_remaining_length);
     ADD_TEST(should_not_decode_after_error);
 }

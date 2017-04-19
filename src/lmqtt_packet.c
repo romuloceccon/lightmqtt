@@ -211,7 +211,7 @@ static lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header,
                 bad_flags = flags != 2;
                 break;
             case LMQTT_TYPE_PUBLISH:
-                bad_flags = (flags & 6) == 6;
+                bad_flags = (flags & 6) == 6 || (flags & 14) == 8;
                 break;
             default:
                 bad_flags = flags != 0;
