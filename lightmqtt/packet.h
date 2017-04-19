@@ -16,6 +16,8 @@
 #define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
 #define LMQTT_CONNACK_RC_MAX 5
 
+#define LMQTT_ID_LIST_SIZE 16
+
 typedef enum {
     LMQTT_CLASS_CONNECT = 200,
     LMQTT_CLASS_PUBLISH_0,
@@ -48,6 +50,11 @@ typedef enum {
     LMQTT_READ_WOULD_BLOCK,
     LMQTT_READ_ERROR
 } lmqtt_read_result_t;
+
+typedef struct _lmqtt_id_set_t {
+    u16 items[LMQTT_ID_LIST_SIZE];
+    int count;
+} lmqtt_id_set_t;
 
 typedef struct _lmqtt_string_t {
     int len;
@@ -169,6 +176,7 @@ typedef struct _lmqtt_rx_buffer_t {
         u16 packet_id;
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
+        lmqtt_id_set_t id_set;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;

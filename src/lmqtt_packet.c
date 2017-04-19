@@ -56,6 +56,54 @@ static lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
 }
 
 /******************************************************************************
+ * lmqtt_id_list_t PRIVATE functions
+ ******************************************************************************/
+
+static int id_set_contains(lmqtt_id_set_t *id_set, u16 id)
+{
+    int i;
+
+    for (i = 0; i < id_set->count; i++) {
+        if (id_set->items[i] == id)
+            return 1;
+    }
+
+    return 0;
+}
+
+static int id_set_put(lmqtt_id_set_t *id_set, u16 id)
+{
+    int i;
+
+    if (id_set->count >= LMQTT_ID_LIST_SIZE)
+        return 0;
+
+    for (i = 0; i < id_set->count; i++) {
+        if (id_set->items[i] == id)
+            return 0;
+    }
+
+    id_set->items[id_set->count++] = id;
+    return 1;
+}
+
+static int id_set_remove(lmqtt_id_set_t *id_set, u16 id)
+{
+    int i;
+
+    for (i = 0; i < id_set->count; i++) {
+        if (id_set->items[i] == id) {
+            memmove(&id_set->items[i], &id_set->items[i + 1],
+                sizeof(&id_set->items[0]) * (id_set->count - i - 1));
+            id_set->count--;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+/******************************************************************************
  * lmqtt_encode_buffer_t PRIVATE functions
  ******************************************************************************/
 
@@ -932,6 +980,7 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
     lmqtt_publish_t *publish;
     lmqtt_store_value_t value;
     int qos = state->internal.header.qos;
+    u16 packet_id;
 
     if (rem_pos <= s_len) {
         state->internal.topic_len |= b << ((s_len - rem_pos) * 8);
@@ -940,26 +989,34 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
             return LMQTT_DECODE_ERROR;
     } else {
         int p_start = s_len + state->internal.topic_len;
-        if (rem_pos >= p_start && rem_pos <= p_start + p_len)
-            state->internal.packet_id |= b << ((p_len - rem_pos + p_start) * 8);
+        if (rem_pos > p_start && rem_pos <= p_start + p_len)
+            state->internal.packet_id |= (b << ((p_len - rem_pos + p_start) * 8));
     }
 
     if (rem_len > rem_pos)
         return LMQTT_DECODE_CONTINUE;
 
+    packet_id = state->internal.packet_id;
+
     if (qos > 0) {
         memset(&value, 0, sizeof(value));
-        value.packet_id = state->internal.packet_id;
+        value.packet_id = packet_id;
         lmqtt_store_append(state->store, qos == 2 ? LMQTT_CLASS_PUBREC :
             LMQTT_CLASS_PUBACK, &value);
     }
 
-    publish = &state->internal.publish;
-    publish->qos = qos;
-    publish->retain = state->internal.header.retain;
+    if (qos < 2 || !id_set_contains(&state->internal.id_set, packet_id)) {
+        if (qos == 2 && !id_set_put(&state->internal.id_set, packet_id))
+            return LMQTT_DECODE_ERROR;
 
-    if (state->on_publish)
-        state->on_publish(state->on_publish_data, &state->internal.publish);
+        publish = &state->internal.publish;
+        publish->qos = qos;
+        publish->retain = state->internal.header.retain;
+
+        if (state->on_publish)
+            state->on_publish(state->on_publish_data, &state->internal.publish);
+    }
+
     return LMQTT_DECODE_FINISHED;
 }
 

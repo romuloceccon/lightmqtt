@@ -1,6 +1,7 @@
 TESTS = \
     .bin/check_time \
     .bin/check_store \
+    .bin/check_id_set \
     .bin/check_encode_remaining_length \
     .bin/check_encode_buffer \
     .bin/check_connect_encode_headers \
@@ -27,6 +28,7 @@ _bin_check_time_SOURCES                     = check_time.c \
     check_lightmqtt.c
 _bin_check_store_SOURCES                    = check_store.c \
     check_lightmqtt.c
+_bin_check_id_set_SOURCES                   = check_id_set.c
 _bin_check_encode_remaining_length_SOURCES  = check_encode_remaining_length.c
 _bin_check_encode_buffer_SOURCES            = check_encode_buffer.c
 _bin_check_connect_encode_headers_SOURCES   = check_connect_encode_headers.c
