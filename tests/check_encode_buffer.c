@@ -4,7 +4,7 @@
 
 #define PREPARE \
     u8 buf[512]; \
-    int bytes_w; \
+    int bytes_w = 0xcccccccc; \
     lmqtt_encode_buffer_t encode_buffer; \
     lmqtt_encode_result_t res; \
     int cnt; \

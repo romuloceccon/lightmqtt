@@ -70,8 +70,10 @@ static lmqtt_encode_result_t encode_buffer_encode(
     assert(buf_len >= 0);
 
     if (!encode_buffer->encoded) {
-        if (builder(value, encode_buffer) != LMQTT_ENCODE_FINISHED)
+        if (builder(value, encode_buffer) != LMQTT_ENCODE_FINISHED) {
+            *bytes_written = 0;
             return LMQTT_ENCODE_ERROR;
+        }
         encode_buffer->encoded = 1;
     }
     assert(encode_buffer->buf_len > 0 && offset < encode_buffer->buf_len);
