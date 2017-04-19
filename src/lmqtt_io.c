@@ -228,7 +228,6 @@ static int client_subscribe_with_class(lmqtt_client_t *client,
         return 0;
 
     packet_id = lmqtt_store_get_id(&client->main_store);
-    subscribe->packet_id = packet_id;
 
     value.packet_id = packet_id;
     value.value = subscribe;
@@ -371,13 +370,12 @@ static int client_do_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
 
     if (qos == 0) {
         class = LMQTT_CLASS_PUBLISH_0;
-        publish->packet_id = 0;
+        value.packet_id = 0;
     } else {
         class = qos == 1 ? LMQTT_CLASS_PUBLISH_1 : LMQTT_CLASS_PUBLISH_2;
-        publish->packet_id = lmqtt_store_get_id(&client->main_store);
+        value.packet_id = lmqtt_store_get_id(&client->main_store);
     }
 
-    value.packet_id = publish->packet_id;
     value.value = publish;
     value.callback = (lmqtt_store_entry_callback_t) &client_on_publish;
     value.callback_data = client;

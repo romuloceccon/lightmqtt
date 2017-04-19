@@ -61,7 +61,7 @@ typedef struct _lmqtt_encode_buffer_t {
     lmqtt_string_t *blocking_str;
 } lmqtt_encode_buffer_t;
 
-typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(void *,
+typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(lmqtt_store_value_t *,
     lmqtt_encode_buffer_t *);
 
 /* TODO: review this; only remaining_length is actually part of the fixed
@@ -104,7 +104,6 @@ typedef struct _lmqtt_connect_t {
 } lmqtt_connect_t;
 
 typedef struct _lmqtt_subscribe_t {
-    u16 packet_id;
     int count;
     lmqtt_subscription_t *subscriptions;
     struct {
@@ -113,7 +112,6 @@ typedef struct _lmqtt_subscribe_t {
 } lmqtt_subscribe_t;
 
 typedef struct _lmqtt_publish_t {
-    u16 packet_id;
     int qos;
     int retain;
     lmqtt_string_t topic;
@@ -135,10 +133,11 @@ typedef struct _lmqtt_tx_buffer_t {
     } internal;
 } lmqtt_tx_buffer_t;
 
-typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(void *,
+typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(lmqtt_store_value_t *,
     lmqtt_encode_buffer_t *, int, u8 *, int, int *);
 
-typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *, void *);
+typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *,
+    lmqtt_store_value_t *);
 
 struct _lmqtt_rx_buffer_t;
 

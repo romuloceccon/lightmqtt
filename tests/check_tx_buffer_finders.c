@@ -70,7 +70,6 @@ START_TEST(should_encode_subscribe_to_one_topic)
     memset(&subscribe, 0, sizeof(subscribe));
     memset(&subscription, 0, sizeof(subscription));
 
-    subscribe.packet_id = 0x0a0b;
     subscribe.count = 1;
     subscribe.subscriptions = &subscription;
 
@@ -106,7 +105,6 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
     memset(topic_1, 'x', sizeof(topic_1));
     memset(topic_2, 'y', sizeof(topic_2));
 
-    subscribe.packet_id = 0x0c0d;
     subscribe.count = 2;
     subscribe.subscriptions = subscriptions;
 
@@ -158,7 +156,6 @@ START_TEST(should_encode_unsubscribe_to_multiple_topics)
     memset(topic_1, 'x', sizeof(topic_1));
     memset(topic_2, 'y', sizeof(topic_2));
 
-    subscribe.packet_id = 0x0c0d;
     subscribe.count = 2;
     subscribe.subscriptions = subscriptions;
 
@@ -204,7 +201,6 @@ START_TEST(should_encode_publish_with_qos_0)
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0102;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
 
@@ -234,7 +230,6 @@ START_TEST(should_encode_publish_with_qos_1)
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0708;
     publish.retain = 1;
     publish.internal.encode_count++;
     publish.qos = 1;
@@ -277,7 +272,6 @@ START_TEST(should_increment_publish_encode_count_after_encode)
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0708;
     publish.qos = 1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
@@ -306,7 +300,6 @@ START_TEST(should_encode_pubrel)
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0102;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
 

@@ -128,7 +128,6 @@ START_TEST(should_call_publish_callback_with_qos_1)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0506;
     publish.qos = 1;
     publish.topic.buf = "a";
     publish.topic.len = 1;
@@ -154,7 +153,6 @@ START_TEST(should_call_publish_callback_with_qos_2)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0a0b;
     publish.qos = 2;
     publish.topic.buf = "a";
     publish.topic.len = 1;
@@ -184,7 +182,6 @@ START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
-    publish.packet_id = 0x0a0b;
     publish.qos = 2;
     publish.topic.buf = "a";
     publish.topic.len = 1;
@@ -230,7 +227,6 @@ START_TEST(should_call_message_received_callback)
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    ck_assert_uint_eq(0x203, publish.packet_id);
     ck_assert_uint_eq(0, publish.qos);
     ck_assert_uint_eq(0, publish.retain);
 }

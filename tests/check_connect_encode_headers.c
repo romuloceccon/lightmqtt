@@ -17,6 +17,7 @@
 
 #define PREPARE \
     lmqtt_connect_t connect; \
+    lmqtt_store_value_t value; \
     lmqtt_encode_buffer_t encode_buffer; \
     u8 buf[256]; \
     char client_id[256]; \
@@ -27,9 +28,11 @@
     int bytes_w = BYTES_W_PLACEHOLDER; \
     int res; \
     memset(&connect, 0, sizeof(connect)); \
+    memset(&value, 0, sizeof(value)); \
     memset(&encode_buffer, 0, sizeof(encode_buffer)); \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf)); \
     memset(&encode_buffer.buf, BUF_PLACEHOLDER, sizeof(encode_buffer.buf)); \
+    value.value = &connect; \
     INIT_LMQTT_STRING(client_id, 1, CLIENT_ID_PLACEHOLDER); \
     INIT_LMQTT_STRING(will_topic, 0, WILL_TOPIC_PLACEHOLDER); \
     INIT_LMQTT_STRING(will_message, 0, WILL_MESSAGE_PLACEHOLDER); \
@@ -40,7 +43,7 @@ START_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len)
 {
     PREPARE;
 
-    res = connect_build_fixed_header(&connect, &encode_buffer);
+    res = connect_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
@@ -58,7 +61,7 @@ START_TEST(should_encode_connect_fixed_header_with_two_byte_remaining_len)
     connect.client_id.buf = client_id;
     connect.client_id.len = 256;
 
-    res = connect_build_fixed_header(&connect, &encode_buffer);
+    res = connect_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
@@ -74,7 +77,7 @@ START_TEST(should_encode_connect_variable_header)
 {
     PREPARE;
 
-    res = connect_build_variable_header(&connect, &encode_buffer);
+    res = connect_build_variable_header(&value, &encode_buffer);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
@@ -100,7 +103,7 @@ START_TEST(should_encode_connect_keep_alive)
 
     connect.keep_alive = 256 + 255;
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -119,14 +122,14 @@ START_TEST(should_encode_connect_will_topic_and_message)
     connect.will_message.len = 1;
     connect.will_message.buf = will_message;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_fixed_header(&value, &encode_buffer, 0, buf,
         2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
     ck_assert_uint_eq(19, buf[1]);
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf + 2,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf + 2,
         sizeof(buf) - 2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -142,14 +145,14 @@ START_TEST(should_encode_connect_user_name)
     connect.user_name.len = 1;
     connect.user_name.buf = user_name;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_fixed_header(&value, &encode_buffer, 0, buf,
         2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
     ck_assert_uint_eq(16, buf[1]);
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf + 2,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf + 2,
         sizeof(buf) - 2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -167,14 +170,14 @@ START_TEST(should_encode_connect_password)
     connect.password.len = 1;
     connect.password.buf = password;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_fixed_header(&value, &encode_buffer, 0, buf,
         2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
     ck_assert_uint_eq(19, buf[1]);
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf + 2,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf + 2,
         sizeof(buf) - 2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -191,14 +194,14 @@ START_TEST(should_encode_connect_clean_session)
     connect.client_id.buf = NULL;
     connect.clean_session = 1;
 
-    res = connect_encode_fixed_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_fixed_header(&value, &encode_buffer, 0, buf,
         2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
     ck_assert_uint_eq(12, buf[1]);
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf + 2,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf + 2,
         sizeof(buf) - 2, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -217,7 +220,7 @@ START_TEST(should_encode_connect_will_retain)
     connect.will_message.len = 1;
     connect.will_message.buf = will_message;
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -232,7 +235,7 @@ START_TEST(should_encode_connect_qos)
 
     connect.qos = 2;
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -245,7 +248,7 @@ START_TEST(should_encode_connect_with_offset)
 {
     PREPARE;
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 0, buf,
+    res = connect_encode_variable_header(&value, &encode_buffer, 0, buf,
         3, &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
@@ -256,7 +259,7 @@ START_TEST(should_encode_connect_with_offset)
     ck_assert_uint_eq('M',  buf[2]);
     ck_assert_uint_eq(BUF_PLACEHOLDER, buf[3]);
 
-    res = connect_encode_variable_header(&connect, &encode_buffer, 3, buf,
+    res = connect_encode_variable_header(&value, &encode_buffer, 3, buf,
         sizeof(buf), &bytes_w);
 
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);

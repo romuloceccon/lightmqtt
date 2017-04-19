@@ -368,6 +368,8 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     void *data;
     lmqtt_store_entry_callback_t cb;
     int i;
+    lmqtt_store_value_t value;
+    int class;
 
     memset(&subscribe, 0, sizeof(subscribe));
     memset(&subscriptions, 0, sizeof(subscriptions));
@@ -384,9 +386,12 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[1]));
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[2]));
 
-    ck_assert_uint_eq(0, subscribe[0].packet_id);
-    ck_assert_uint_eq(1, subscribe[1].packet_id);
-    ck_assert_uint_eq(2, subscribe[2].packet_id);
+    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    ck_assert_uint_eq(0, value.packet_id);
+    lmqtt_store_get_at(&client.main_store, 1, &class, &value);
+    ck_assert_uint_eq(1, value.packet_id);
+    lmqtt_store_get_at(&client.main_store, 2, &class, &value);
+    ck_assert_uint_eq(2, value.packet_id);
 
     lmqtt_store_mark_current(&client.main_store);
     lmqtt_store_mark_current(&client.main_store);
@@ -445,17 +450,22 @@ START_TEST(should_publish_with_qos_0)
 {
     lmqtt_client_t client;
     test_cb_result_t cb_result = { 0, 0 };
+    lmqtt_store_value_t value;
+    int class;
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
     lmqtt_client_set_on_publish(&client, on_publish, &cb_result);
     lmqtt_store_get_id(&client.main_store);
+
     ck_assert_int_eq(1, do_publish(&client, 0));
+    /* should NOT assign id to QoS 0 packet */
+    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    ck_assert_uint_eq(0, value.packet_id);
+
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
     ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
-    /* should NOT assign id to QoS 0 packet */
-    ck_assert_int_eq(0, publish.packet_id);
     ck_assert_ptr_eq(&publish, cb_result.data);
     ck_assert_int_eq(1, cb_result.succeeded);
 }
@@ -465,17 +475,22 @@ START_TEST(should_publish_with_qos_1)
 {
     lmqtt_client_t client;
     test_cb_result_t cb_result = { 0, 0 };
+    lmqtt_store_value_t value;
+    int class;
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
     lmqtt_client_set_on_publish(&client, on_publish, &cb_result);
     lmqtt_store_get_id(&client.main_store);
+
     ck_assert_int_eq(1, do_publish(&client, 1));
+    /* should assign id to QoS 1 packet */
+    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    ck_assert_uint_eq(1, value.packet_id);
+
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
     ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
-    /* should assign id to QoS 1 packet */
-    ck_assert_int_eq(1, publish.packet_id);
     ck_assert_ptr_eq(0, cb_result.data);
     ck_assert_int_eq(0, cb_result.succeeded);
 
@@ -491,18 +506,23 @@ START_TEST(should_publish_with_qos_2)
 {
     lmqtt_client_t client;
     test_cb_result_t cb_result = { 0, 0 };
+    lmqtt_store_value_t value;
+    int class;
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
     lmqtt_client_set_on_publish(&client, on_publish, &cb_result);
 
     lmqtt_store_get_id(&client.main_store);
+
     ck_assert_int_eq(1, do_publish(&client, 2));
+    /* should assign id to QoS 2 packet */
+    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    ck_assert_uint_eq(1, value.packet_id);
+
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
     ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
-    /* should assign id to QoS 2 packet */
-    ck_assert_int_eq(1, publish.packet_id);
     ck_assert_ptr_eq(0, cb_result.data);
     ck_assert_int_eq(0, cb_result.succeeded);
 

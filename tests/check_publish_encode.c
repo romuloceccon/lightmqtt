@@ -7,11 +7,14 @@
     int bytes_w = 0xcccccccc; \
     u8 buf[256]; \
     lmqtt_publish_t publish; \
+    lmqtt_store_value_t value; \
     lmqtt_encode_buffer_t encode_buffer; \
     char *topic; \
     memset(&buf, 0xcc, sizeof(buf)); \
     memset(&publish, 0, sizeof(publish)); \
-    memset(&encode_buffer, 0, sizeof(encode_buffer))
+    memset(&value, 0, sizeof(value)); \
+    memset(&encode_buffer, 0, sizeof(encode_buffer)); \
+    value.value = &publish
 
 #define INIT_TOPIC(val) \
     do { \
@@ -24,7 +27,7 @@ START_TEST(should_encode_fixed_header_with_empty_payload)
     PREPARE;
     INIT_TOPIC("x");
 
-    res = publish_build_fixed_header(&publish, &encode_buffer);
+    res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
     ck_assert_uint_eq(2,    encode_buffer.buf_len);
@@ -40,7 +43,7 @@ START_TEST(should_encode_fixed_header_with_large_payload)
 
     publish.payload.len = 2097152 - 5;
 
-    res = publish_build_fixed_header(&publish, &encode_buffer);
+    res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
     ck_assert_uint_eq(5,    encode_buffer.buf_len);
@@ -59,7 +62,7 @@ START_TEST(should_not_encode_fixed_header_with_invalid_payload_length)
 
     publish.payload.len = 268435455 - 5 + 1;
 
-    res = publish_build_fixed_header(&publish, &encode_buffer);
+    res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
 }
 END_TEST
@@ -71,7 +74,7 @@ START_TEST(should_encode_retain_flag)
 
     publish.retain = 1;
 
-    res = publish_build_fixed_header(&publish, &encode_buffer);
+    res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
     ck_assert_uint_eq(0x31, encode_buffer.buf[0]);
@@ -85,7 +88,7 @@ START_TEST(should_encode_qos)
 
     publish.qos = 2;
 
-    res = publish_build_fixed_header(&publish, &encode_buffer);
+    res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
     ck_assert_uint_eq(0x34, encode_buffer.buf[0]);
@@ -99,7 +102,7 @@ START_TEST(should_encode_dup)
 
     publish.internal.encode_count++;
 
-    res = publish_build_fixed_header(&publish, &encode_buffer);
+    res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
 
     ck_assert_uint_eq(0x38, encode_buffer.buf[0]);
@@ -111,7 +114,7 @@ START_TEST(should_encode_topic)
     PREPARE;
     INIT_TOPIC("abcd");
 
-    res = publish_encode_topic(&publish, &encode_buffer, 0, buf, sizeof(buf),
+    res = publish_encode_topic(&value, &encode_buffer, 0, buf, sizeof(buf),
         &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(6, bytes_w);
@@ -126,9 +129,9 @@ START_TEST(should_encode_packet_id)
 {
     PREPARE;
 
-    publish.packet_id = 0x0506;
+    value.packet_id = 0x0506;
 
-    res = publish_encode_packet_id(&publish, &encode_buffer, 0, buf,
+    res = publish_encode_packet_id(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
@@ -144,7 +147,7 @@ START_TEST(should_encode_payload)
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
 
-    res = publish_encode_payload(&publish, &encode_buffer, 0, buf,
+    res = publish_encode_payload(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(7, bytes_w);
@@ -157,7 +160,7 @@ START_TEST(should_encode_empty_payload)
 {
     PREPARE;
 
-    res = publish_encode_payload(&publish, &encode_buffer, 0, buf,
+    res = publish_encode_payload(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(0, bytes_w);
@@ -171,7 +174,7 @@ START_TEST(should_encode_payload_from_offset)
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
 
-    res = publish_encode_payload(&publish, &encode_buffer, 5, buf,
+    res = publish_encode_payload(&value, &encode_buffer, 5, buf,
         sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
