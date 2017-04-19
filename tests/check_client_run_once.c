@@ -331,7 +331,7 @@ START_TEST(should_run_with_existing_session)
     value.value = &publish;
     value.callback = NULL;
     value.callback_data = &client;
-    lmqtt_store_append(&client.main_store, LMQTT_CLASS_PUBLISH_1, 0, &value);
+    lmqtt_store_append(&client.main_store, LMQTT_CLASS_PUBLISH_1, &value);
 
     memset(&connect, 0, sizeof(connect));
     connect.clean_session = 0;

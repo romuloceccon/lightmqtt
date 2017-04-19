@@ -9,6 +9,7 @@
 typedef int (*lmqtt_store_entry_callback_t)(void *, void *);
 
 typedef struct _lmqtt_store_value_t {
+    u16 packet_id;
     void *value;
     lmqtt_store_entry_callback_t callback;
     void *callback_data;
@@ -16,7 +17,6 @@ typedef struct _lmqtt_store_value_t {
 
 typedef struct _lmqtt_store_entry_t {
     int class;
-    u16 packet_id;
     lmqtt_time_t time;
     lmqtt_store_value_t value;
 } lmqtt_store_entry_t;
@@ -36,7 +36,7 @@ u16 lmqtt_store_get_id(lmqtt_store_t *store);
 int lmqtt_store_count(lmqtt_store_t *store);
 int lmqtt_store_has_current(lmqtt_store_t *store);
 int lmqtt_store_is_queueable(lmqtt_store_t *store);
-int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
+int lmqtt_store_append(lmqtt_store_t *store, int class,
     lmqtt_store_value_t *value);
 int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class,
     lmqtt_store_value_t *value);

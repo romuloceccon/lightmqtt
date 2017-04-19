@@ -11,7 +11,7 @@ static int store_find(lmqtt_store_t *store, int class, u16 packet_id, int *pos)
 
     for (i = 0; i < store->pos; i++) {
         lmqtt_store_entry_t *entry = &store->entries[i];
-        if (entry->class == class && entry->packet_id == packet_id) {
+        if (entry->class == class && entry->value.packet_id == packet_id) {
             *pos = i;
             return 1;
         }
@@ -62,7 +62,7 @@ int lmqtt_store_is_queueable(lmqtt_store_t *store)
     return store->count < LMQTT_STORE_SIZE;
 }
 
-int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
+int lmqtt_store_append(lmqtt_store_t *store, int class,
     lmqtt_store_value_t *value)
 {
     lmqtt_store_entry_t *entry;
@@ -73,7 +73,6 @@ int lmqtt_store_append(lmqtt_store_t *store, int class, u16 packet_id,
     entry = &store->entries[store->count++];
 
     entry->class = class;
-    entry->packet_id = packet_id;
     lmqtt_time_touch(&entry->time, store->get_time);
     if (value)
         memcpy(&entry->value, value, sizeof(entry->value));

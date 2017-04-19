@@ -433,7 +433,7 @@ START_TEST(should_not_subscribe_with_full_store)
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
 
-    for (i = 0; lmqtt_store_append(&client.main_store, LMQTT_CLASS_PINGREQ, 0,
+    for (i = 0; lmqtt_store_append(&client.main_store, LMQTT_CLASS_PINGREQ,
             NULL); i++)
         ;
 

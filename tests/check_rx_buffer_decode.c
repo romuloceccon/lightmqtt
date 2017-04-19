@@ -26,10 +26,10 @@ static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b);
     store.get_time = &test_time_get; \
     value.value = &data
 
-#define STORE_APPEND_MARK(class, packet_id) \
+#define STORE_APPEND_MARK(class, id) \
     do { \
-        ck_assert_int_eq(1, lmqtt_store_append(&store, class, packet_id, \
-            &value)); \
+        value.packet_id = id; \
+        ck_assert_int_eq(1, lmqtt_store_append(&store, class, &value)); \
         ck_assert_int_eq(1, lmqtt_store_mark_current(&store)); \
     } while (0)
 

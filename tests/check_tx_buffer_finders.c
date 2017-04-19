@@ -44,7 +44,7 @@ START_TEST(should_encode_connect)
     connect.password.len = 1;
 
     value.value = &connect;
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 0, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -78,8 +78,9 @@ START_TEST(should_encode_subscribe_to_one_topic)
     subscription.topic.buf = "test";
     subscription.topic.len = 4;
 
+    value.packet_id = 0x0a0b;
     value.value = &subscribe;
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0a0b, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -117,8 +118,9 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
     subscriptions[1].topic.buf = topic_2;
     subscriptions[1].topic.len = sizeof(topic_2);
 
+    value.packet_id = 0x0c0d;
     value.value = &subscribe;
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, 0x0c0d, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -166,8 +168,9 @@ START_TEST(should_encode_unsubscribe_to_multiple_topics)
     subscriptions[1].topic.buf = topic_2;
     subscriptions[1].topic.len = sizeof(topic_2);
 
+    value.packet_id = 0x0c0d;
     value.value = &subscribe;
-    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, 0x0c0d, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -205,10 +208,11 @@ START_TEST(should_encode_publish_with_qos_0)
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
 
+    value.packet_id = 0x0102;
     value.value = &publish;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
     value.callback_data = &data;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_0, 0x0102, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -239,10 +243,11 @@ START_TEST(should_encode_publish_with_qos_1)
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
 
+    value.packet_id = 0x0708;
     value.value = &publish;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
     value.callback_data = &data;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -279,14 +284,16 @@ START_TEST(should_increment_publish_encode_count_after_encode)
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
 
+    value.packet_id = 0x0708;
     value.value = &publish;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_uint_eq(0x32, buf[0]);
 
+    value.packet_id = 0x0708;
     value.value = &publish;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 0x0708, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_uint_eq(0x3a, buf[0]);
@@ -303,8 +310,9 @@ START_TEST(should_encode_pubrel)
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
 
+    value.packet_id = 0x0102;
     value.value = &publish;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBREL, 0x0102, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBREL, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -322,7 +330,7 @@ START_TEST(should_encode_pingreq)
 {
     PREPARE;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, 0, NULL);
+    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, NULL);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 
@@ -338,7 +346,7 @@ START_TEST(should_encode_disconnect)
 {
     PREPARE;
 
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, NULL);
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, NULL);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
 

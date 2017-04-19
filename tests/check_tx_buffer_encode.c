@@ -107,7 +107,7 @@ START_TEST(should_encode_tx_buffer_with_one_encoding_function)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -126,7 +126,7 @@ START_TEST(should_encode_tx_buffer_with_two_encoding_functions)
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
     encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -147,7 +147,7 @@ START_TEST(should_stop_encoder_after_buffer_fills_up)
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
     encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, 5, &bytes_w);
 
@@ -167,7 +167,7 @@ START_TEST(should_return_actual_bytes_written_after_error)
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
     encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
     encoders[2] = (lmqtt_encoder_t) encode_test_fail;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -186,7 +186,7 @@ START_TEST(should_continue_buffer_where_previous_call_stopped)
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
     encoders[1] = (lmqtt_encoder_t) encode_test_50_54;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, 6, &bytes_w);
 
@@ -221,7 +221,7 @@ START_TEST(should_continue_buffer_twice_with_the_same_encoder_entry)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, 2, &bytes_w);
 
@@ -244,7 +244,7 @@ START_TEST(should_encode_blocking_buffer)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_10_19_blocking;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -279,9 +279,10 @@ START_TEST(should_encode_two_packets_at_once)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
+    value.packet_id = 1;
     value.value = &data2;
-    lmqtt_store_append(&store, 0, 1, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
@@ -303,7 +304,7 @@ START_TEST(should_not_track_disconnect_packet)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -318,7 +319,7 @@ START_TEST(should_close_tx_buffer_on_disconnect)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -336,9 +337,10 @@ START_TEST(should_not_process_packets_after_disconnect)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, 0, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, &value);
+    value.packet_id = 1;
     value.value = &data2;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, 1, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -352,12 +354,12 @@ START_TEST(should_track_connect_packet)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, 1, &value);
+    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_CONNECT, 1, &value_out);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_CONNECT, 0, &value_out);
     ck_assert_int_eq(1, res);
 }
 END_TEST
@@ -367,7 +369,7 @@ START_TEST(should_fail_if_finder_is_null)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     test_finder_func = NULL;
 
@@ -382,7 +384,7 @@ START_TEST(should_clear_encoder_state_after_reset)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, 0, 0, &value);
+    lmqtt_store_append(&store, 0, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, 4, &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);

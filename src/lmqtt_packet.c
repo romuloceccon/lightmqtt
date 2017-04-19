@@ -1020,7 +1020,7 @@ static int rx_buffer_finish_packet(lmqtt_rx_buffer_t *state)
 
     if (state->internal.decoder->class == LMQTT_CLASS_PUBLISH_2)
         result = lmqtt_store_append(state->store, LMQTT_CLASS_PUBREL,
-            state->internal.packet_id, &state->internal.value);
+            &state->internal.value);
     else
         result = RX_BUFFER_CALL_CALLBACK(state);
 
