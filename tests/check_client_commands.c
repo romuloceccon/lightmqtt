@@ -37,6 +37,13 @@ static void on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
     test_cb_result_set(data, publish, succeeded);
 }
 
+static int on_message_received(void *data, lmqtt_publish_t *publish)
+{
+    lmqtt_publish_t *dst = data;
+    memcpy(dst, publish, sizeof(*publish));
+    return 1;
+}
+
 static lmqtt_connect_t connect;
 static lmqtt_publish_t publish;
 
@@ -50,6 +57,10 @@ static void do_init(lmqtt_client_t *client, long timeout)
     callbacks.get_time = test_time_get;
 
     lmqtt_client_initialize(client, &callbacks);
+
+    client->rx_state.on_publish = &on_message_received;
+    client->rx_state.on_publish_data = &publish;
+
     lmqtt_client_set_default_timeout(client, timeout);
     test_socket_init(&ts);
 }
@@ -150,6 +161,18 @@ static void check_resend_packets_with_clean_session(int first, int second)
     client_process_output(&client);
     ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
     ck_assert_int_eq(-1, test_socket_shift(&ts));
+}
+
+static void check_connect_and_receive_message(lmqtt_client_t *client,
+    int clean_session, int packet_id)
+{
+    do_connect(client, 5, clean_session);
+    client_process_output(client);
+
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    test_socket_append_param(&ts, TEST_PUBLISH_QOS_2, packet_id);
+    memset(&publish, 0, sizeof(publish));
+    client_process_input(client);
 }
 
 START_TEST(should_initialize_client)
@@ -1101,6 +1124,38 @@ START_TEST(should_not_resend_packets_if_new_connection_has_clean_session_set)
 }
 END_TEST
 
+START_TEST(should_preserve_non_clean_session_ids_after_reconnect)
+{
+    lmqtt_client_t client;
+
+    do_init(&client, 3);
+
+    check_connect_and_receive_message(&client, 0, 0x0304);
+    ck_assert_int_eq(2, publish.qos);
+
+    close_read_buf(&client);
+
+    check_connect_and_receive_message(&client, 0, 0x0304);
+    ck_assert_int_eq(0, publish.qos);
+}
+END_TEST
+
+START_TEST(should_not_preserve_clean_session_ids_after_reconnect)
+{
+    lmqtt_client_t client;
+
+    do_init(&client, 3);
+
+    check_connect_and_receive_message(&client, 1, 0x0304);
+    ck_assert_int_eq(2, publish.qos);
+
+    close_read_buf(&client);
+
+    check_connect_and_receive_message(&client, 0, 0x0304);
+    ck_assert_int_eq(2, publish.qos);
+}
+END_TEST
+
 START_TCASE("Client commands")
 {
     ADD_TEST(should_initialize_client);
@@ -1154,5 +1209,8 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_resend_connect_from_previous_connection);
     ADD_TEST(should_not_resend_packets_if_previous_connection_had_clean_session_set);
     ADD_TEST(should_not_resend_packets_if_new_connection_has_clean_session_set);
+
+    ADD_TEST(should_preserve_non_clean_session_ids_after_reconnect);
+    ADD_TEST(should_not_preserve_clean_session_ids_after_reconnect);
 }
 END_TCASE

@@ -63,10 +63,15 @@ static int class_expects_response(lmqtt_class_t class)
 }
 
 /******************************************************************************
- * lmqtt_id_list_t PRIVATE functions
+ * lmqtt_id_list_t PUBLIC functions
  ******************************************************************************/
 
-static int id_set_contains(lmqtt_id_set_t *id_set, u16 id)
+int lmqtt_id_set_clear(lmqtt_id_set_t *id_set)
+{
+    id_set->count = 0;
+}
+
+int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, u16 id)
 {
     int i;
 
@@ -78,7 +83,7 @@ static int id_set_contains(lmqtt_id_set_t *id_set, u16 id)
     return 0;
 }
 
-static int id_set_put(lmqtt_id_set_t *id_set, u16 id)
+int lmqtt_id_set_put(lmqtt_id_set_t *id_set, u16 id)
 {
     int i;
 
@@ -94,7 +99,7 @@ static int id_set_put(lmqtt_id_set_t *id_set, u16 id)
     return 1;
 }
 
-static int id_set_remove(lmqtt_id_set_t *id_set, u16 id)
+int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, u16 id)
 {
     int i;
 
@@ -1094,8 +1099,8 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
             LMQTT_CLASS_PUBACK, &value);
     }
 
-    if (qos < 2 || !id_set_contains(&state->internal.id_set, packet_id)) {
-        if (qos == 2 && !id_set_put(&state->internal.id_set, packet_id))
+    if (qos < 2 || !lmqtt_id_set_contains(&state->id_set, packet_id)) {
+        if (qos == 2 && !lmqtt_id_set_put(&state->id_set, packet_id))
             return LMQTT_DECODE_ERROR;
 
         publish = &state->internal.publish;
@@ -1217,7 +1222,7 @@ static int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
     static lmqtt_store_value_t value;
     u16 packet_id = state->internal.packet_id;
 
-    id_set_remove(&state->internal.id_set, packet_id);
+    lmqtt_id_set_remove(&state->id_set, packet_id);
 
     memset(&value, 0, sizeof(value));
     value.packet_id = packet_id;

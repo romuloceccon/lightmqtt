@@ -8,8 +8,8 @@ START_TEST(should_put_items)
 
     memset(&id_set, 0, sizeof(id_set));
 
-    ck_assert_int_eq(1, id_set_put(&id_set, 3));
-    ck_assert_int_eq(1, id_set_put(&id_set, 6));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 3));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 6));
 
     ck_assert_uint_eq(3, id_set.items[0]);
     ck_assert_uint_eq(6, id_set.items[1]);
@@ -24,9 +24,9 @@ START_TEST(should_not_overflow_buffer)
     memset(&id_set, 0, sizeof(id_set));
 
     for (i = 0; i < LMQTT_ID_LIST_SIZE; i++)
-        ck_assert_int_eq(1, id_set_put(&id_set, i));
+        ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, i));
 
-    ck_assert_int_eq(0, id_set_put(&id_set, LMQTT_ID_LIST_SIZE));
+    ck_assert_int_eq(0, lmqtt_id_set_put(&id_set, LMQTT_ID_LIST_SIZE));
 }
 END_TEST
 
@@ -36,8 +36,8 @@ START_TEST(should_not_duplicate_items)
 
     memset(&id_set, 0, sizeof(id_set));
 
-    ck_assert_int_eq(1, id_set_put(&id_set, 3));
-    ck_assert_int_eq(0, id_set_put(&id_set, 3));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 3));
+    ck_assert_int_eq(0, lmqtt_id_set_put(&id_set, 3));
 
     ck_assert_int_eq(1, id_set.count);
 }
@@ -49,13 +49,13 @@ START_TEST(should_remove_item)
 
     memset(&id_set, 0, sizeof(id_set));
 
-    ck_assert_int_eq(1, id_set_put(&id_set, 3));
-    ck_assert_int_eq(1, id_set_put(&id_set, 6));
-    ck_assert_int_eq(1, id_set_put(&id_set, 9));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 3));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 6));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 9));
 
-    ck_assert_int_eq(1, id_set_remove(&id_set, 6));
+    ck_assert_int_eq(1, lmqtt_id_set_remove(&id_set, 6));
 
-    ck_assert_int_eq(1, id_set_put(&id_set, 12));
+    ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 12));
 
     ck_assert_int_eq(3, id_set.count);
     ck_assert_uint_eq(3, id_set.items[0]);
@@ -70,12 +70,12 @@ START_TEST(should_not_remove_unknown_item)
 
     memset(&id_set, 0, sizeof(id_set));
 
-    id_set_put(&id_set, 3);
-    id_set_put(&id_set, 6);
+    lmqtt_id_set_put(&id_set, 3);
+    lmqtt_id_set_put(&id_set, 6);
 
-    ck_assert_int_eq(0, id_set_remove(&id_set, 0));
-    ck_assert_int_eq(0, id_set_remove(&id_set, 9));
-    ck_assert_int_eq(1, id_set_remove(&id_set, 6));
+    ck_assert_int_eq(0, lmqtt_id_set_remove(&id_set, 0));
+    ck_assert_int_eq(0, lmqtt_id_set_remove(&id_set, 9));
+    ck_assert_int_eq(1, lmqtt_id_set_remove(&id_set, 6));
 
     ck_assert_int_eq(1, id_set.count);
 }
@@ -87,12 +87,12 @@ START_TEST(should_test_whether_set_contains_item)
 
     memset(&id_set, 0, sizeof(id_set));
 
-    id_set_put(&id_set, 3);
-    id_set_put(&id_set, 6);
+    lmqtt_id_set_put(&id_set, 3);
+    lmqtt_id_set_put(&id_set, 6);
 
-    ck_assert_int_eq(0, id_set_contains(&id_set, 0));
-    ck_assert_int_eq(0, id_set_contains(&id_set, 9));
-    ck_assert_int_eq(1, id_set_contains(&id_set, 6));
+    ck_assert_int_eq(0, lmqtt_id_set_contains(&id_set, 0));
+    ck_assert_int_eq(0, lmqtt_id_set_contains(&id_set, 9));
+    ck_assert_int_eq(1, lmqtt_id_set_contains(&id_set, 6));
 
     ck_assert_int_eq(2, id_set.count);
 }

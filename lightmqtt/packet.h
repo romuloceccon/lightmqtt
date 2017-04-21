@@ -168,6 +168,8 @@ typedef struct _lmqtt_rx_buffer_t {
     lmqtt_rx_buffer_on_publish_t on_publish;
     void *on_publish_data;
 
+    lmqtt_id_set_t id_set;
+
     struct {
         lmqtt_fixed_header_t header;
         int header_finished;
@@ -177,10 +179,14 @@ typedef struct _lmqtt_rx_buffer_t {
         u16 packet_id;
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
-        lmqtt_id_set_t id_set;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;
+
+int lmqtt_id_set_clear(lmqtt_id_set_t *id_set);
+int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, u16 id);
+int lmqtt_id_set_put(lmqtt_id_set_t *id_set, u16 id);
+int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, u16 id);
 
 int lmqtt_connect_validate(lmqtt_connect_t *connect);
 int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe);

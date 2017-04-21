@@ -74,7 +74,7 @@ void test_socket_append_param(test_socket_t *socket, int val, int param)
 {
     test_buffer_t *buf = &socket->read_buf;
 
-    char src[5];
+    char src[8];
     int len = 0;
 
     switch (val) {
@@ -97,6 +97,12 @@ void test_socket_append_param(test_socket_t *socket, int val, int param)
             src[2] = param >> 8;
             src[3] = param;
             len = 4;
+            break;
+        case TEST_PUBLISH_QOS_2:
+            memcpy(src, "\x34\x06\x00\x01X\x00\x00X", 8);
+            src[6] = param >> 8;
+            src[7] = param;
+            len = 8;
             break;
         case TEST_PUBACK:
             memcpy(src, "\x40\x02\x00\x00", 4);

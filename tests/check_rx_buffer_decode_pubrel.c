@@ -34,7 +34,7 @@ START_TEST(should_decode_pubrel_with_existing_id)
 {
     init_state();
 
-    id_set_put(&state.internal.id_set, 0x0102);
+    lmqtt_id_set_put(&state.id_set, 0x0102);
 
     state.internal.packet_id = 0x0102;
     ck_assert_int_eq(1, rx_buffer_pubrel(&state));
@@ -42,7 +42,7 @@ START_TEST(should_decode_pubrel_with_existing_id)
     lmqtt_store_peek(&store, &class, &value);
     ck_assert_int_eq(LMQTT_CLASS_PUBCOMP, class);
 
-    ck_assert_int_eq(0, id_set_contains(&state.internal.id_set, 0x0102));
+    ck_assert_int_eq(0, lmqtt_id_set_contains(&state.id_set, 0x0102));
 }
 END_TEST
 

@@ -101,6 +101,7 @@ static void client_cleanup_stores(lmqtt_client_t *client, int keep_session)
         }
     } else {
         client_flush_store(client, &client->main_store);
+        lmqtt_id_set_clear(&client->rx_state.id_set);
     }
 
     client_flush_store(client, &client->connect_store);
