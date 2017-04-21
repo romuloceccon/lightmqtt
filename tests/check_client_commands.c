@@ -1,5 +1,6 @@
 #include "check_lightmqtt.h"
 #include <assert.h>
+#include <stdio.h>
 
 #include "../src/lmqtt_io.c"
 
@@ -9,6 +10,8 @@ typedef struct {
 } test_cb_result_t;
 
 static test_socket_t ts;
+static char topic[100];
+static char payload[100];
 
 static void test_cb_result_set(void *cb_result, void *data, int succeeded)
 {
@@ -39,13 +42,31 @@ static void on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
 
 static int on_message_received(void *data, lmqtt_publish_t *publish)
 {
-    lmqtt_publish_t *dst = data;
-    memcpy(dst, publish, sizeof(*publish));
+    char *msg = data;
+    sprintf(msg, "topic: %.*s, payload: %.*s", publish->topic.len,
+        publish->topic.buf, publish->payload.len, publish->payload.buf);
     return 1;
+}
+
+static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->topic.len = len;
+    publish->topic.buf = topic;
+    return LMQTT_ALLOCATE_SUCCESS;
+}
+
+static lmqtt_allocate_result_t on_publish_allocate_payload(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->payload.len = len;
+    publish->payload.buf = payload;
+    return LMQTT_ALLOCATE_SUCCESS;
 }
 
 static lmqtt_connect_t connect;
 static lmqtt_publish_t publish;
+static char message_received[100];
 
 static void do_init(lmqtt_client_t *client, long timeout)
 {
@@ -59,7 +80,9 @@ static void do_init(lmqtt_client_t *client, long timeout)
     lmqtt_client_initialize(client, &callbacks);
 
     client->rx_state.on_publish = &on_message_received;
-    client->rx_state.on_publish_data = &publish;
+    client->rx_state.on_publish_allocate_topic = &on_publish_allocate_topic;
+    client->rx_state.on_publish_allocate_payload = &on_publish_allocate_payload;
+    client->rx_state.on_publish_data = message_received;
 
     lmqtt_client_set_default_timeout(client, timeout);
     test_socket_init(&ts);
@@ -171,7 +194,7 @@ static void check_connect_and_receive_message(lmqtt_client_t *client,
 
     test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     test_socket_append_param(&ts, TEST_PUBLISH_QOS_2, packet_id);
-    memset(&publish, 0, sizeof(publish));
+    memset(message_received, 0, sizeof(message_received));
     client_process_input(client);
 }
 
@@ -1131,12 +1154,12 @@ START_TEST(should_preserve_non_clean_session_ids_after_reconnect)
     do_init(&client, 3);
 
     check_connect_and_receive_message(&client, 0, 0x0304);
-    ck_assert_int_eq(2, publish.qos);
+    ck_assert_str_eq("topic: X, payload: X", message_received);
 
     close_read_buf(&client);
 
     check_connect_and_receive_message(&client, 0, 0x0304);
-    ck_assert_int_eq(0, publish.qos);
+    ck_assert_str_eq("", message_received);
 }
 END_TEST
 
@@ -1147,12 +1170,12 @@ START_TEST(should_not_preserve_clean_session_ids_after_reconnect)
     do_init(&client, 3);
 
     check_connect_and_receive_message(&client, 1, 0x0304);
-    ck_assert_int_eq(2, publish.qos);
+    ck_assert_str_eq("topic: X, payload: X", message_received);
 
     close_read_buf(&client);
 
     check_connect_and_receive_message(&client, 0, 0x0304);
-    ck_assert_int_eq(2, publish.qos);
+    ck_assert_str_eq("topic: X, payload: X", message_received);
 }
 END_TEST
 

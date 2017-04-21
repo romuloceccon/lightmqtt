@@ -1,4 +1,5 @@
 #include "check_lightmqtt.h"
+#include <stdio.h>
 
 #include "../src/lmqtt_packet.c"
 
@@ -18,6 +19,8 @@
     value.callback_data = &callbacks_data
 
 static int pingresp_data = 0;
+static char topic[100];
+static char payload[100];
 
 int test_on_connack(void *data, lmqtt_connect_t *connect)
 {
@@ -45,9 +48,27 @@ int test_on_pingresp(void *data, void *unused)
 
 int test_on_message_received(void *data, lmqtt_publish_t *publish)
 {
-    lmqtt_publish_t *dst = (lmqtt_publish_t *) data;
-    memcpy(dst, publish, sizeof(*publish));
+    char *msg = data;
+    sprintf(msg, "qos: %d, retain: %d, topic: %.*s, payload: %.*s",
+        publish->qos, publish->retain, publish->topic.len,
+        publish->topic.buf, publish->payload.len, publish->payload.buf);
     return 1;
+}
+
+static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->topic.len = len;
+    publish->topic.buf = topic;
+    return LMQTT_ALLOCATE_SUCCESS;
+}
+
+static lmqtt_allocate_result_t test_on_publish_allocate_payload(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->payload.len = len;
+    publish->payload.buf = payload;
+    return LMQTT_ALLOCATE_SUCCESS;
 }
 
 START_TEST(should_call_connack_callback)
@@ -217,38 +238,40 @@ END_TEST
 START_TEST(should_call_message_received_callback)
 {
     u8 *buf = (u8 *) "\x30\x06\x00\x01X\x02\x03X";
-    lmqtt_publish_t publish;
+    char msg[100];
 
     PREPARE;
 
-    memset(&publish, 0, sizeof(publish));
+    memset(msg, 0, sizeof(msg));
     state.on_publish = &test_on_message_received;
-    state.on_publish_data = &publish;
+    state.on_publish_data = msg;
+    state.on_publish_allocate_topic = test_on_publish_allocate_topic;
+    state.on_publish_allocate_payload = test_on_publish_allocate_payload;
 
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    ck_assert_uint_eq(0, publish.qos);
-    ck_assert_uint_eq(0, publish.retain);
+    ck_assert_str_eq(msg, "qos: 0, retain: 0, topic: X, payload: X");
 }
 END_TEST
 
 START_TEST(should_decode_qos_and_retain_flag)
 {
     u8 *buf = (u8 *) "\x35\x06\x00\x01X\x00\x01X";
-    lmqtt_publish_t publish;
+    char msg[100];
 
     PREPARE;
 
-    memset(&publish, 0, sizeof(publish));
+    memset(msg, 0, sizeof(msg));
     state.on_publish = &test_on_message_received;
-    state.on_publish_data = &publish;
+    state.on_publish_data = msg;
+    state.on_publish_allocate_topic = test_on_publish_allocate_topic;
+    state.on_publish_allocate_payload = test_on_publish_allocate_payload;
 
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    ck_assert_uint_eq(2, publish.qos);
-    ck_assert_uint_eq(1, publish.retain);
+    ck_assert_str_eq(msg, "qos: 2, retain: 1, topic: X, payload: X");
 }
 END_TEST
 

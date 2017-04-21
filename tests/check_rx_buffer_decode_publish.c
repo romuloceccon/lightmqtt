@@ -1,4 +1,5 @@
 #include "check_lightmqtt.h"
+#include <stdio.h>
 
 #include "../src/lmqtt_packet.c"
 
@@ -7,22 +8,76 @@ static lmqtt_store_t store;
 static int class;
 static lmqtt_store_value_t value;
 static lmqtt_publish_t *publish;
+static char topic[100];
+static lmqtt_allocate_result_t allocate_topic_result;
+static char payload[100];
+static lmqtt_allocate_result_t allocate_payload_result;
+static void *publish_deallocated;
+static int allocate_topic_count;
+static int allocate_payload_count;
+static int deallocate_count;
+static char message_received[1000];
 
 static int test_on_publish(void *data, lmqtt_publish_t *publish)
 {
     lmqtt_publish_t **dst = (lmqtt_publish_t **) data;
     *dst = publish;
+    sprintf(message_received, "topic: %.*s, payload: %.*s", publish->topic.len,
+        publish->topic.buf, publish->payload.len, publish->payload.buf);
     return 1;
+}
+
+static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    if (allocate_topic_result == LMQTT_ALLOCATE_SUCCESS) {
+        publish->topic.len = len;
+        publish->topic.buf = topic;
+    }
+    allocate_topic_count++;
+    return allocate_topic_result;
+}
+
+static lmqtt_allocate_result_t test_on_publish_allocate_payload(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    if (allocate_payload_result == LMQTT_ALLOCATE_SUCCESS) {
+        publish->payload.len = len;
+        publish->payload.buf = payload;
+    }
+    allocate_payload_count++;
+    return allocate_payload_result;
+}
+
+static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
+{
+    /* Make sure nobody tries to use strings after deallocate */
+    memset(&publish->topic, 0xcc, sizeof(publish->topic));
+    memset(&publish->payload, 0xcc, sizeof(publish->payload));
+    publish_deallocated = data;
+    deallocate_count++;
 }
 
 static void init_state()
 {
     memset(&state, 0, sizeof(state));
     memset(&store, 0, sizeof(store));
+    memset(&topic, 0, sizeof(topic));
+    memset(&payload, 0, sizeof(payload));
+    memset(message_received, 0, sizeof(message_received));
     state.store = &store;
     state.on_publish = &test_on_publish;
+    state.on_publish_allocate_topic = &test_on_publish_allocate_topic;
+    state.on_publish_allocate_payload = &test_on_publish_allocate_payload;
+    state.on_publish_deallocate = &test_on_publish_deallocate;
     state.on_publish_data = &publish;
     store.get_time = &test_time_get;
+    allocate_topic_result = LMQTT_ALLOCATE_SUCCESS;
+    allocate_payload_result = LMQTT_ALLOCATE_SUCCESS;
+    allocate_topic_count = 0;
+    allocate_payload_count = 0;
+    deallocate_count = 0;
+    publish_deallocated = NULL;
     publish = NULL;
 }
 
@@ -40,6 +95,8 @@ static void do_decode_buffer(char *buf, int len)
     state.internal.remain_buf_pos = 0;
     state.internal.header.remaining_length = len;
     state.internal.packet_id = 0;
+    state.internal.decode_publish = 0;
+    memset(&state.internal.publish, 0, sizeof(state.internal.publish));
 
     for (i = 0; i < len - 1; i++)
         do_decode((u8) buf[i], LMQTT_DECODE_CONTINUE);
@@ -155,11 +212,14 @@ START_TEST(should_call_callback_multiple_times_with_qos_1)
     do_decode_buffer("\x00\x01X\x02\x06X", 6);
 
     ck_assert_ptr_eq(publish, &state.internal.publish);
+    ck_assert_str_eq("topic: X, payload: X", message_received);
 
     publish = NULL;
+    memset(message_received, 0, sizeof(message_received));
     do_decode_buffer("\x00\x01X\x02\x06X", 6);
 
     ck_assert_ptr_eq(&state.internal.publish, publish);
+    ck_assert_str_eq("topic: X, payload: X", message_received);
 }
 END_TEST
 
@@ -176,6 +236,58 @@ START_TEST(should_not_call_callback_multiple_times_with_qos_2)
     do_decode_buffer("\x00\x01X\x02\x06X", 6);
 
     ck_assert_ptr_eq(NULL, publish);
+}
+END_TEST
+
+START_TEST(should_call_allocate_callbacks)
+{
+    init_state();
+
+    state.internal.header.qos = 1;
+    do_decode_buffer("\x00\x03TOP\x02\x06PAY", 10);
+
+    ck_assert_str_eq("TOP", topic);
+    ck_assert_str_eq("PAY", payload);
+    ck_assert_ptr_eq(publish, &state.internal.publish);
+    ck_assert_str_eq("topic: TOP, payload: PAY", message_received);
+
+    ck_assert_int_eq(1, allocate_topic_count);
+    ck_assert_int_eq(1, allocate_payload_count);
+    ck_assert_int_eq(1, deallocate_count);
+}
+END_TEST
+
+START_TEST(should_ignore_message_if_topic_is_ignored)
+{
+    init_state();
+
+    allocate_topic_result = LMQTT_ALLOCATE_IGNORE;
+    state.internal.header.qos = 1;
+    do_decode_buffer("\x00\x03TOP\x02\x06PAY", 10);
+
+    ck_assert(!publish);
+    ck_assert_str_eq("", message_received);
+
+    ck_assert_int_eq(1, allocate_topic_count);
+    ck_assert_int_eq(0, allocate_payload_count);
+    ck_assert_int_eq(0, deallocate_count);
+}
+END_TEST
+
+START_TEST(should_ignore_message_if_payload_is_ignored)
+{
+    init_state();
+
+    allocate_payload_result = LMQTT_ALLOCATE_IGNORE;
+    state.internal.header.qos = 1;
+    do_decode_buffer("\x00\x03TOP\x02\x06PAY", 10);
+
+    ck_assert(!publish);
+    ck_assert_str_eq("", message_received);
+
+    ck_assert_int_eq(1, allocate_topic_count);
+    ck_assert_int_eq(1, allocate_payload_count);
+    ck_assert_int_eq(0, deallocate_count);
 }
 END_TEST
 
@@ -198,6 +310,8 @@ START_TEST(should_fail_if_id_set_is_full)
     state.internal.packet_id = 0;
     state.internal.remain_buf_pos = 0;
     state.internal.header.remaining_length = 6;
+    state.internal.decode_publish = 0;
+    memset(&state.internal.publish, 0, sizeof(state.internal.publish));
 
     do_decode(0, LMQTT_DECODE_CONTINUE);
     do_decode(1, LMQTT_DECODE_CONTINUE);
@@ -220,6 +334,9 @@ START_TCASE("Rx buffer decode publish")
     ADD_TEST(should_reply_to_publish_with_qos_2);
     ADD_TEST(should_call_callback_multiple_times_with_qos_1);
     ADD_TEST(should_not_call_callback_multiple_times_with_qos_2);
+    ADD_TEST(should_call_allocate_callbacks);
+    ADD_TEST(should_ignore_message_if_topic_is_ignored);
+    ADD_TEST(should_ignore_message_if_payload_is_ignored);
     ADD_TEST(should_fail_if_id_set_is_full);
 }
 END_TCASE

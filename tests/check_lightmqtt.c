@@ -100,8 +100,8 @@ void test_socket_append_param(test_socket_t *socket, int val, int param)
             break;
         case TEST_PUBLISH_QOS_2:
             memcpy(src, "\x34\x06\x00\x01X\x00\x00X", 8);
-            src[6] = param >> 8;
-            src[7] = param;
+            src[5] = param >> 8;
+            src[6] = param;
             len = 8;
             break;
         case TEST_PUBACK:

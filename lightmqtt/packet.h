@@ -59,6 +59,12 @@ typedef enum {
     LMQTT_WRITE_ERROR
 } lmqtt_write_result_t;
 
+typedef enum {
+    LMQTT_ALLOCATE_SUCCESS = 150,
+    LMQTT_ALLOCATE_IGNORE,
+    LMQTT_ALLOCATE_ERROR
+} lmqtt_allocate_result_t;
+
 typedef struct _lmqtt_id_set_t {
     u16 items[LMQTT_ID_LIST_SIZE];
     int count;
@@ -172,11 +178,18 @@ struct _lmqtt_rx_buffer_decoder_t {
 };
 
 typedef int (*lmqtt_rx_buffer_on_publish_t)(void *, lmqtt_publish_t *);
+typedef lmqtt_allocate_result_t (*lmqtt_rx_buffer_on_publish_allocate_t)(void *,
+    lmqtt_publish_t *, int);
+typedef void (*lmqtt_rx_buffer_on_publish_deallocate_t)(void *,
+    lmqtt_publish_t *);
 
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
 
     lmqtt_rx_buffer_on_publish_t on_publish;
+    lmqtt_rx_buffer_on_publish_allocate_t on_publish_allocate_topic;
+    lmqtt_rx_buffer_on_publish_allocate_t on_publish_allocate_payload;
+    lmqtt_rx_buffer_on_publish_deallocate_t on_publish_deallocate;
     void *on_publish_data;
 
     lmqtt_id_set_t id_set;
@@ -190,6 +203,7 @@ typedef struct _lmqtt_rx_buffer_t {
         u16 packet_id;
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
+        int decode_publish;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;
