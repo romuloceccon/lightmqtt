@@ -252,6 +252,20 @@ START_TEST(should_decode_qos_and_retain_flag)
 }
 END_TEST
 
+START_TEST(should_decode_pubrel)
+{
+    u8 *buf = (u8 *) "\x62\x02\x01\x02";
+
+    PREPARE;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+
+    ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
+    ck_assert_int_eq(LMQTT_CLASS_PUBCOMP, class);
+}
+END_TEST
+
 /* PINGRESP has no decode_byte callback; should return an error */
 START_TEST(should_not_call_null_decode_byte)
 {
@@ -280,6 +294,7 @@ START_TCASE("Rx buffer callbacks")
     ADD_TEST(should_call_pingresp_callback);
     ADD_TEST(should_call_message_received_callback);
     ADD_TEST(should_decode_qos_and_retain_flag);
+    ADD_TEST(should_decode_pubrel);
     ADD_TEST(should_not_call_null_decode_byte);
 }
 END_TCASE

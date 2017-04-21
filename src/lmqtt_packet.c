@@ -1123,6 +1123,18 @@ static int rx_buffer_pop_packet_ignore(lmqtt_rx_buffer_t *state)
     return 1;
 }
 
+static int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
+{
+    static lmqtt_store_value_t value;
+    u16 packet_id = state->internal.packet_id;
+
+    id_set_remove(&state->internal.id_set, packet_id);
+
+    memset(&value, 0, sizeof(value));
+    value.packet_id = packet_id;
+    return lmqtt_store_append(state->store, LMQTT_CLASS_PUBCOMP, &value);
+}
+
 static int rx_buffer_decode_remaining_without_id(lmqtt_rx_buffer_t *state, u8 b)
 {
     int rem_pos = state->internal.remain_buf_pos + 1;
@@ -1192,7 +1204,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrel = {
     2,
     0, /* never used */
     &rx_buffer_pop_packet_ignore,
-    &rx_buffer_pop_packet_ignore,
+    &rx_buffer_pubrel,
     &rx_buffer_decode_remaining_with_id,
     NULL
 };
