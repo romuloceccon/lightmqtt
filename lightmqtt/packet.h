@@ -43,6 +43,7 @@ typedef enum {
 typedef enum {
     LMQTT_DECODE_FINISHED = 120,
     LMQTT_DECODE_CONTINUE,
+    LMQTT_DECODE_WOULD_BLOCK,
     LMQTT_DECODE_ERROR
 } lmqtt_decode_result_t;
 
@@ -51,6 +52,12 @@ typedef enum {
     LMQTT_READ_WOULD_BLOCK,
     LMQTT_READ_ERROR
 } lmqtt_read_result_t;
+
+typedef enum {
+    LMQTT_WRITE_SUCCESS = 140,
+    LMQTT_WRITE_WOULD_BLOCK,
+    LMQTT_WRITE_ERROR
+} lmqtt_write_result_t;
 
 typedef struct _lmqtt_id_set_t {
     u16 items[LMQTT_ID_LIST_SIZE];
@@ -62,6 +69,10 @@ typedef struct _lmqtt_string_t {
     char *buf;
     void *data;
     lmqtt_read_result_t (*read)(void *, u8 *, int, int *);
+    lmqtt_write_result_t (*write)(void *, u8 *, int, int *);
+    struct {
+        int pos;
+    } internal;
 } lmqtt_string_t;
 
 typedef struct _lmqtt_encode_buffer_t {

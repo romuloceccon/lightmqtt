@@ -260,6 +260,31 @@ static lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
     return result;
 }
 
+static lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b)
+{
+    int bytes_w;
+
+    if (str->internal.pos >= str->len)
+        return LMQTT_DECODE_ERROR;
+
+    if (str->write) {
+        switch(str->write(str->data, &b, 1, &bytes_w)) {
+            case LMQTT_WRITE_SUCCESS:
+                str->internal.pos++;
+                break;
+            case LMQTT_WRITE_WOULD_BLOCK:
+                return LMQTT_DECODE_WOULD_BLOCK;
+            default:
+                return LMQTT_DECODE_ERROR;
+        }
+    } else {
+        str->buf[str->internal.pos++] = b;
+    }
+
+    return str->internal.pos < str->len ? LMQTT_DECODE_CONTINUE :
+        LMQTT_DECODE_FINISHED;
+}
+
 static int string_calc_field_length(lmqtt_string_t *str)
 {
     return str->len > 0 ? LMQTT_STRING_LEN_SIZE + str->len : 0;
