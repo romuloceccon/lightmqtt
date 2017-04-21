@@ -294,6 +294,52 @@ START_TEST(should_increment_publish_encode_count_after_encode)
 }
 END_TEST
 
+START_TEST(should_encode_puback)
+{
+    int class;
+
+    PREPARE;
+
+    value.packet_id = 0x0102;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBACK, &value);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(4, bytes_written);
+
+    ck_assert_uint_eq(0x40, buf[0]);
+    ck_assert_uint_eq(0x02, buf[1]);
+    ck_assert_uint_eq(0x01, buf[2]);
+    ck_assert_uint_eq(0x02, buf[3]);
+
+    ck_assert_int_eq(0, lmqtt_store_shift(&store, &class, &value));
+}
+END_TEST
+
+START_TEST(should_encode_pubrec)
+{
+    int class;
+
+    PREPARE;
+
+    value.packet_id = 0x0102;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBREC, &value);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(4, bytes_written);
+
+    ck_assert_uint_eq(0x50, buf[0]);
+    ck_assert_uint_eq(0x02, buf[1]);
+    ck_assert_uint_eq(0x01, buf[2]);
+    ck_assert_uint_eq(0x02, buf[3]);
+
+    ck_assert_int_eq(0, lmqtt_store_shift(&store, &class, &value));
+}
+END_TEST
+
 START_TEST(should_encode_pubrel)
 {
     lmqtt_publish_t publish;
@@ -316,6 +362,29 @@ START_TEST(should_encode_pubrel)
     ck_assert_uint_eq(0x02, buf[1]);
     ck_assert_uint_eq(0x01, buf[2]);
     ck_assert_uint_eq(0x02, buf[3]);
+}
+END_TEST
+
+START_TEST(should_encode_pubcomp)
+{
+    int class;
+
+    PREPARE;
+
+    value.packet_id = 0x0102;
+    lmqtt_store_append(&store, LMQTT_CLASS_PUBCOMP, &value);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(4, bytes_written);
+
+    ck_assert_uint_eq(0x70, buf[0]);
+    ck_assert_uint_eq(0x02, buf[1]);
+    ck_assert_uint_eq(0x01, buf[2]);
+    ck_assert_uint_eq(0x02, buf[3]);
+
+    ck_assert_int_eq(0, lmqtt_store_shift(&store, &class, &value));
 }
 END_TEST
 
@@ -360,7 +429,10 @@ START_TCASE("Tx buffer finders")
     ADD_TEST(should_encode_publish_with_qos_0);
     ADD_TEST(should_encode_publish_with_qos_1);
     ADD_TEST(should_increment_publish_encode_count_after_encode);
+    ADD_TEST(should_encode_puback);
+    ADD_TEST(should_encode_pubrec);
     ADD_TEST(should_encode_pubrel);
+    ADD_TEST(should_encode_pubcomp);
     ADD_TEST(should_encode_pingreq);
     ADD_TEST(should_encode_disconnect);
 }
