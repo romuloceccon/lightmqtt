@@ -203,7 +203,7 @@ typedef struct _lmqtt_rx_buffer_t {
         u16 packet_id;
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
-        int decode_publish;
+        int ignore_publish;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;

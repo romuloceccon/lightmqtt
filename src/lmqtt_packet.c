@@ -1068,6 +1068,31 @@ lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
  * lmqtt_rx_buffer_t PRIVATE functions
  ******************************************************************************/
 
+static int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
+    lmqtt_rx_buffer_on_publish_allocate_t allocate, lmqtt_string_t *str,
+    int len, u8 b)
+{
+    const int rem_pos = state->internal.remain_buf_pos + 1;
+    lmqtt_publish_t *publish = &state->internal.publish;
+
+    if (!state->internal.ignore_publish && rem_pos == when && allocate) {
+        switch (allocate(state->on_publish_data, publish, len)) {
+            case LMQTT_ALLOCATE_SUCCESS:
+                state->internal.ignore_publish = 0;
+                break;
+            case LMQTT_ALLOCATE_IGNORE:
+                state->internal.ignore_publish = 1;
+                break;
+            default:
+                return 0;
+        }
+    }
+
+    if (!state->internal.ignore_publish)
+        string_put(str, b);
+    return 1;
+}
+
 static lmqtt_decode_result_t rx_buffer_decode_connack(lmqtt_rx_buffer_t *state,
     u8 b)
 {
@@ -1110,42 +1135,19 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
         int t_len = state->internal.topic_len;
         int p_start = s_len + t_len;
         if (rem_pos <= p_start) {
-            if (rem_pos == s_len + 1 && state->on_publish_allocate_topic) {
-                switch (state->on_publish_allocate_topic(state->on_publish_data,
-                        publish, t_len)) {
-                    case LMQTT_ALLOCATE_SUCCESS:
-                        state->internal.decode_publish = 1;
-                        break;
-                    case LMQTT_ALLOCATE_IGNORE:
-                        state->internal.decode_publish = 0;
-                        break;
-                    default:
-                        return LMQTT_DECODE_ERROR;
-                }
-            }
-            if (state->internal.decode_publish)
-                string_put(&state->internal.publish.topic, b);
+            if (!rx_buffer_allocate_put(state, s_len + 1,
+                    state->on_publish_allocate_topic,
+                    &state->internal.publish.topic,
+                    t_len, b))
+                return LMQTT_DECODE_ERROR;
         } else if (rem_pos <= p_start + p_len) {
             state->internal.packet_id |= (b << ((p_len - rem_pos + p_start) * 8));
         } else {
-            if (state->internal.decode_publish &&
-                    rem_pos == p_start + p_len + 1 &&
-                    state->on_publish_allocate_payload) {
-                switch (state->on_publish_allocate_payload(
-                        state->on_publish_data,
-                        publish, rem_len - p_len - p_start)) {
-                    case LMQTT_ALLOCATE_SUCCESS:
-                        state->internal.decode_publish = 1;
-                        break;
-                    case LMQTT_ALLOCATE_IGNORE:
-                        state->internal.decode_publish = 0;
-                        break;
-                    default:
-                        return LMQTT_DECODE_ERROR;
-                }
-            }
-            if (state->internal.decode_publish)
-                string_put(&state->internal.publish.payload, b);
+            if (!rx_buffer_allocate_put(state, p_start + p_len + 1,
+                    state->on_publish_allocate_payload,
+                    &state->internal.publish.payload,
+                    rem_len - p_len - p_start, b))
+                return LMQTT_DECODE_ERROR;
         }
     }
 
@@ -1168,11 +1170,11 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
         publish->qos = qos;
         publish->retain = state->internal.header.retain;
 
-        if (state->internal.decode_publish && state->on_publish)
+        if (!state->internal.ignore_publish && state->on_publish)
             state->on_publish(state->on_publish_data, publish);
     }
 
-    if (state->internal.decode_publish && state->on_publish_deallocate)
+    if (!state->internal.ignore_publish && state->on_publish_deallocate)
         state->on_publish_deallocate(state->on_publish_data, publish);
 
     return LMQTT_DECODE_FINISHED;

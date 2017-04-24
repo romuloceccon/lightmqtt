@@ -95,7 +95,7 @@ static void do_decode_buffer(char *buf, int len)
     state.internal.remain_buf_pos = 0;
     state.internal.header.remaining_length = len;
     state.internal.packet_id = 0;
-    state.internal.decode_publish = 0;
+    state.internal.ignore_publish = 0;
     memset(&state.internal.publish, 0, sizeof(state.internal.publish));
 
     for (i = 0; i < len - 1; i++)
@@ -310,7 +310,7 @@ START_TEST(should_fail_if_id_set_is_full)
     state.internal.packet_id = 0;
     state.internal.remain_buf_pos = 0;
     state.internal.header.remaining_length = 6;
-    state.internal.decode_publish = 0;
+    state.internal.ignore_publish = 0;
     memset(&state.internal.publish, 0, sizeof(state.internal.publish));
 
     do_decode(0, LMQTT_DECODE_CONTINUE);
