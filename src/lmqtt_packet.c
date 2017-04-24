@@ -1089,8 +1089,15 @@ static int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
     }
 
     if (!state->internal.ignore_publish)
-        string_put(str, b);
+        return LMQTT_DECODE_ERROR != string_put(str, b);
     return 1;
+}
+
+static void rx_buffer_deallocate_publish(lmqtt_rx_buffer_t *state)
+{
+    if (!state->internal.ignore_publish && state->on_publish_deallocate)
+        state->on_publish_deallocate(state->on_publish_data,
+            &state->internal.publish);
 }
 
 static lmqtt_decode_result_t rx_buffer_decode_connack(lmqtt_rx_buffer_t *state,
@@ -1138,16 +1145,20 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
             if (!rx_buffer_allocate_put(state, s_len + 1,
                     state->on_publish_allocate_topic,
                     &state->internal.publish.topic,
-                    t_len, b))
+                    t_len, b)) {
+                rx_buffer_deallocate_publish(state);
                 return LMQTT_DECODE_ERROR;
+            }
         } else if (rem_pos <= p_start + p_len) {
             state->internal.packet_id |= (b << ((p_len - rem_pos + p_start) * 8));
         } else {
             if (!rx_buffer_allocate_put(state, p_start + p_len + 1,
                     state->on_publish_allocate_payload,
                     &state->internal.publish.payload,
-                    rem_len - p_len - p_start, b))
+                    rem_len - p_len - p_start, b)) {
+                rx_buffer_deallocate_publish(state);
                 return LMQTT_DECODE_ERROR;
+            }
         }
     }
 
@@ -1164,8 +1175,10 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
     }
 
     if (qos < 2 || !lmqtt_id_set_contains(&state->id_set, packet_id)) {
-        if (qos == 2 && !lmqtt_id_set_put(&state->id_set, packet_id))
+        if (qos == 2 && !lmqtt_id_set_put(&state->id_set, packet_id)) {
+            rx_buffer_deallocate_publish(state);
             return LMQTT_DECODE_ERROR;
+        }
 
         publish->qos = qos;
         publish->retain = state->internal.header.retain;
@@ -1174,9 +1187,7 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
             state->on_publish(state->on_publish_data, publish);
     }
 
-    if (!state->internal.ignore_publish && state->on_publish_deallocate)
-        state->on_publish_deallocate(state->on_publish_data, publish);
-
+    rx_buffer_deallocate_publish(state);
     return LMQTT_DECODE_FINISHED;
 }
 

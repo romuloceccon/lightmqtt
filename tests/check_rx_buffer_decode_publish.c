@@ -58,6 +58,22 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
     deallocate_count++;
 }
 
+lmqtt_write_result_t test_write_fail(void *data, u8 *buf, int len, int *bytes_w)
+{
+    lmqtt_string_t *str = data;
+    return str->internal.pos >= 1 ? LMQTT_WRITE_ERROR : LMQTT_WRITE_SUCCESS;
+}
+
+static lmqtt_allocate_result_t test_on_publish_allocate_topic_fail(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->topic.len = len;
+    publish->topic.data = &publish->topic;
+    publish->topic.write = &test_write_fail;
+    allocate_topic_count++;
+    return LMQTT_ALLOCATE_SUCCESS;
+}
+
 static void init_state()
 {
     memset(&state, 0, sizeof(state));
@@ -291,6 +307,26 @@ START_TEST(should_ignore_message_if_payload_is_ignored)
 }
 END_TEST
 
+START_TEST(should_deallocate_publish_if_decode_fails)
+{
+    init_state();
+
+    state.internal.header.qos = 1;
+    state.on_publish_allocate_topic = &test_on_publish_allocate_topic_fail;
+    state.internal.header.remaining_length = 10;
+    do_decode((u8) '\x00', LMQTT_DECODE_CONTINUE);
+    do_decode((u8) '\x03', LMQTT_DECODE_CONTINUE);
+    do_decode((u8) 'T', LMQTT_DECODE_CONTINUE);
+    do_decode((u8) 'O', LMQTT_DECODE_ERROR);
+
+    ck_assert_str_eq("", message_received);
+
+    ck_assert_int_eq(1, allocate_topic_count);
+    ck_assert_int_eq(0, allocate_payload_count);
+    ck_assert_int_eq(1, deallocate_count);
+}
+END_TEST
+
 START_TEST(should_fail_if_id_set_is_full)
 {
     unsigned i;
@@ -337,6 +373,7 @@ START_TCASE("Rx buffer decode publish")
     ADD_TEST(should_call_allocate_callbacks);
     ADD_TEST(should_ignore_message_if_topic_is_ignored);
     ADD_TEST(should_ignore_message_if_payload_is_ignored);
+    ADD_TEST(should_deallocate_publish_if_decode_fails);
     ADD_TEST(should_fail_if_id_set_is_full);
 }
 END_TCASE
