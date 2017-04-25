@@ -173,7 +173,7 @@ struct _lmqtt_rx_buffer_decoder_t {
     lmqtt_class_t class;
     int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
-    int (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
+    lmqtt_decode_result_t (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
     lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
 };
 
@@ -204,6 +204,7 @@ typedef struct _lmqtt_rx_buffer_t {
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
         int ignore_publish;
+        lmqtt_string_t *blocking_str;
         int failed;
     } internal;
 } lmqtt_rx_buffer_t;
@@ -227,5 +228,6 @@ void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state);
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read);
+lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state);
 
 #endif

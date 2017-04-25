@@ -155,7 +155,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_header)
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(1, bytes_r);
+    ck_assert_int_eq(0, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].pos);
 }
@@ -175,7 +175,7 @@ START_TEST(should_decode_rx_buffer_with_invalid_data)
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(3, bytes_r);
+    ck_assert_int_eq(2, bytes_r);
 
     ck_assert_int_eq(1, client.packets[0].pos);
 }
@@ -195,7 +195,7 @@ START_TEST(should_not_decode_rx_buffer_after_error)
     res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(3, bytes_r);
+    ck_assert_int_eq(2, bytes_r);
 
     buf[2] = 0;
 
@@ -359,7 +359,7 @@ START_TEST(should_decode_rx_buffer_with_disallowed_nonnull_data)
     res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(3, bytes_r);
+    ck_assert_int_eq(2, bytes_r);
 }
 END_TEST
 
@@ -463,7 +463,7 @@ START_TEST(should_fail_if_decoder_does_not_finish_when_expected)
     res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(5, bytes_r);
+    ck_assert_int_eq(4, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].packet_id);
     ck_assert_int_eq(1, client.packets[0].pos);
@@ -485,7 +485,7 @@ START_TEST(should_fail_if_decoder_finishes_before_expected)
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(5, bytes_r);
+    ck_assert_int_eq(4, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].packet_id);
     ck_assert_int_eq(1, client.packets[0].pos);
@@ -525,7 +525,7 @@ START_TEST(should_fail_if_suback_has_no_corresponding_subscribe)
     res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(4, bytes_r);
+    ck_assert_int_eq(3, bytes_r);
 }
 END_TEST
 

@@ -260,9 +260,11 @@ static lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
     return result;
 }
 
-static lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b)
+static lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b,
+    lmqtt_string_t **blocking_str)
 {
     int bytes_w;
+    *blocking_str = NULL;
 
     if (str->internal.pos >= str->len)
         return LMQTT_DECODE_ERROR;
@@ -273,6 +275,7 @@ static lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b)
                 str->internal.pos++;
                 break;
             case LMQTT_WRITE_WOULD_BLOCK:
+                *blocking_str = str;
                 return LMQTT_DECODE_WOULD_BLOCK;
             default:
                 return LMQTT_DECODE_ERROR;
@@ -1088,8 +1091,10 @@ static int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
         }
     }
 
-    if (!state->internal.ignore_publish)
-        return LMQTT_DECODE_ERROR != string_put(str, b);
+    if (!state->internal.ignore_publish) {
+        return LMQTT_DECODE_ERROR != string_put(str, b,
+            &state->internal.blocking_str);
+    }
     return 1;
 }
 
@@ -1162,6 +1167,8 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
         }
     }
 
+    if (state->internal.blocking_str)
+        return LMQTT_DECODE_WOULD_BLOCK;
     if (rem_len > rem_pos)
         return LMQTT_DECODE_CONTINUE;
 
@@ -1306,7 +1313,8 @@ static int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
     return lmqtt_store_append(state->store, LMQTT_CLASS_PUBCOMP, &value);
 }
 
-static int rx_buffer_decode_remaining_without_id(lmqtt_rx_buffer_t *state, u8 b)
+static lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
+    lmqtt_rx_buffer_t *state, u8 b)
 {
     int rem_pos = state->internal.remain_buf_pos + 1;
     int rem_len = state->internal.header.remaining_length;
@@ -1314,16 +1322,17 @@ static int rx_buffer_decode_remaining_without_id(lmqtt_rx_buffer_t *state, u8 b)
     int res = RX_BUFFER_DECODE_TYPE(state, b);
 
     if (res == LMQTT_DECODE_ERROR)
-        return 0;
+        return LMQTT_DECODE_ERROR;
     if (res != LMQTT_DECODE_FINISHED && rem_pos >= rem_len)
-        return 0;
+        return LMQTT_DECODE_ERROR;
     if (res == LMQTT_DECODE_FINISHED && rem_pos < rem_len)
-        return 0;
+        return LMQTT_DECODE_ERROR;
 
-    return 1;
+    return res;
 }
 
-static int rx_buffer_decode_remaining_with_id(lmqtt_rx_buffer_t *state, u8 b)
+static lmqtt_decode_result_t rx_buffer_decode_remaining_with_id(
+    lmqtt_rx_buffer_t *state, u8 b)
 {
     int rem_pos = state->internal.remain_buf_pos + 1;
     static const int p_len = LMQTT_PACKET_ID_SIZE;
@@ -1334,9 +1343,9 @@ static int rx_buffer_decode_remaining_with_id(lmqtt_rx_buffer_t *state, u8 b)
     state->internal.packet_id |= b << ((p_len - rem_pos) * 8);
 
     if (rem_pos == p_len && !state->internal.decoder->pop_packet_with_id(state))
-        return 0;
+        return LMQTT_DECODE_ERROR;
 
-    return 1;
+    return LMQTT_DECODE_CONTINUE;
 }
 
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_connack = {
@@ -1445,15 +1454,6 @@ void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
     RX_BUFFER_CALL_CALLBACK(state);
 }
 
-/*
- * TODO: lmqtt_rx_buffer_decode() should be able to handle cases where the buffer
- * cannot be completely read (for example, if a callback which is being invoked
- * to write the incoming data to a file would block) and return
- * LMQTT_IO_AGAIN. Otherwise it should return LMQTT_IO_SUCCESS, even if
- * the incoming packet is not yet complete. (That may look confusing. Should we
- * have different return codes for lmqtt_rx_buffer_decode() and the other decoding
- * functions?)
- */
 lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read)
 {
@@ -1465,14 +1465,14 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
         return LMQTT_IO_ERROR;
 
     for (i = 0; i < buf_len; i++) {
-        *bytes_read += 1;
-
         if (!state->internal.header_finished) {
             int rem_len;
             int res = fixed_header_decode(&state->internal.header, buf[i]);
 
             if (res == LMQTT_DECODE_ERROR)
                 return rx_buffer_fail(state);
+
+            *bytes_read += 1;
             if (res != LMQTT_DECODE_FINISHED)
                 continue;
 
@@ -1490,10 +1490,17 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
             if (!state->internal.decoder->pop_packet_without_id(state))
                 return rx_buffer_fail(state);
         } else {
-            if (!state->internal.decoder->decode_remaining(state, buf[i]))
-                return rx_buffer_fail(state);
+            lmqtt_decode_result_t res;
 
-            state->internal.remain_buf_pos += 1;
+            res = state->internal.decoder->decode_remaining(state, buf[i]);
+            if (res == LMQTT_DECODE_FINISHED || res == LMQTT_DECODE_CONTINUE) {
+                *bytes_read += 1;
+                state->internal.remain_buf_pos += 1;
+            } else if (res == LMQTT_DECODE_WOULD_BLOCK) {
+                break;
+            } else {
+                return rx_buffer_fail(state);
+            }
         }
 
         if (rx_buffer_is_packet_finished(state))
@@ -1503,7 +1510,21 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
     /* Even when processing a CONNACK this will touch the correct store, because
        lmqtt_client_t will change the current store during the callback, which
        is called from state->internal.decoder->decode_remaining() */
-    if (*bytes_read > 0)
+    if (*bytes_read > 0) {
         lmqtt_store_touch(state->store);
-    return LMQTT_IO_SUCCESS;
+        /* If decode_remaining() returns WOULD_BLOCK after we have successfully
+           decoded other bytes we should not signal that some string is
+           blocking, and instead wait until the decoder is called again */
+        state->internal.blocking_str = NULL;
+        return LMQTT_IO_SUCCESS;
+    } else if (buf_len == 0) {
+        return LMQTT_IO_SUCCESS;
+    } else {
+        return LMQTT_IO_AGAIN;
+    }
+}
+
+lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state)
+{
+    return state->internal.blocking_str;
 }

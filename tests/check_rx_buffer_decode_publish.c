@@ -58,7 +58,8 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
     deallocate_count++;
 }
 
-lmqtt_write_result_t test_write_fail(void *data, u8 *buf, int len, int *bytes_w)
+static lmqtt_write_result_t test_write_fail(void *data, u8 *buf, int len,
+    int *bytes_w)
 {
     lmqtt_string_t *str = data;
     return str->internal.pos >= 1 ? LMQTT_WRITE_ERROR : LMQTT_WRITE_SUCCESS;
@@ -100,7 +101,8 @@ static void init_state()
 static void do_decode(u8 val, lmqtt_decode_result_t exp)
 {
     int res = rx_buffer_decode_publish(&state, val);
-    state.internal.remain_buf_pos++;
+    if (res == LMQTT_DECODE_CONTINUE || res == LMQTT_DECODE_FINISHED)
+        state.internal.remain_buf_pos++;
     ck_assert_int_eq(exp, res);
 }
 

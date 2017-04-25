@@ -21,37 +21,51 @@
 static int pingresp_data = 0;
 static char topic[100];
 static char payload[100];
+static test_buffer_t payload_buffer;
 
-int test_on_connack(void *data, lmqtt_connect_t *connect)
+static int test_on_connack(void *data, lmqtt_connect_t *connect)
 {
     *((void **) data) = connect;
     return 1;
 }
 
-int test_on_suback(void *data, lmqtt_subscribe_t *subscribe)
+static int test_on_suback(void *data, lmqtt_subscribe_t *subscribe)
 {
     *((void **) data) = subscribe;
     return 1;
 }
 
-int test_on_publish(void *data, lmqtt_publish_t *publish)
+static int test_on_publish(void *data, lmqtt_publish_t *publish)
 {
     *((void **) data) = publish;
     return 1;
 }
 
-int test_on_pingresp(void *data, void *unused)
+static int test_on_pingresp(void *data, void *unused)
 {
     *((void **) data) = &pingresp_data;
     return 1;
 }
 
-int test_on_message_received(void *data, lmqtt_publish_t *publish)
+static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,
+    int *bytes_w)
+{
+    switch (test_buffer_write(data, buf, len, bytes_w)) {
+        case LMQTT_IO_SUCCESS:
+            return LMQTT_WRITE_SUCCESS;
+        case LMQTT_IO_AGAIN:
+            return LMQTT_WRITE_WOULD_BLOCK;
+    }
+    return LMQTT_WRITE_ERROR;
+}
+
+static int test_on_message_received(void *data, lmqtt_publish_t *publish)
 {
     char *msg = data;
     sprintf(msg, "qos: %d, retain: %d, topic: %.*s, payload: %.*s",
         publish->qos, publish->retain, publish->topic.len,
-        publish->topic.buf, publish->payload.len, publish->payload.buf);
+        topic, publish->payload.len, publish->payload.buf ? payload :
+        (char *) payload_buffer.buf);
     return 1;
 }
 
@@ -68,6 +82,15 @@ static lmqtt_allocate_result_t test_on_publish_allocate_payload(void *data,
 {
     publish->payload.len = len;
     publish->payload.buf = payload;
+    return LMQTT_ALLOCATE_SUCCESS;
+}
+
+static lmqtt_allocate_result_t test_on_publish_allocate_payload_block(
+    void *data, lmqtt_publish_t *publish, int len)
+{
+    publish->payload.len = len;
+    publish->payload.data = &payload_buffer;
+    publish->payload.write = &test_write_block;
     return LMQTT_ALLOCATE_SUCCESS;
 }
 
@@ -275,6 +298,46 @@ START_TEST(should_decode_qos_and_retain_flag)
 }
 END_TEST
 
+START_TEST(should_decode_message_with_blocking_write)
+{
+    u8 *buf = (u8 *) "\x30\x08\x00\x01T\x03\x04PAY";
+    char msg[100];
+
+    PREPARE;
+
+    memset(msg, 0, sizeof(msg));
+    state.on_publish = &test_on_message_received;
+    state.on_publish_data = msg;
+    state.on_publish_allocate_topic = &test_on_publish_allocate_topic;
+    state.on_publish_allocate_payload = &test_on_publish_allocate_payload_block;
+
+    payload_buffer.len = 32;
+    payload_buffer.available_len = 1;
+
+    res = lmqtt_rx_buffer_decode(&state, &buf[0], 10, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(8, bytes_r);
+    ck_assert_ptr_eq(NULL, lmqtt_rx_buffer_get_blocking_str(&state));
+
+    res = lmqtt_rx_buffer_decode(&state, &buf[8], 2, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
+    ck_assert_int_eq(0, bytes_r);
+    ck_assert_ptr_eq(&state.internal.publish.payload,
+        lmqtt_rx_buffer_get_blocking_str(&state));
+
+    payload_buffer.available_len = payload_buffer.len;
+    res = lmqtt_rx_buffer_decode(&state, &buf[8], 2, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(2, bytes_r);
+    ck_assert_ptr_eq(NULL, lmqtt_rx_buffer_get_blocking_str(&state));
+
+    ck_assert_str_eq("qos: 0, retain: 0, topic: T, payload: PAY", msg);
+}
+END_TEST
+
 START_TEST(should_decode_pubrel)
 {
     u8 *buf = (u8 *) "\x62\x02\x01\x02";
@@ -317,6 +380,7 @@ START_TCASE("Rx buffer callbacks")
     ADD_TEST(should_call_pingresp_callback);
     ADD_TEST(should_call_message_received_callback);
     ADD_TEST(should_decode_qos_and_retain_flag);
+    ADD_TEST(should_decode_message_with_blocking_write);
     ADD_TEST(should_decode_pubrel);
     ADD_TEST(should_not_call_null_decode_byte);
 }
