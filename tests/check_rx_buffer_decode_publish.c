@@ -314,6 +314,40 @@ START_TEST(should_ignore_message_if_payload_is_ignored)
 }
 END_TEST
 
+START_TEST(should_ignore_message_if_allocate_callback_is_null)
+{
+    init_state();
+
+    message_callbacks.on_publish_allocate_payload = NULL;
+    state.internal.header.qos = 1;
+    do_decode_buffer("\x00\x03TOP\x02\x06PAY", 10);
+
+    ck_assert(!publish);
+    ck_assert_str_eq("", message_received);
+
+    ck_assert_int_eq(0, allocate_topic_count);
+    ck_assert_int_eq(0, allocate_payload_count);
+    ck_assert_int_eq(0, deallocate_count);
+}
+END_TEST
+
+START_TEST(should_ignore_message_if_publish_callback_is_null)
+{
+    init_state();
+
+    message_callbacks.on_publish = NULL;
+    state.internal.header.qos = 1;
+    do_decode_buffer("\x00\x03TOP\x02\x06PAY", 10);
+
+    ck_assert(!publish);
+    ck_assert_str_eq("", message_received);
+
+    ck_assert_int_eq(0, allocate_topic_count);
+    ck_assert_int_eq(0, allocate_payload_count);
+    ck_assert_int_eq(0, deallocate_count);
+}
+END_TEST
+
 START_TEST(should_deallocate_publish_if_decode_fails)
 {
     init_state();
@@ -381,6 +415,8 @@ START_TCASE("Rx buffer decode publish")
     ADD_TEST(should_call_allocate_callbacks);
     ADD_TEST(should_ignore_message_if_topic_is_ignored);
     ADD_TEST(should_ignore_message_if_payload_is_ignored);
+    ADD_TEST(should_ignore_message_if_allocate_callback_is_null);
+    ADD_TEST(should_ignore_message_if_publish_callback_is_null);
     ADD_TEST(should_deallocate_publish_if_decode_fails);
     ADD_TEST(should_fail_if_id_set_is_full);
 }

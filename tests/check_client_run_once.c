@@ -50,6 +50,11 @@ static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,
     return LMQTT_WRITE_ERROR;
 }
 
+static int on_message_received(void *data, lmqtt_publish_t *publish)
+{
+    return 1;
+}
+
 static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
     lmqtt_publish_t *publish, int len)
 {
@@ -218,6 +223,7 @@ START_TEST(should_run_with_data_blocked_for_write)
     lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     memset(&message_callbacks, 0, sizeof(message_callbacks));
+    message_callbacks.on_publish = &on_message_received;
     message_callbacks.on_publish_allocate_topic = &on_publish_allocate_topic;
     message_callbacks.on_publish_allocate_payload =
         &on_publish_allocate_payload_block;

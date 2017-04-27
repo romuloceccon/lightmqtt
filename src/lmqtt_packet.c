@@ -1150,6 +1150,12 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
     } else {
         int t_len = state->internal.topic_len;
         int p_start = s_len + t_len;
+
+        if (rem_pos == s_len + 1 && (!message->on_publish ||
+                !message->on_publish_allocate_topic ||
+                !message->on_publish_allocate_payload))
+            state->internal.ignore_publish = 1;
+
         if (rem_pos <= p_start) {
             if (!rx_buffer_allocate_put(state, s_len + 1,
                     message->on_publish_allocate_topic,
