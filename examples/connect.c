@@ -144,7 +144,7 @@ int main()
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
-    lmqtt_callbacks_t callbacks;
+    lmqtt_client_callbacks_t callbacks;
 
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);

@@ -70,7 +70,7 @@ static char message_received[100];
 
 static void do_init(lmqtt_client_t *client, long timeout)
 {
-    lmqtt_callbacks_t callbacks;
+    lmqtt_client_callbacks_t callbacks;
 
     callbacks.read = test_socket_read;
     callbacks.write = test_socket_write;
@@ -79,10 +79,12 @@ static void do_init(lmqtt_client_t *client, long timeout)
 
     lmqtt_client_initialize(client, &callbacks);
 
-    client->rx_state.on_publish = &on_message_received;
-    client->rx_state.on_publish_allocate_topic = &on_publish_allocate_topic;
-    client->rx_state.on_publish_allocate_payload = &on_publish_allocate_payload;
-    client->rx_state.on_publish_data = message_received;
+    client->message_callbacks.on_publish = &on_message_received;
+    client->message_callbacks.on_publish_allocate_topic =
+        &on_publish_allocate_topic;
+    client->message_callbacks.on_publish_allocate_payload =
+        &on_publish_allocate_payload;
+    client->message_callbacks.on_publish_data = message_received;
 
     lmqtt_client_set_default_timeout(client, timeout);
     test_socket_init(&ts);
@@ -201,7 +203,7 @@ static void check_connect_and_receive_message(lmqtt_client_t *client,
 START_TEST(should_initialize_client)
 {
     lmqtt_client_t client;
-    lmqtt_callbacks_t callbacks;
+    lmqtt_client_callbacks_t callbacks;
 
     memset(&client, -1, sizeof(client));
 

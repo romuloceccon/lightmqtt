@@ -1072,14 +1072,15 @@ lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
  ******************************************************************************/
 
 static int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
-    lmqtt_rx_buffer_on_publish_allocate_t allocate, lmqtt_string_t *str,
+    lmqtt_message_on_publish_allocate_t allocate, lmqtt_string_t *str,
     int len, u8 b)
 {
     const int rem_pos = state->internal.remain_buf_pos + 1;
     lmqtt_publish_t *publish = &state->internal.publish;
+    lmqtt_message_callbacks_t *message = state->message_callbacks;
 
     if (!state->internal.ignore_publish && rem_pos == when && allocate) {
-        switch (allocate(state->on_publish_data, publish, len)) {
+        switch (allocate(message->on_publish_data, publish, len)) {
             case LMQTT_ALLOCATE_SUCCESS:
                 state->internal.ignore_publish = 0;
                 break;
@@ -1100,8 +1101,10 @@ static int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
 
 static void rx_buffer_deallocate_publish(lmqtt_rx_buffer_t *state)
 {
-    if (!state->internal.ignore_publish && state->on_publish_deallocate)
-        state->on_publish_deallocate(state->on_publish_data,
+    lmqtt_message_callbacks_t *message = state->message_callbacks;
+
+    if (!state->internal.ignore_publish && message->on_publish_deallocate)
+        message->on_publish_deallocate(message->on_publish_data,
             &state->internal.publish);
 }
 
@@ -1135,6 +1138,7 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
     static const int p_len = LMQTT_PACKET_ID_SIZE;
     lmqtt_store_value_t value;
     lmqtt_publish_t *publish = &state->internal.publish;
+    lmqtt_message_callbacks_t *message = state->message_callbacks;
     int qos = state->internal.header.qos;
     u16 packet_id;
 
@@ -1148,7 +1152,7 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
         int p_start = s_len + t_len;
         if (rem_pos <= p_start) {
             if (!rx_buffer_allocate_put(state, s_len + 1,
-                    state->on_publish_allocate_topic,
+                    message->on_publish_allocate_topic,
                     &state->internal.publish.topic,
                     t_len, b)) {
                 rx_buffer_deallocate_publish(state);
@@ -1158,7 +1162,7 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
             state->internal.packet_id |= (b << ((p_len - rem_pos + p_start) * 8));
         } else {
             if (!rx_buffer_allocate_put(state, p_start + p_len + 1,
-                    state->on_publish_allocate_payload,
+                    message->on_publish_allocate_payload,
                     &state->internal.publish.payload,
                     rem_len - p_len - p_start, b)) {
                 rx_buffer_deallocate_publish(state);
@@ -1190,8 +1194,8 @@ static lmqtt_decode_result_t rx_buffer_decode_publish(lmqtt_rx_buffer_t *state,
         publish->qos = qos;
         publish->retain = state->internal.header.retain;
 
-        if (!state->internal.ignore_publish && state->on_publish)
-            state->on_publish(state->on_publish_data, publish);
+        if (!state->internal.ignore_publish && message->on_publish)
+            message->on_publish(message->on_publish_data, publish);
     }
 
     rx_buffer_deallocate_publish(state);

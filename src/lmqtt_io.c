@@ -483,7 +483,7 @@ static void client_set_state_failed(lmqtt_client_t *client)
  * lmqtt_client_t PUBLIC functions
  ******************************************************************************/
 
-void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_callbacks_t
+void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
     *callbacks)
 {
     memset(client, 0, sizeof(*client));
@@ -491,6 +491,7 @@ void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_callbacks_t
     memcpy(&client->callbacks, callbacks, sizeof(*callbacks));
     client->main_store.get_time = callbacks->get_time;
     client->connect_store.get_time = callbacks->get_time;
+    client->rx_state.message_callbacks = &client->message_callbacks;
 
     client_set_state_initial(client);
 }
@@ -557,6 +558,13 @@ void lmqtt_client_set_on_publish(lmqtt_client_t *client,
     client->on_publish_data = on_publish_data;
 }
 
+void lmqtt_client_set_message_callbacks(lmqtt_client_t *client,
+    lmqtt_message_callbacks_t *message_callbacks)
+{
+    memcpy(&client->message_callbacks, message_callbacks,
+        sizeof(*message_callbacks));
+}
+
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs)
 {
     client->main_store.timeout = secs;
@@ -609,8 +617,11 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
 
         if (st_o == LMQTT_IO_STATUS_BLOCK_CONN)
             result |= LMQTT_RES_WOULD_BLOCK_CONN_RD;
-        if (st_o == LMQTT_IO_STATUS_BLOCK_DATA)
-            result |= LMQTT_RES_WOULD_BLOCK_DATA_WR;
+        if (st_o == LMQTT_IO_STATUS_BLOCK_DATA) {
+            *str_wr = lmqtt_rx_buffer_get_blocking_str(&client->rx_state);
+            if (*str_wr)
+                result |= LMQTT_RES_WOULD_BLOCK_DATA_WR;
+        }
 
         /* repeat if queue was empty after client_process_output() and new
            packets were added during client_process_input() */

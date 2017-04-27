@@ -177,20 +177,23 @@ struct _lmqtt_rx_buffer_decoder_t {
     lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
 };
 
-typedef int (*lmqtt_rx_buffer_on_publish_t)(void *, lmqtt_publish_t *);
-typedef lmqtt_allocate_result_t (*lmqtt_rx_buffer_on_publish_allocate_t)(void *,
+typedef int (*lmqtt_message_on_publish_t)(void *, lmqtt_publish_t *);
+typedef lmqtt_allocate_result_t (*lmqtt_message_on_publish_allocate_t)(void *,
     lmqtt_publish_t *, int);
-typedef void (*lmqtt_rx_buffer_on_publish_deallocate_t)(void *,
+typedef void (*lmqtt_message_on_publish_deallocate_t)(void *,
     lmqtt_publish_t *);
+
+typedef struct _lmqtt_message_callbacks_t {
+    lmqtt_message_on_publish_t on_publish;
+    lmqtt_message_on_publish_allocate_t on_publish_allocate_topic;
+    lmqtt_message_on_publish_allocate_t on_publish_allocate_payload;
+    lmqtt_message_on_publish_deallocate_t on_publish_deallocate;
+    void *on_publish_data;
+} lmqtt_message_callbacks_t;
 
 typedef struct _lmqtt_rx_buffer_t {
     lmqtt_store_t *store;
-
-    lmqtt_rx_buffer_on_publish_t on_publish;
-    lmqtt_rx_buffer_on_publish_allocate_t on_publish_allocate_topic;
-    lmqtt_rx_buffer_on_publish_allocate_t on_publish_allocate_payload;
-    lmqtt_rx_buffer_on_publish_deallocate_t on_publish_deallocate;
-    void *on_publish_data;
+    lmqtt_message_callbacks_t *message_callbacks;
 
     lmqtt_id_set_t id_set;
 

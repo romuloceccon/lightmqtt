@@ -8,13 +8,16 @@
     int bytes_r; \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
+    lmqtt_message_callbacks_t message_callbacks; \
     void *callbacks_data = 0; \
     int class; \
     lmqtt_store_value_t value; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
+    memset(&message_callbacks, 0, sizeof(message_callbacks)); \
     memset(&value, 0, sizeof(value)); \
     state.store = &store; \
+    state.message_callbacks = &message_callbacks; \
     store.get_time = &test_time_get; \
     value.callback_data = &callbacks_data
 
@@ -266,10 +269,12 @@ START_TEST(should_call_message_received_callback)
     PREPARE;
 
     memset(msg, 0, sizeof(msg));
-    state.on_publish = &test_on_message_received;
-    state.on_publish_data = msg;
-    state.on_publish_allocate_topic = test_on_publish_allocate_topic;
-    state.on_publish_allocate_payload = test_on_publish_allocate_payload;
+    message_callbacks.on_publish = &test_on_message_received;
+    message_callbacks.on_publish_data = msg;
+    message_callbacks.on_publish_allocate_topic =
+        &test_on_publish_allocate_topic;
+    message_callbacks.on_publish_allocate_payload =
+        &test_on_publish_allocate_payload;
 
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -286,10 +291,12 @@ START_TEST(should_decode_qos_and_retain_flag)
     PREPARE;
 
     memset(msg, 0, sizeof(msg));
-    state.on_publish = &test_on_message_received;
-    state.on_publish_data = msg;
-    state.on_publish_allocate_topic = test_on_publish_allocate_topic;
-    state.on_publish_allocate_payload = test_on_publish_allocate_payload;
+    message_callbacks.on_publish = &test_on_message_received;
+    message_callbacks.on_publish_data = msg;
+    message_callbacks.on_publish_allocate_topic =
+        &test_on_publish_allocate_topic;
+    message_callbacks.on_publish_allocate_payload =
+        &test_on_publish_allocate_payload;
 
     res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -306,10 +313,12 @@ START_TEST(should_decode_message_with_blocking_write)
     PREPARE;
 
     memset(msg, 0, sizeof(msg));
-    state.on_publish = &test_on_message_received;
-    state.on_publish_data = msg;
-    state.on_publish_allocate_topic = &test_on_publish_allocate_topic;
-    state.on_publish_allocate_payload = &test_on_publish_allocate_payload_block;
+    message_callbacks.on_publish = &test_on_message_received;
+    message_callbacks.on_publish_data = msg;
+    message_callbacks.on_publish_allocate_topic =
+        &test_on_publish_allocate_topic;
+    message_callbacks.on_publish_allocate_payload =
+        &test_on_publish_allocate_payload_block;
 
     payload_buffer.len = 32;
     payload_buffer.available_len = 1;

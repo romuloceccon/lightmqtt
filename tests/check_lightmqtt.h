@@ -39,7 +39,7 @@
 #include "lightmqtt/packet.h"
 
 typedef struct {
-    u8 buf[4096];
+    u8 buf[8192];
     int pos;
     int len;
     int available_len;
@@ -69,6 +69,7 @@ typedef enum {
     TEST_SUBACK_SUCCESS,
     TEST_UNSUBACK_SUCCESS,
     TEST_PUBLISH_QOS_2,
+    TEST_PUBLISH_QOS_0_BIG,
     TEST_PUBACK,
     TEST_PUBREC,
     TEST_PUBCOMP,

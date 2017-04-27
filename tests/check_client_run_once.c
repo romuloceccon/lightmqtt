@@ -2,6 +2,8 @@
 #include "lightmqtt/io.h"
 
 static test_socket_t ts;
+static char topic[4096];
+static test_buffer_t payload;
 
 static lmqtt_read_result_t test_read_blocked(void *data, u8 *buf, int buf_len,
     int *bytes_read)
@@ -25,7 +27,7 @@ static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 
 static void do_client_initialize(lmqtt_client_t *client)
 {
-    lmqtt_callbacks_t callbacks;
+    lmqtt_client_callbacks_t callbacks;
 
     test_socket_init(&ts);
     callbacks.read = test_socket_read;
@@ -34,6 +36,35 @@ static void do_client_initialize(lmqtt_client_t *client)
     callbacks.get_time = test_time_get;
 
     lmqtt_client_initialize(client, &callbacks);
+}
+
+static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,
+    int *bytes_w)
+{
+    switch (test_buffer_write(data, buf, len, bytes_w)) {
+        case LMQTT_IO_SUCCESS:
+            return LMQTT_WRITE_SUCCESS;
+        case LMQTT_IO_AGAIN:
+            return LMQTT_WRITE_WOULD_BLOCK;
+    }
+    return LMQTT_WRITE_ERROR;
+}
+
+static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->topic.len = len;
+    publish->topic.buf = topic;
+    return LMQTT_ALLOCATE_SUCCESS;
+}
+
+static lmqtt_allocate_result_t on_publish_allocate_payload_block(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->payload.len = len;
+    publish->payload.data = &payload;
+    publish->payload.write = &test_write_block;
+    return LMQTT_ALLOCATE_SUCCESS;
 }
 
 START_TEST(should_run_before_connect)
@@ -166,6 +197,50 @@ START_TEST(should_run_with_data_blocked_for_read)
 
     ck_assert_ptr_eq(&connect.client_id, str_rd);
     ck_assert_ptr_eq(NULL, str_wr);
+}
+END_TEST
+
+START_TEST(should_run_with_data_blocked_for_write)
+{
+    lmqtt_string_t dummy;
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd = &dummy, *str_wr = &dummy;
+    lmqtt_connect_t connect;
+    lmqtt_message_callbacks_t message_callbacks;
+    int res;
+
+    do_client_initialize(&client);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+    lmqtt_client_connect(&client, &connect);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    memset(&message_callbacks, 0, sizeof(message_callbacks));
+    message_callbacks.on_publish_allocate_topic = &on_publish_allocate_topic;
+    message_callbacks.on_publish_allocate_payload =
+        &on_publish_allocate_payload_block;
+    lmqtt_client_set_message_callbacks(&client, &message_callbacks);
+
+    test_socket_append(&ts, TEST_PUBLISH_QOS_0_BIG);
+    payload.len = sizeof(payload.buf);
+    payload.available_len = 1;
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+
+    ck_assert_ptr_eq(NULL, str_rd);
+    ck_assert_ptr_eq(&client.rx_state.internal.publish.payload, str_wr);
 }
 END_TEST
 
@@ -441,6 +516,7 @@ START_TCASE("Client run once")
     ADD_TEST(should_run_after_connect);
     ADD_TEST(should_run_with_output_blocked);
     ADD_TEST(should_run_with_data_blocked_for_read);
+    ADD_TEST(should_run_with_data_blocked_for_write);
     ADD_TEST(should_run_with_read_error);
     ADD_TEST(should_run_with_output_closed);
     ADD_TEST(should_run_with_input_closed);

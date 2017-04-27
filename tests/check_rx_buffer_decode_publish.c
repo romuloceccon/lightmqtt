@@ -5,12 +5,13 @@
 
 static lmqtt_rx_buffer_t state;
 static lmqtt_store_t store;
+static lmqtt_message_callbacks_t message_callbacks;
 static int class;
 static lmqtt_store_value_t value;
 static lmqtt_publish_t *publish;
-static char topic[100];
+static char topic[1000];
 static lmqtt_allocate_result_t allocate_topic_result;
-static char payload[100];
+static char payload[1000];
 static lmqtt_allocate_result_t allocate_payload_result;
 static void *publish_deallocated;
 static int allocate_topic_count;
@@ -79,15 +80,19 @@ static void init_state()
 {
     memset(&state, 0, sizeof(state));
     memset(&store, 0, sizeof(store));
+    memset(&message_callbacks, 0, sizeof(message_callbacks));
     memset(&topic, 0, sizeof(topic));
     memset(&payload, 0, sizeof(payload));
     memset(message_received, 0, sizeof(message_received));
     state.store = &store;
-    state.on_publish = &test_on_publish;
-    state.on_publish_allocate_topic = &test_on_publish_allocate_topic;
-    state.on_publish_allocate_payload = &test_on_publish_allocate_payload;
-    state.on_publish_deallocate = &test_on_publish_deallocate;
-    state.on_publish_data = &publish;
+    state.message_callbacks = &message_callbacks;
+    message_callbacks.on_publish = &test_on_publish;
+    message_callbacks.on_publish_allocate_topic =
+        &test_on_publish_allocate_topic;
+    message_callbacks.on_publish_allocate_payload =
+        &test_on_publish_allocate_payload;
+    message_callbacks.on_publish_deallocate = &test_on_publish_deallocate;
+    message_callbacks.on_publish_data = &publish;
     store.get_time = &test_time_get;
     allocate_topic_result = LMQTT_ALLOCATE_SUCCESS;
     allocate_payload_result = LMQTT_ALLOCATE_SUCCESS;
@@ -314,7 +319,8 @@ START_TEST(should_deallocate_publish_if_decode_fails)
     init_state();
 
     state.internal.header.qos = 1;
-    state.on_publish_allocate_topic = &test_on_publish_allocate_topic_fail;
+    message_callbacks.on_publish_allocate_topic =
+        &test_on_publish_allocate_topic_fail;
     state.internal.header.remaining_length = 10;
     do_decode((u8) '\x00', LMQTT_DECODE_CONTINUE);
     do_decode((u8) '\x03', LMQTT_DECODE_CONTINUE);
