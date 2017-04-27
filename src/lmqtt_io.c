@@ -479,6 +479,30 @@ static void client_set_state_failed(lmqtt_client_t *client)
     client->internal.disconnect = client_do_disconnect_fail;
 }
 
+static int client_process_buffer(lmqtt_client_t *client,
+    lmqtt_io_status_t (*process)(lmqtt_client_t *), int conn_val, int data_val,
+    lmqtt_string_t **blk_str_in, int *return_val, lmqtt_string_t **blk_str_out)
+{
+    lmqtt_io_status_t res = process(client);
+    if (res == LMQTT_IO_STATUS_READY) {
+        *return_val = LMQTT_RES_EOF | conn_val;
+        return 0;
+    }
+    if (res == LMQTT_IO_STATUS_ERROR) {
+        *return_val = LMQTT_RES_ERROR;
+        return 0;
+    }
+
+    if (res == LMQTT_IO_STATUS_BLOCK_CONN) {
+        *return_val |= conn_val;
+    }
+    if (res == LMQTT_IO_STATUS_BLOCK_DATA) {
+        if ((*blk_str_out = *blk_str_in))
+            *return_val |= data_val;
+    }
+    return 1;
+}
+
 /******************************************************************************
  * lmqtt_client_t PUBLIC functions
  ******************************************************************************/
@@ -581,8 +605,7 @@ int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     lmqtt_string_t **str_wr)
 {
-    int result;
-    int st_i, st_o;
+    int result, has_cur_before, has_cur_after;
 
     if (client_keep_alive(client) == LMQTT_IO_STATUS_ERROR) {
         *str_rd = NULL;
@@ -595,38 +618,27 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
         *str_wr = NULL;
         result = 0;
 
-        st_i = client_process_output(client);
-        if (st_i == LMQTT_IO_STATUS_READY)
-            return LMQTT_RES_EOF | LMQTT_RES_WOULD_BLOCK_CONN_WR;
-        if (st_i == LMQTT_IO_STATUS_ERROR)
-            return LMQTT_RES_ERROR;
+        if (!client_process_buffer(client, &client_process_output,
+                LMQTT_RES_WOULD_BLOCK_CONN_WR, LMQTT_RES_WOULD_BLOCK_DATA_RD,
+                &client->tx_state.internal.buffer.blocking_str,
+                &result, str_rd))
+            return result;
 
-        if (st_i == LMQTT_IO_STATUS_BLOCK_CONN)
-            result |= LMQTT_RES_WOULD_BLOCK_CONN_WR;
-        if (st_i == LMQTT_IO_STATUS_BLOCK_DATA) {
-            *str_rd = lmqtt_tx_buffer_get_blocking_str(&client->tx_state);
-            if (*str_rd) /* implies: lmqtt_store_has_current(store) */
-                result |= LMQTT_RES_WOULD_BLOCK_DATA_RD;
-        }
+        has_cur_before = lmqtt_store_has_current(client->current_store);
 
-        st_o = client_process_input(client);
-        if (st_o == LMQTT_IO_STATUS_READY)
-            return LMQTT_RES_EOF | LMQTT_RES_WOULD_BLOCK_CONN_RD;
-        if (st_o == LMQTT_IO_STATUS_ERROR)
-            return LMQTT_RES_ERROR;
+        if (!client_process_buffer(client, &client_process_input,
+                LMQTT_RES_WOULD_BLOCK_CONN_RD, LMQTT_RES_WOULD_BLOCK_DATA_WR,
+                &client->rx_state.internal.blocking_str,
+                &result, str_wr))
+            return result;
 
-        if (st_o == LMQTT_IO_STATUS_BLOCK_CONN)
-            result |= LMQTT_RES_WOULD_BLOCK_CONN_RD;
-        if (st_o == LMQTT_IO_STATUS_BLOCK_DATA) {
-            *str_wr = lmqtt_rx_buffer_get_blocking_str(&client->rx_state);
-            if (*str_wr)
-                result |= LMQTT_RES_WOULD_BLOCK_DATA_WR;
-        }
+        has_cur_after = lmqtt_store_has_current(client->current_store);
 
         /* repeat if queue was empty after client_process_output() and new
-           packets were added during client_process_input() */
-    } while (!*str_rd && st_i == LMQTT_IO_STATUS_BLOCK_DATA && \
-        lmqtt_store_has_current(client->current_store));
+           packets were added during client_process_input(), except when the
+           connection is already blocked for writing */
+    } while (!LMQTT_WOULD_BLOCK_CONN_WR(result) &&
+        !has_cur_before && has_cur_after);
 
     if (lmqtt_store_is_queueable(client->current_store))
         result |= LMQTT_RES_QUEUEABLE;
