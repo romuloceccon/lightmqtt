@@ -119,7 +119,7 @@ START_TEST(should_consume_read_buffer_after_decode_blocks)
     test_dst.available_len = 2 * RX_4TH;
 
     res = client_process_input(&client);
-    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
     /*
      * Each position in the drawing below represents LMQTT_RX_BUFFER_SIZE / 8
@@ -253,7 +253,7 @@ START_TEST(should_decode_remaining_buffer_if_read_blocks)
 }
 END_TEST
 
-START_TEST(should_return_block_conn_if_both_read_and_decode_block)
+START_TEST(should_return_block_data_if_both_read_and_decode_block)
 {
     lmqtt_client_t client;
     lmqtt_io_status_t res;
@@ -264,7 +264,7 @@ START_TEST(should_return_block_conn_if_both_read_and_decode_block)
     test_dst.available_len = 2;
 
     res = client_process_input(&client);
-    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
     ck_assert_int_eq(4, test_src.pos);
     ck_assert_int_eq(2, test_dst.pos);
@@ -381,7 +381,7 @@ START_TCASE("Client buffers")
     ADD_TEST(should_fill_read_buffer_if_decode_interrupts);
     ADD_TEST(should_process_remaining_input_from_previous_call);
     ADD_TEST(should_decode_remaining_buffer_if_read_blocks);
-    ADD_TEST(should_return_block_conn_if_both_read_and_decode_block);
+    ADD_TEST(should_return_block_data_if_both_read_and_decode_block);
     ADD_TEST(should_not_decode_remaining_buffer_if_read_fails);
     ADD_TEST(should_encode_remaining_buffer_if_write_blocks);
     ADD_TEST(should_write_remaining_buffer_if_encode_reaches_eof);
