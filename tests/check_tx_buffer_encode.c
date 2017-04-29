@@ -1,10 +1,5 @@
 #include "check_lightmqtt.h"
 
-static lmqtt_encoder_finder_t test_finder_by_class(lmqtt_class_t class);
-#define TX_BUFFER_FINDER_BY_CLASS test_finder_by_class
-
-#include "../src/lmqtt_packet.c"
-
 #define BYTES_W_PLACEHOLDER -12345
 #define BUF_PLACEHOLDER 0xcc
 
@@ -72,9 +67,24 @@ static lmqtt_encoder_t test_finder(lmqtt_tx_buffer_t *tx_buffer,
     return encoders[tx_buffer->internal.pos];
 }
 
-static lmqtt_encoder_finder_t test_finder_by_class(lmqtt_class_t class)
+/* mock */
+lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
+    lmqtt_class_t class)
 {
     return test_finder_func;
+}
+
+/* do not mock */
+int rx_buffer_call_callback_mock(lmqtt_rx_buffer_t *state)
+{
+    return rx_buffer_call_callback(state);
+}
+
+/* do not mock */
+lmqtt_decode_result_t rx_buffer_decode_type_mock(
+    lmqtt_rx_buffer_t *state, u8 b)
+{
+    return rx_buffer_decode_type(state, b);
 }
 
 static lmqtt_encode_result_t encode_test_0_9(lmqtt_store_value_t *value,

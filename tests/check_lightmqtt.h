@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <check.h>
+#include <assert.h>
 
 #define START_TCASE(suite_name) \
     void tcase_add_methods(TCase *tcase); \
@@ -37,6 +38,8 @@
 #define ADD_TEST(method) tcase_add_test(tcase, method)
 
 #include "lightmqtt/packet.h"
+#include "lightmqtt/io.h"
+#include "lightmqtt/types.h"
 
 typedef struct {
     u8 buf[8192];
@@ -95,5 +98,76 @@ void test_socket_init(test_socket_t *socket);
 void test_socket_append_param(test_socket_t *socket, int val, int param);
 void test_socket_append(test_socket_t *socket, int val);
 int test_socket_shift(test_socket_t *socket);
+
+/*
+ * private functions which will be tested
+ */
+
+lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
+    int *bytes_written);
+
+lmqtt_encode_result_t encode_buffer_encode(
+    lmqtt_encode_buffer_t *encode_buffer, lmqtt_store_value_t *value,
+    encode_buffer_builder_t builder, int offset, u8 *buf, int buf_len,
+    int *bytes_written);
+
+lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b,
+    lmqtt_string_t **blocking_str);
+
+lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header, u8 b);
+
+lmqtt_encode_result_t connect_build_fixed_header(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
+
+lmqtt_encode_result_t connect_encode_fixed_header(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encode_result_t connect_build_variable_header(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
+
+lmqtt_encode_result_t connect_encode_variable_header(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encode_result_t connect_encode_payload_client_id(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encode_result_t connect_encode_payload_user_name(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encode_result_t publish_build_fixed_header(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
+
+lmqtt_encode_result_t publish_encode_topic(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encode_result_t publish_encode_packet_id(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encode_result_t publish_encode_payload(
+    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
+    int offset, u8 *buf, int buf_len, int *bytes_written);
+
+lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class);
+
+lmqtt_decode_result_t rx_buffer_decode_connack(
+    lmqtt_rx_buffer_t *state, u8 b);
+
+lmqtt_decode_result_t rx_buffer_decode_publish(
+    lmqtt_rx_buffer_t *state, u8 b);
+
+lmqtt_decode_result_t rx_buffer_decode_suback(
+    lmqtt_rx_buffer_t *state, u8 b);
+
+int rx_buffer_pubrel(lmqtt_rx_buffer_t *state);
+
+int rx_buffer_call_callback(lmqtt_rx_buffer_t *state);
+
+lmqtt_decode_result_t rx_buffer_decode_type(lmqtt_rx_buffer_t *state, u8 b);
 
 #endif

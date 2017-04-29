@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_packet.c"
-
 static lmqtt_rx_buffer_t state;
 static lmqtt_store_t store;
 static int class;

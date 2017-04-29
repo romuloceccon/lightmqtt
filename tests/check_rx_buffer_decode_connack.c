@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_packet.c"
-
 #define PREPARE \
     int res; \
     lmqtt_rx_buffer_t state; \

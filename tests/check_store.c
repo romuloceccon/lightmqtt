@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_store.c"
-
 #define PREPARE \
     int data[LMQTT_STORE_SIZE]; \
     int class = -1; \

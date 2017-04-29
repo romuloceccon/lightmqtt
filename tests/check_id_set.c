@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_packet.c"
-
 START_TEST(should_put_items)
 {
     lmqtt_id_set_t id_set;

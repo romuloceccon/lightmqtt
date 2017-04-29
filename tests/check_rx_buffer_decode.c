@@ -1,12 +1,5 @@
 #include "check_lightmqtt.h"
 
-static int test_call_callback(lmqtt_rx_buffer_t *state);
-#define RX_BUFFER_CALL_CALLBACK test_call_callback
-static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b);
-#define RX_BUFFER_DECODE_TYPE test_decode_type
-
-#include "../src/lmqtt_packet.c"
-
 #define BYTES_R_PLACEHOLDER -12345
 
 #define PREPARE \
@@ -49,7 +42,15 @@ typedef struct _test_client_t {
 
 static test_client_t client;
 
-static int test_call_callback(lmqtt_rx_buffer_t *state)
+/* do not mock */
+lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
+    lmqtt_class_t class)
+{
+    return tx_buffer_finder_by_class(class);
+}
+
+/* mock */
+int rx_buffer_call_callback_mock(lmqtt_rx_buffer_t *state)
 {
     test_packet_t *packet = &client.packets[client.current_packet++];
 
@@ -59,7 +60,9 @@ static int test_call_callback(lmqtt_rx_buffer_t *state)
     return 1;
 }
 
-static lmqtt_decode_result_t test_decode_type(lmqtt_rx_buffer_t *state, u8 b)
+/* mock */
+lmqtt_decode_result_t rx_buffer_decode_type_mock(
+    lmqtt_rx_buffer_t *state, u8 b)
 {
     test_packet_t *packet = &client.packets[client.current_packet];
 

@@ -2,8 +2,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "../src/lmqtt_io.c"
-
 typedef struct {
     void *data;
     int succeeded;

@@ -1,5 +1,4 @@
 #include "check_lightmqtt.h"
-#include "lightmqtt/io.h"
 
 static test_socket_t ts;
 static char topic[4096];

@@ -1,66 +1,44 @@
-TESTS = \
-    .bin/check_time \
-    .bin/check_store \
-    .bin/check_id_set \
-    .bin/check_string \
-    .bin/check_encode_remaining_length \
-    .bin/check_encode_buffer \
-    .bin/check_connect_encode_headers \
-    .bin/check_connect_encode_payload \
-    .bin/check_connect_validate \
-    .bin/check_subscribe_validate \
-    .bin/check_publish_encode \
-    .bin/check_publish_validate \
-    .bin/check_fixed_header_decode \
-    .bin/check_tx_buffer_encode \
-    .bin/check_tx_buffer_finders \
-    .bin/check_rx_buffer_decode \
-    .bin/check_rx_buffer_decode_connack \
-    .bin/check_rx_buffer_decode_publish \
-    .bin/check_rx_buffer_decode_pubrel \
-    .bin/check_rx_buffer_decode_suback \
-    .bin/check_rx_buffer_callbacks \
-    .bin/check_client_buffers \
-    .bin/check_client_commands \
-    .bin/check_client_run_once
+check_PROGRAMS = check_time check_store check_id_set check_string \
+    check_encode_remaining_length check_encode_buffer \
+    check_connect_encode_headers check_connect_encode_payload \
+    check_connect_validate check_subscribe_validate check_publish_encode \
+    check_publish_validate check_fixed_header_decode check_tx_buffer_encode \
+    check_tx_buffer_finders check_rx_buffer_decode \
+    check_rx_buffer_decode_connack check_rx_buffer_decode_publish \
+    check_rx_buffer_decode_pubrel check_rx_buffer_decode_suback \
+    check_rx_buffer_callbacks check_client_buffers check_client_commands \
+    check_client_run_once
 
-check_PROGRAMS = $(TESTS)
+TESTS = $(check_PROGRAMS)
 
-_bin_check_time_SOURCES                     = check_time.c \
-    check_lightmqtt.c
-_bin_check_store_SOURCES                    = check_store.c \
-    check_lightmqtt.c
-_bin_check_id_set_SOURCES                   = check_id_set.c
-_bin_check_string_SOURCES                   = check_string.c
-_bin_check_encode_remaining_length_SOURCES  = check_encode_remaining_length.c
-_bin_check_encode_buffer_SOURCES            = check_encode_buffer.c
-_bin_check_connect_encode_headers_SOURCES   = check_connect_encode_headers.c
-_bin_check_connect_encode_payload_SOURCES   = check_connect_encode_payload.c
-_bin_check_connect_validate_SOURCES         = check_connect_validate.c
-_bin_check_subscribe_validate_SOURCES       = check_subscribe_validate.c
-_bin_check_publish_encode_SOURCES           = check_publish_encode.c
-_bin_check_publish_validate_SOURCES         = check_publish_validate.c
-_bin_check_fixed_header_decode_SOURCES      = check_fixed_header_decode.c
-_bin_check_tx_buffer_encode_SOURCES         = check_tx_buffer_encode.c \
-    check_lightmqtt.c
-_bin_check_tx_buffer_finders_SOURCES        = check_tx_buffer_finders.c \
-    check_lightmqtt.c
-_bin_check_rx_buffer_decode_SOURCES         = check_rx_buffer_decode.c \
-    check_lightmqtt.c
-_bin_check_rx_buffer_decode_connack_SOURCES = check_rx_buffer_decode_connack.c
-_bin_check_rx_buffer_decode_publish_SOURCES = check_rx_buffer_decode_publish.c \
-    check_lightmqtt.c
-_bin_check_rx_buffer_decode_pubrel_SOURCES  = check_rx_buffer_decode_pubrel.c \
-    check_lightmqtt.c
-_bin_check_rx_buffer_decode_suback_SOURCES  = check_rx_buffer_decode_suback.c
-_bin_check_rx_buffer_callbacks_SOURCES      = check_rx_buffer_callbacks.c \
-    check_lightmqtt.c
-_bin_check_client_buffers_SOURCES           = check_client_buffers.c \
-    check_lightmqtt.c
-_bin_check_client_commands_SOURCES          = check_client_commands.c \
-    check_lightmqtt.c
-_bin_check_client_run_once_SOURCES          = check_client_run_once.c \
-    check_lightmqtt.c
+TEST_BASE_SRCS = check_lightmqtt.c test_store.c test_time.c
+TEST_PACKET_SRCS = test_packet.c $(TEST_BASE_SRCS)
+TEST_IO_SRCS = test_io.c test_packet.c $(TEST_BASE_SRCS)
+
+check_time_SOURCES = check_time.c $(TEST_PACKET_SRCS)
+check_store_SOURCES = check_store.c $(TEST_PACKET_SRCS)
+check_id_set_SOURCES = check_id_set.c $(TEST_PACKET_SRCS)
+check_string_SOURCES = check_string.c $(TEST_PACKET_SRCS)
+check_encode_remaining_length_SOURCES = check_encode_remaining_length.c $(TEST_PACKET_SRCS)
+check_encode_buffer_SOURCES = check_encode_buffer.c $(TEST_PACKET_SRCS)
+check_connect_encode_headers_SOURCES = check_connect_encode_headers.c $(TEST_PACKET_SRCS)
+check_connect_encode_payload_SOURCES = check_connect_encode_payload.c $(TEST_PACKET_SRCS)
+check_connect_validate_SOURCES = check_connect_validate.c $(TEST_PACKET_SRCS)
+check_subscribe_validate_SOURCES = check_subscribe_validate.c $(TEST_PACKET_SRCS)
+check_publish_encode_SOURCES = check_publish_encode.c $(TEST_PACKET_SRCS)
+check_publish_validate_SOURCES = check_publish_validate.c $(TEST_PACKET_SRCS)
+check_fixed_header_decode_SOURCES = check_fixed_header_decode.c $(TEST_PACKET_SRCS)
+check_tx_buffer_encode_SOURCES = check_tx_buffer_encode.c test_packet_mock.c $(TEST_BASE_SRCS)
+check_tx_buffer_finders_SOURCES = check_tx_buffer_finders.c $(TEST_PACKET_SRCS)
+check_rx_buffer_decode_SOURCES = check_rx_buffer_decode.c test_packet_mock.c $(TEST_BASE_SRCS)
+check_rx_buffer_decode_connack_SOURCES = check_rx_buffer_decode_connack.c $(TEST_PACKET_SRCS)
+check_rx_buffer_decode_publish_SOURCES = check_rx_buffer_decode_publish.c $(TEST_PACKET_SRCS)
+check_rx_buffer_decode_pubrel_SOURCES = check_rx_buffer_decode_pubrel.c $(TEST_PACKET_SRCS)
+check_rx_buffer_decode_suback_SOURCES = check_rx_buffer_decode_suback.c $(TEST_PACKET_SRCS)
+check_rx_buffer_callbacks_SOURCES = check_rx_buffer_callbacks.c $(TEST_PACKET_SRCS)
+check_client_buffers_SOURCES = check_client_buffers.c test_io_mock.c $(TEST_PACKET_SRCS)
+check_client_commands_SOURCES = check_client_commands.c $(TEST_IO_SRCS)
+check_client_run_once_SOURCES = check_client_run_once.c $(TEST_IO_SRCS)
 
 AM_CFLAGS = -I$(top_builddir) @CHECK_CFLAGS@
-LDADD = $(top_builddir)/src/liblightmqtt.la @CHECK_LIBS@
+LDADD = @CHECK_LIBS@

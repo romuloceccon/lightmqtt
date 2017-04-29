@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_packet.c"
-
 typedef struct {
     u8 buf[10];
     int len;

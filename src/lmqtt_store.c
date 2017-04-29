@@ -5,7 +5,8 @@
  * lmqtt_store_t PRIVATE functions
  ******************************************************************************/
 
-static int store_find(lmqtt_store_t *store, int class, u16 packet_id, int *pos)
+LMQTT_STATIC int store_find(lmqtt_store_t *store, int class, u16 packet_id,
+    int *pos)
 {
     int i;
 
@@ -21,7 +22,7 @@ static int store_find(lmqtt_store_t *store, int class, u16 packet_id, int *pos)
     return 0;
 }
 
-static int store_pop_at(lmqtt_store_t *store, int pos, int *class,
+LMQTT_STATIC int store_pop_at(lmqtt_store_t *store, int pos, int *class,
     lmqtt_store_value_t *value)
 {
     if (!lmqtt_store_get_at(store, pos, class, value))

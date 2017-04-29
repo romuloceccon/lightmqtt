@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_packet.c"
-
 #define BUF_PLACEHOLDER 0xcc
 #define BYTES_W_PLACEHOLDER -12345
 #define CLIENT_ID_PLACEHOLDER 'A'

@@ -1,8 +1,6 @@
 #include "check_lightmqtt.h"
 #include <stdio.h>
 
-#include "../src/lmqtt_packet.c"
-
 #define PREPARE \
     int res; \
     int bytes_r; \

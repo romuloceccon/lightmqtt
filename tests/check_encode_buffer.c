@@ -1,7 +1,5 @@
 #include "check_lightmqtt.h"
 
-#include "../src/lmqtt_packet.c"
-
 #define PREPARE \
     u8 buf[512]; \
     int bytes_w = 0xcccccccc; \

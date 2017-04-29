@@ -1,6 +1,14 @@
 #include <lightmqtt/io.h>
 #include <string.h>
 
+/* Enable mocking of lmqtt_rx_buffer_decode() and lmqtt_tx_buffer_encode() */
+#if !defined(LMQTT_TEST) || !defined(LMQTT_RX_BUFFER_DECODE)
+    #define LMQTT_RX_BUFFER_DECODE lmqtt_rx_buffer_decode
+#endif
+#if !defined(LMQTT_TEST) || !defined(LMQTT_TX_BUFFER_ENCODE)
+    #define LMQTT_TX_BUFFER_ENCODE lmqtt_tx_buffer_encode
+#endif
+
 /******************************************************************************
  * lmqtt_input_t
  ******************************************************************************/
@@ -10,7 +18,7 @@ typedef struct _lmqtt_input_t {
     void *data;
 } lmqtt_input_t;
 
-static lmqtt_io_result_t input_read(lmqtt_input_t *input, u8 *buf,
+LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input, u8 *buf,
     int *buf_pos, int buf_len, int *cnt)
 {
     lmqtt_io_result_t result;
@@ -30,7 +38,7 @@ typedef struct _lmqtt_output_t {
     void *data;
 } lmqtt_output_t;
 
-static lmqtt_io_result_t output_write(lmqtt_output_t *output, u8 *buf,
+LMQTT_STATIC lmqtt_io_result_t output_write(lmqtt_output_t *output, u8 *buf,
     int *buf_pos, int *cnt)
 {
     lmqtt_io_result_t result;
@@ -46,12 +54,12 @@ static lmqtt_io_result_t output_write(lmqtt_output_t *output, u8 *buf,
  * lmqtt_client_t PRIVATE functions
  ******************************************************************************/
 
-static void client_set_state_initial(lmqtt_client_t *client);
-static void client_set_state_connecting(lmqtt_client_t *client);
-static void client_set_state_connected(lmqtt_client_t *client);
-static void client_set_state_failed(lmqtt_client_t *client);
+LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client);
+LMQTT_STATIC void client_set_state_connecting(lmqtt_client_t *client);
+LMQTT_STATIC void client_set_state_connected(lmqtt_client_t *client);
+LMQTT_STATIC void client_set_state_failed(lmqtt_client_t *client);
 
-static int client_is_error(lmqtt_client_t *client, lmqtt_io_result_t res)
+LMQTT_STATIC int client_is_error(lmqtt_client_t *client, lmqtt_io_result_t res)
 {
     if (res == LMQTT_IO_ERROR) {
         client_set_state_failed(client);
@@ -60,7 +68,8 @@ static int client_is_error(lmqtt_client_t *client, lmqtt_io_result_t res)
     return 0;
 }
 
-static int client_is_eof(lmqtt_client_t *client, lmqtt_io_result_t res, int cnt)
+LMQTT_STATIC int client_is_eof(lmqtt_client_t *client, lmqtt_io_result_t res,
+    int cnt)
 {
     if (res == LMQTT_IO_SUCCESS && cnt == 0) {
         client_set_state_initial(client);
@@ -69,7 +78,8 @@ static int client_is_eof(lmqtt_client_t *client, lmqtt_io_result_t res, int cnt)
     return 0;
 }
 
-static void client_flush_store(lmqtt_client_t *client, lmqtt_store_t *store)
+LMQTT_STATIC void client_flush_store(lmqtt_client_t *client,
+    lmqtt_store_t *store)
 {
     lmqtt_store_value_t value;
 
@@ -79,7 +89,8 @@ static void client_flush_store(lmqtt_client_t *client, lmqtt_store_t *store)
     }
 }
 
-static void client_cleanup_stores(lmqtt_client_t *client, int keep_session)
+LMQTT_STATIC void client_cleanup_stores(lmqtt_client_t *client,
+    int keep_session)
 {
     int i = 0;
     int class;
@@ -100,7 +111,7 @@ static void client_cleanup_stores(lmqtt_client_t *client, int keep_session)
     client_flush_store(client, &client->connect_store);
 }
 
-static void client_set_current_store(lmqtt_client_t *client,
+LMQTT_STATIC void client_set_current_store(lmqtt_client_t *client,
     lmqtt_store_t *store)
 {
     client->current_store = store;
@@ -108,7 +119,7 @@ static void client_set_current_store(lmqtt_client_t *client,
     client->tx_state.store = store;
 }
 
-static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
+LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     lmqtt_input_t *input, lmqtt_io_status_t reader_block,
     lmqtt_output_t *output, lmqtt_io_status_t writer_block,
     u8 *buf, int *buf_pos, int buf_len)
@@ -151,17 +162,17 @@ static lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     return writer_block;
 }
 
-static lmqtt_io_result_t client_decode_wrapper(void *data, u8 *buf, int buf_len,
-    int *bytes_read)
+LMQTT_STATIC lmqtt_io_result_t client_decode_wrapper(void *data, u8 *buf,
+    int buf_len, int *bytes_read)
 {
-    return lmqtt_rx_buffer_decode((lmqtt_rx_buffer_t *) data, buf, buf_len,
+    return LMQTT_RX_BUFFER_DECODE((lmqtt_rx_buffer_t *) data, buf, buf_len,
         bytes_read);
 }
 
-static lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf, int buf_len,
-    int *bytes_written)
+LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf,
+    int buf_len, int *bytes_written)
 {
-    return lmqtt_tx_buffer_encode((lmqtt_tx_buffer_t *) data, buf, buf_len,
+    return LMQTT_TX_BUFFER_ENCODE((lmqtt_tx_buffer_t *) data, buf, buf_len,
         bytes_written);
 }
 
@@ -208,7 +219,7 @@ lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
     return LMQTT_IO_STATUS_READY;
 }
 
-static int client_subscribe_with_class(lmqtt_client_t *client,
+LMQTT_STATIC int client_subscribe_with_class(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe, lmqtt_class_t class,
     lmqtt_store_entry_callback_t cb)
 {
@@ -228,7 +239,7 @@ static int client_subscribe_with_class(lmqtt_client_t *client,
     return lmqtt_store_append(&client->main_store, class, &value);
 }
 
-static int client_on_connack(void *data, lmqtt_connect_t *connect)
+LMQTT_STATIC int client_on_connack(void *data, lmqtt_connect_t *connect)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
@@ -252,7 +263,7 @@ static int client_on_connack(void *data, lmqtt_connect_t *connect)
     return 1;
 }
 
-static int client_on_suback(void *data, lmqtt_subscribe_t *subscribe)
+LMQTT_STATIC int client_on_suback(void *data, lmqtt_subscribe_t *subscribe)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
@@ -263,7 +274,7 @@ static int client_on_suback(void *data, lmqtt_subscribe_t *subscribe)
     return 1;
 }
 
-static int client_on_unsuback(void *data, lmqtt_subscribe_t *subscribe)
+LMQTT_STATIC int client_on_unsuback(void *data, lmqtt_subscribe_t *subscribe)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
@@ -274,7 +285,7 @@ static int client_on_unsuback(void *data, lmqtt_subscribe_t *subscribe)
     return 1;
 }
 
-static int client_on_publish(void *data, lmqtt_publish_t *publish)
+LMQTT_STATIC int client_on_publish(void *data, lmqtt_publish_t *publish)
 {
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
@@ -285,18 +296,19 @@ static int client_on_publish(void *data, lmqtt_publish_t *publish)
     return 1;
 }
 
-static int client_on_pingresp(void *data, void *unused)
+LMQTT_STATIC int client_on_pingresp(void *data, void *unused)
 {
     return 1;
 }
 
-static int client_do_connect_fail(lmqtt_client_t *client,
+LMQTT_STATIC int client_do_connect_fail(lmqtt_client_t *client,
     lmqtt_connect_t *connect)
 {
     return 0;
 }
 
-static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
+LMQTT_STATIC int client_do_connect(lmqtt_client_t *client,
+    lmqtt_connect_t *connect)
 {
     lmqtt_store_value_t value;
 
@@ -316,13 +328,13 @@ static int client_do_connect(lmqtt_client_t *client, lmqtt_connect_t *connect)
     return 1;
 }
 
-static int client_do_subscribe_fail(lmqtt_client_t *client,
+LMQTT_STATIC int client_do_subscribe_fail(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
     return 0;
 }
 
-static int client_do_subscribe(lmqtt_client_t *client,
+LMQTT_STATIC int client_do_subscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
     return client_subscribe_with_class(client,
@@ -330,13 +342,13 @@ static int client_do_subscribe(lmqtt_client_t *client,
         (lmqtt_store_entry_callback_t) &client_on_suback);
 }
 
-static int client_do_unsubscribe_fail(lmqtt_client_t *client,
+LMQTT_STATIC int client_do_unsubscribe_fail(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
     return 0;
 }
 
-static int client_do_unsubscribe(lmqtt_client_t *client,
+LMQTT_STATIC int client_do_unsubscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
     return client_subscribe_with_class(client,
@@ -344,13 +356,14 @@ static int client_do_unsubscribe(lmqtt_client_t *client,
         (lmqtt_store_entry_callback_t) &client_on_unsuback);
 }
 
-static int client_do_publish_fail(lmqtt_client_t *client,
+LMQTT_STATIC int client_do_publish_fail(lmqtt_client_t *client,
     lmqtt_publish_t *publish)
 {
     return 0;
 }
 
-static int client_do_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
+LMQTT_STATIC int client_do_publish(lmqtt_client_t *client,
+    lmqtt_publish_t *publish)
 {
     int class;
     int qos = publish->qos;
@@ -374,12 +387,12 @@ static int client_do_publish(lmqtt_client_t *client, lmqtt_publish_t *publish)
     return lmqtt_store_append(&client->main_store, class, &value);
 }
 
-static int client_do_pingreq_fail(lmqtt_client_t *client)
+LMQTT_STATIC int client_do_pingreq_fail(lmqtt_client_t *client)
 {
     return 0;
 }
 
-static int client_do_pingreq(lmqtt_client_t *client)
+LMQTT_STATIC int client_do_pingreq(lmqtt_client_t *client)
 {
     lmqtt_store_value_t value;
 
@@ -391,18 +404,18 @@ static int client_do_pingreq(lmqtt_client_t *client)
     return lmqtt_store_append(&client->main_store, LMQTT_CLASS_PINGREQ, &value);
 }
 
-static int client_do_disconnect_fail(lmqtt_client_t *client)
+LMQTT_STATIC int client_do_disconnect_fail(lmqtt_client_t *client)
 {
     return 0;
 }
 
-static int client_do_disconnect(lmqtt_client_t *client)
+LMQTT_STATIC int client_do_disconnect(lmqtt_client_t *client)
 {
     return lmqtt_store_append(&client->main_store, LMQTT_CLASS_DISCONNECT,
         NULL);
 }
 
-static void client_set_state_initial(lmqtt_client_t *client)
+LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client)
 {
     client->closed = 1;
     client->failed = 0;
@@ -420,7 +433,7 @@ static void client_set_state_initial(lmqtt_client_t *client)
     client->internal.disconnect = client_do_disconnect_fail;
 }
 
-static void client_set_state_connecting(lmqtt_client_t *client)
+LMQTT_STATIC void client_set_state_connecting(lmqtt_client_t *client)
 {
     client->closed = 0;
     client->failed = 0;
@@ -433,7 +446,7 @@ static void client_set_state_connecting(lmqtt_client_t *client)
     client->internal.connect = client_do_connect_fail;
 }
 
-static void client_set_state_connected(lmqtt_client_t *client)
+LMQTT_STATIC void client_set_state_connected(lmqtt_client_t *client)
 {
     client->closed = 0;
     client->failed = 0;
@@ -450,7 +463,7 @@ static void client_set_state_connected(lmqtt_client_t *client)
     client->internal.disconnect = client_do_disconnect;
 }
 
-static void client_set_state_failed(lmqtt_client_t *client)
+LMQTT_STATIC void client_set_state_failed(lmqtt_client_t *client)
 {
     client->closed = 1;
     client->failed = 1;
@@ -463,7 +476,7 @@ static void client_set_state_failed(lmqtt_client_t *client)
     client->internal.disconnect = client_do_disconnect_fail;
 }
 
-static int client_process_buffer(lmqtt_client_t *client,
+LMQTT_STATIC int client_process_buffer(lmqtt_client_t *client,
     lmqtt_io_status_t (*process)(lmqtt_client_t *), int conn_val, int data_val,
     lmqtt_string_t **blk_str_in, int *return_val, lmqtt_string_t **blk_str_out)
 {
