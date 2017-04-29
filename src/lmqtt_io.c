@@ -443,12 +443,6 @@ static void client_set_state_connecting(lmqtt_client_t *client)
 
     lmqtt_rx_buffer_reset(&client->rx_state);
     lmqtt_tx_buffer_reset(&client->tx_state);
-    /* TODO: When lmqtt_rx_buffer_decode implements handling of blocking writes
-       (for example, when writing the contents of a PUBLISH packet to a file) it
-       may be possible for client->read_buf_pos to not be 0 before a reconnect.
-       We need to write a test-case for that, like the one for
-       client->write_buf_pos (see `should_reset_output_buffer_on_reconnect` in
-       check_client_commands.c). */
     client->read_buf_pos = 0;
     client->write_buf_pos = 0;
 

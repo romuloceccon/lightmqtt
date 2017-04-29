@@ -20,6 +20,12 @@ static void test_cb_result_set(void *cb_result, void *data, int succeeded)
     result->succeeded = succeeded;
 }
 
+static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,
+    int *bytes_w)
+{
+    return LMQTT_WRITE_WOULD_BLOCK;
+}
+
 static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     test_cb_result_set(data, connect, succeeded);
@@ -53,6 +59,14 @@ static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
 {
     publish->topic.len = len;
     publish->topic.buf = topic;
+    return LMQTT_ALLOCATE_SUCCESS;
+}
+
+static lmqtt_allocate_result_t on_publish_allocate_topic_block(void *data,
+    lmqtt_publish_t *publish, int len)
+{
+    publish->topic.len = len;
+    publish->topic.write = &test_write_block;
     return LMQTT_ALLOCATE_SUCCESS;
 }
 
@@ -193,6 +207,7 @@ static void check_connect_and_receive_message(lmqtt_client_t *client,
 {
     do_connect(client, 5, clean_session);
     client_process_output(client);
+    test_socket_shift(&ts);
 
     test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     test_socket_append_param(&ts, TEST_PUBLISH_QOS_2, packet_id);
@@ -942,6 +957,31 @@ START_TEST(should_reset_output_buffer_on_reconnect)
 }
 END_TEST
 
+START_TEST(should_reset_input_buffer_on_reconnect)
+{
+    lmqtt_client_t client;
+
+    do_init(&client, 3);
+
+    client.message_callbacks.on_publish_allocate_topic =
+        &on_publish_allocate_topic_block;
+
+    check_connect_and_receive_message(&client, 0, 0x0304);
+
+    ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift(&ts));
+
+    do_connect(&client, 5, 0);
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+    ck_assert_int_eq(-1, test_socket_shift(&ts));
+}
+END_TEST
+
 START_TEST(should_reset_decoder_on_reconnect)
 {
     lmqtt_client_t client;
@@ -1223,6 +1263,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_reconnect_after_close);
     ADD_TEST(should_reconnect_after_disconnect);
     ADD_TEST(should_reset_output_buffer_on_reconnect);
+    ADD_TEST(should_reset_input_buffer_on_reconnect);
     ADD_TEST(should_reset_decoder_on_reconnect);
     ADD_TEST(should_finalize_client);
     ADD_TEST(should_finalize_client_before_connack);
