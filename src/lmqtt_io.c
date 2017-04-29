@@ -165,17 +165,6 @@ static lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf, int buf_len,
         bytes_written);
 }
 
-/*
- * TODO: somehow we should tell the user which handle she should select() on. If
- * (a) lmqtt_rx_buffer_decode() returns LMQTT_DECODE_CONTINUE (meaning a write operation
- * would block), (b) the read handle is still readable and (c) the buffer is
- * full, the user cannot select() on the read handle. Otherwise the program will
- * enter a busy loop because the read handle remains signaled, but
- * process_input() cannot consume the buffer, which would take the read handle
- * out of its signaled state. Similarly, one should not wait on the write handle
- * which some callback is writing the input message to if the input buffer is
- * empty.
- */
 lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 {
     lmqtt_input_t input = { client->callbacks.read, client->callbacks.data };
@@ -187,11 +176,6 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
         client->read_buf, &client->read_buf_pos, sizeof(client->read_buf));
 }
 
-/*
- * TODO: review how lmqtt_tx_buffer_encode() should handle cases where some read
- * would block, cases where there's no data to encode and cases where the buffer
- * is not enough to encode the whole command.
- */
 lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 {
     lmqtt_input_t input = { client_encode_wrapper, &client->tx_state };

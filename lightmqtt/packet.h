@@ -91,8 +91,6 @@ typedef struct _lmqtt_encode_buffer_t {
 typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(lmqtt_store_value_t *,
     lmqtt_encode_buffer_t *);
 
-/* TODO: review this; only remaining_length is actually part of the fixed
- * header */
 typedef struct _lmqtt_fixed_header_t {
     int type;
     int dup;
