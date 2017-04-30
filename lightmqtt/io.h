@@ -103,17 +103,6 @@ typedef struct _lmqtt_client_t {
     } internal;
 } lmqtt_client_t;
 
-typedef enum {
-    LMQTT_IO_STATUS_READY = 0, /* = EOF */
-    LMQTT_IO_STATUS_BLOCK_CONN,
-    LMQTT_IO_STATUS_BLOCK_DATA,
-    LMQTT_IO_STATUS_ERROR
-} lmqtt_io_status_t;
-
-lmqtt_io_status_t client_process_input(lmqtt_client_t *client);
-lmqtt_io_status_t client_process_output(lmqtt_client_t *client);
-lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
-
 void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
     *callbacks, lmqtt_client_buffers_t *buffers);
 void lmqtt_client_finalize(lmqtt_client_t *client);

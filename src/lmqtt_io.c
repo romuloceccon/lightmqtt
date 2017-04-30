@@ -1,4 +1,5 @@
 #include <lightmqtt/io.h>
+#include <lightmqtt/types.h>
 #include <string.h>
 
 /******************************************************************************

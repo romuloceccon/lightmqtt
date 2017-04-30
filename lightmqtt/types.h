@@ -18,4 +18,11 @@
 #define LMQTT_TYPE_DISCONNECT 14
 #define LMQTT_TYPE_MAX 14
 
+typedef enum {
+    LMQTT_IO_STATUS_READY = 0, /* = EOF */
+    LMQTT_IO_STATUS_BLOCK_CONN,
+    LMQTT_IO_STATUS_BLOCK_DATA,
+    LMQTT_IO_STATUS_ERROR
+} lmqtt_io_status_t;
+
 #endif
