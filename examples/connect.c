@@ -144,6 +144,7 @@ int main()
     lmqtt_store_entry_t entries[16];
     u8 rx_buffer[256];
     u8 tx_buffer[256];
+    u16 id_set_items[32];
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
@@ -177,6 +178,8 @@ int main()
     buffers.rx_buffer = rx_buffer;
     buffers.tx_buffer_size = sizeof(tx_buffer);
     buffers.tx_buffer = tx_buffer;
+    buffers.id_set_size = sizeof(id_set_items);
+    buffers.id_set = id_set_items;
 
     lmqtt_client_initialize(&client, &callbacks, &buffers);
 

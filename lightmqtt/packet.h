@@ -16,8 +16,6 @@
 #define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
 #define LMQTT_CONNACK_RC_MAX 5
 
-#define LMQTT_ID_LIST_SIZE 16
-
 typedef enum {
     LMQTT_CLASS_CONNECT = 200,
     LMQTT_CLASS_PUBLISH_0,
@@ -66,7 +64,8 @@ typedef enum {
 } lmqtt_allocate_result_t;
 
 typedef struct _lmqtt_id_set_t {
-    u16 items[LMQTT_ID_LIST_SIZE];
+    u16 *items;
+    int capacity;
     int count;
 } lmqtt_id_set_t;
 

@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #define ENTRY_COUNT 16
+#define ID_SET_SIZE 16
 
 static lmqtt_rx_buffer_t state;
 static lmqtt_store_t store;
@@ -9,6 +10,7 @@ static lmqtt_message_callbacks_t message_callbacks;
 static int class;
 static lmqtt_store_value_t value;
 static lmqtt_store_entry_t entries[ENTRY_COUNT];
+static u16 id_set_items[ID_SET_SIZE];
 static lmqtt_publish_t *publish;
 static char topic[1000];
 static lmqtt_allocate_result_t allocate_topic_result;
@@ -85,9 +87,12 @@ static void init_state()
     memset(&topic, 0, sizeof(topic));
     memset(&payload, 0, sizeof(payload));
     memset(entries, 0, sizeof(entries));
+    memset(id_set_items, 0, sizeof(id_set_items));
     memset(message_received, 0, sizeof(message_received));
     state.store = &store;
     state.message_callbacks = &message_callbacks;
+    state.id_set.items = id_set_items;
+    state.id_set.capacity = ID_SET_SIZE;
     message_callbacks.on_publish = &test_on_publish;
     message_callbacks.on_publish_allocate_topic =
         &test_on_publish_allocate_topic;
@@ -380,7 +385,7 @@ START_TEST(should_fail_if_id_set_is_full)
 
     init_state();
 
-    for (i = 0; i < LMQTT_ID_LIST_SIZE; i++) {
+    for (i = 0; i < ID_SET_SIZE; i++) {
         state.internal.header.qos = 2;
         state.internal.packet_id = 0;
         buf[3] = i >> 8;

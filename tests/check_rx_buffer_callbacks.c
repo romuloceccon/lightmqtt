@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #define ENTRY_COUNT 16
+#define ID_SET_SIZE 16
 
 #define PREPARE \
     int res; \
@@ -13,6 +14,7 @@
     int class; \
     lmqtt_store_value_t value; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
+    u16 id_set_items[ID_SET_SIZE]; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&message_callbacks, 0, sizeof(message_callbacks)); \
@@ -20,6 +22,8 @@
     memset(entries, 0, sizeof(entries)); \
     state.store = &store; \
     state.message_callbacks = &message_callbacks; \
+    state.id_set.items = id_set_items; \
+    state.id_set.capacity = ID_SET_SIZE; \
     store.get_time = &test_time_get; \
     store.entries = entries; \
     store.capacity = ENTRY_COUNT; \

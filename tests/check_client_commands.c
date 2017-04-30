@@ -16,6 +16,7 @@ static char payload[100];
 static lmqtt_store_entry_t entries[16];
 static u8 rx_buffer[RX_BUFFER_SIZE];
 static u8 tx_buffer[TX_BUFFER_SIZE];
+static u16 id_set_items[16];
 
 static void test_cb_result_set(void *cb_result, void *data, int succeeded)
 {
@@ -102,6 +103,8 @@ static void do_init(lmqtt_client_t *client, long timeout)
     buffers.rx_buffer = rx_buffer;
     buffers.tx_buffer_size = TX_BUFFER_SIZE;
     buffers.tx_buffer = tx_buffer;
+    buffers.id_set_size = sizeof(id_set_items);
+    buffers.id_set = id_set_items;
 
     lmqtt_client_initialize(client, &callbacks, &buffers);
 

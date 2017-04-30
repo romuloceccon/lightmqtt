@@ -1,10 +1,15 @@
 #include "check_lightmqtt.h"
 
+#define ID_LIST_SIZE 16
+
+static lmqtt_id_set_t id_set;
+static u16 items[ID_LIST_SIZE];
+
 START_TEST(should_put_items)
 {
-    lmqtt_id_set_t id_set;
-
     memset(&id_set, 0, sizeof(id_set));
+    id_set.items = items;
+    id_set.capacity = ID_LIST_SIZE;
 
     ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 3));
     ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 6));
@@ -16,23 +21,24 @@ END_TEST
 
 START_TEST(should_not_overflow_buffer)
 {
-    lmqtt_id_set_t id_set;
     int i;
 
     memset(&id_set, 0, sizeof(id_set));
+    id_set.items = items;
+    id_set.capacity = ID_LIST_SIZE;
 
-    for (i = 0; i < LMQTT_ID_LIST_SIZE; i++)
+    for (i = 0; i < ID_LIST_SIZE; i++)
         ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, i));
 
-    ck_assert_int_eq(0, lmqtt_id_set_put(&id_set, LMQTT_ID_LIST_SIZE));
+    ck_assert_int_eq(0, lmqtt_id_set_put(&id_set, ID_LIST_SIZE));
 }
 END_TEST
 
 START_TEST(should_not_duplicate_items)
 {
-    lmqtt_id_set_t id_set;
-
     memset(&id_set, 0, sizeof(id_set));
+    id_set.items = items;
+    id_set.capacity = ID_LIST_SIZE;
 
     ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 3));
     ck_assert_int_eq(0, lmqtt_id_set_put(&id_set, 3));
@@ -43,9 +49,9 @@ END_TEST
 
 START_TEST(should_remove_item)
 {
-    lmqtt_id_set_t id_set;
-
     memset(&id_set, 0, sizeof(id_set));
+    id_set.items = items;
+    id_set.capacity = ID_LIST_SIZE;
 
     ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 3));
     ck_assert_int_eq(1, lmqtt_id_set_put(&id_set, 6));
@@ -64,9 +70,9 @@ END_TEST
 
 START_TEST(should_not_remove_unknown_item)
 {
-    lmqtt_id_set_t id_set;
-
     memset(&id_set, 0, sizeof(id_set));
+    id_set.items = items;
+    id_set.capacity = ID_LIST_SIZE;
 
     lmqtt_id_set_put(&id_set, 3);
     lmqtt_id_set_put(&id_set, 6);
@@ -81,9 +87,9 @@ END_TEST
 
 START_TEST(should_test_whether_set_contains_item)
 {
-    lmqtt_id_set_t id_set;
-
     memset(&id_set, 0, sizeof(id_set));
+    id_set.items = items;
+    id_set.capacity = ID_LIST_SIZE;
 
     lmqtt_id_set_put(&id_set, 3);
     lmqtt_id_set_put(&id_set, 6);

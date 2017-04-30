@@ -513,6 +513,8 @@ void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
     client->write_buf_capacity = buffers->tx_buffer_size;
     client->write_buf = buffers->tx_buffer;
     client->rx_state.message_callbacks = &client->message_callbacks;
+    client->rx_state.id_set.capacity = buffers->id_set_size;
+    client->rx_state.id_set.items = buffers->id_set;
 
     client_set_state_initial(client);
 }

@@ -71,7 +71,7 @@ int lmqtt_id_set_put(lmqtt_id_set_t *id_set, u16 id)
 {
     int i;
 
-    if (id_set->count >= LMQTT_ID_LIST_SIZE)
+    if (id_set->count >= id_set->capacity)
         return 0;
 
     for (i = 0; i < id_set->count; i++) {

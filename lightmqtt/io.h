@@ -52,6 +52,8 @@ typedef struct _lmqtt_client_buffers_t {
     void *rx_buffer;
     int tx_buffer_size;
     void *tx_buffer;
+    int id_set_size;
+    void *id_set;
 } lmqtt_client_buffers_t;
 
 typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
