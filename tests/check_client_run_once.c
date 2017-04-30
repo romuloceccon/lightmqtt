@@ -1,9 +1,14 @@
 #include "check_lightmqtt.h"
 
+#define RX_BUFFER_SIZE 512
+#define TX_BUFFER_SIZE 512
+
 static test_socket_t ts;
 static char topic[4096];
 static test_buffer_t payload;
 static lmqtt_store_entry_t entries[16];
+static u8 rx_buffer[RX_BUFFER_SIZE];
+static u8 tx_buffer[TX_BUFFER_SIZE];
 
 static lmqtt_read_result_t test_read_blocked(void *data, u8 *buf, int buf_len,
     int *bytes_read)
@@ -38,6 +43,10 @@ static void do_client_initialize(lmqtt_client_t *client)
 
     buffers.store_size = sizeof(entries);
     buffers.store = entries;
+    buffers.rx_buffer_size = RX_BUFFER_SIZE;
+    buffers.rx_buffer = rx_buffer;
+    buffers.tx_buffer_size = TX_BUFFER_SIZE;
+    buffers.tx_buffer = tx_buffer;
 
     lmqtt_client_initialize(client, &callbacks, &buffers);
 }
@@ -356,7 +365,7 @@ START_TEST(should_run_with_queue_full)
     lmqtt_string_t *str_rd, *str_wr;
     lmqtt_connect_t connect;
     lmqtt_publish_t publish;
-    char message[LMQTT_TX_BUFFER_SIZE * 2];
+    char message[TX_BUFFER_SIZE * 2];
     int res;
 
     do_client_initialize(&client);

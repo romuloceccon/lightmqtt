@@ -7,10 +7,15 @@ typedef struct {
     int succeeded;
 } test_cb_result_t;
 
+#define RX_BUFFER_SIZE 512
+#define TX_BUFFER_SIZE 512
+
 static test_socket_t ts;
 static char topic[100];
 static char payload[100];
 static lmqtt_store_entry_t entries[16];
+static u8 rx_buffer[RX_BUFFER_SIZE];
+static u8 tx_buffer[TX_BUFFER_SIZE];
 
 static void test_cb_result_set(void *cb_result, void *data, int succeeded)
 {
@@ -93,6 +98,10 @@ static void do_init(lmqtt_client_t *client, long timeout)
 
     buffers.store_size = sizeof(entries);
     buffers.store = entries;
+    buffers.rx_buffer_size = RX_BUFFER_SIZE;
+    buffers.rx_buffer = rx_buffer;
+    buffers.tx_buffer_size = TX_BUFFER_SIZE;
+    buffers.tx_buffer = tx_buffer;
 
     lmqtt_client_initialize(client, &callbacks, &buffers);
 

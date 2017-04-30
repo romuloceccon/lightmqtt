@@ -176,7 +176,7 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_CONN,
         &output, LMQTT_IO_STATUS_BLOCK_DATA,
-        client->read_buf, &client->read_buf_pos, sizeof(client->read_buf));
+        client->read_buf, &client->read_buf_pos, client->read_buf_capacity);
 }
 
 lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
@@ -187,7 +187,7 @@ lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_DATA,
         &output, LMQTT_IO_STATUS_BLOCK_CONN,
-        client->write_buf, &client->write_buf_pos, sizeof(client->write_buf));
+        client->write_buf, &client->write_buf_pos, client->write_buf_capacity);
 }
 
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
@@ -508,6 +508,10 @@ void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
     client->connect_store.get_time = callbacks->get_time;
     client->connect_store.entries = &client->connect_store_entry;
     client->connect_store.capacity = 1;
+    client->read_buf_capacity = buffers->rx_buffer_size;
+    client->read_buf = buffers->rx_buffer;
+    client->write_buf_capacity = buffers->tx_buffer_size;
+    client->write_buf = buffers->tx_buffer;
     client->rx_state.message_callbacks = &client->message_callbacks;
 
     client_set_state_initial(client);

@@ -10,6 +10,8 @@
         memset(&test_dst, 0, sizeof(test_dst)); \
         client.callbacks.data = &test_src; \
         client.callbacks.read = test_buffer_read; \
+        client.read_buf = rx_buffer; \
+        client.read_buf_capacity = RX_BUFFER_SIZE; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -24,21 +26,28 @@
         memset(&test_src, 0, sizeof(test_src)); \
         client.callbacks.data = &test_dst; \
         client.callbacks.write = test_buffer_write; \
+        client.write_buf = tx_buffer; \
+        client.write_buf_capacity = TX_BUFFER_SIZE; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
             test_src.buf[i] = BYTE_AT(i); \
     } while (0)
 
+#define RX_BUFFER_SIZE 512
+#define TX_BUFFER_SIZE 512
+
 #define CHECK_BUF_FILL_AT(test_buf, n) \
     ck_assert_uint_eq(BYTE_AT(n), test_buf[n])
 
 #define CHECK_BUF_ZERO_AT(test_buf, n) ck_assert_uint_eq(0, test_buf[n])
 
-#define RX_4TH (LMQTT_RX_BUFFER_SIZE / 4)
+#define RX_4TH (RX_BUFFER_SIZE / 4)
 
 static test_buffer_t test_src;
 static test_buffer_t test_dst;
+static u8 rx_buffer[RX_BUFFER_SIZE];
+static u8 tx_buffer[TX_BUFFER_SIZE];
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode_mock(lmqtt_rx_buffer_t *state, u8 *buf,
     int buf_len, int *bytes_read)

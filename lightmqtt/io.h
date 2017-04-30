@@ -4,9 +4,6 @@
 #include <lightmqtt/time.h>
 #include <lightmqtt/packet.h>
 
-#define LMQTT_RX_BUFFER_SIZE 512
-#define LMQTT_TX_BUFFER_SIZE 512
-
 #define LMQTT_RES_ERROR               0x00ff
 #define LMQTT_RES_WOULD_BLOCK_CONN_RD 0x0100
 #define LMQTT_RES_WOULD_BLOCK_CONN_WR 0x0200
@@ -51,6 +48,10 @@ typedef struct _lmqtt_client_callbacks_t {
 typedef struct _lmqtt_client_buffers_t {
     int store_size;
     void *store;
+    int rx_buffer_size;
+    void *rx_buffer;
+    int tx_buffer_size;
+    void *tx_buffer;
 } lmqtt_client_buffers_t;
 
 typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
@@ -76,10 +77,12 @@ typedef struct _lmqtt_client_t {
 
     lmqtt_rx_buffer_t rx_state;
     lmqtt_tx_buffer_t tx_state;
-    u8 read_buf[LMQTT_RX_BUFFER_SIZE];
+    u8 *read_buf;
     int read_buf_pos;
-    u8 write_buf[LMQTT_TX_BUFFER_SIZE];
+    int read_buf_capacity;
+    u8 *write_buf;
     int write_buf_pos;
+    int write_buf_capacity;
     lmqtt_store_t main_store;
     lmqtt_store_t connect_store;
     lmqtt_store_t *current_store;

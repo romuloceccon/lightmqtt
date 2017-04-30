@@ -142,6 +142,8 @@ int main()
     struct timeval *timeout_ptr;
     int cnt = 0;
     lmqtt_store_entry_t entries[16];
+    u8 rx_buffer[256];
+    u8 tx_buffer[256];
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
@@ -171,6 +173,10 @@ int main()
 
     buffers.store_size = sizeof(entries);
     buffers.store = entries;
+    buffers.rx_buffer_size = sizeof(rx_buffer);
+    buffers.rx_buffer = rx_buffer;
+    buffers.tx_buffer_size = sizeof(tx_buffer);
+    buffers.tx_buffer = tx_buffer;
 
     lmqtt_client_initialize(&client, &callbacks, &buffers);
 
