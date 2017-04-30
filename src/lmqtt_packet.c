@@ -12,6 +12,7 @@
 
 #define LMQTT_STRING_LEN_SIZE 2
 #define LMQTT_PACKET_ID_SIZE 2
+#define LMQTT_REMAINING_LENGTH_MAX_SIZE 4
 
 #define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
 
@@ -362,6 +363,8 @@ LMQTT_STATIC lmqtt_decode_result_t fixed_header_decode(
  * lmqtt_connect_t PRIVATE functions
  ******************************************************************************/
 
+#define LMQTT_CONNECT_HEADER_SIZE 10
+
 LMQTT_STATIC int connect_calc_remaining_length(lmqtt_connect_t *connect)
 {
     return LMQTT_CONNECT_HEADER_SIZE +
@@ -380,7 +383,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_fixed_header(
     int res;
     lmqtt_connect_t *connect = value->value;
 
-    assert(sizeof(encode_buffer->buf) >= LMQTT_FIXED_HEADER_MAX_SIZE);
+    assert(sizeof(encode_buffer->buf) >= LMQTT_REMAINING_LENGTH_MAX_SIZE + 1);
 
     res = encode_remaining_length(connect_calc_remaining_length(connect),
         encode_buffer->buf + 1, &remain_len_size);
