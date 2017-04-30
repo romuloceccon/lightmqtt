@@ -371,6 +371,9 @@ END_TEST
 
 START_TCASE("Client buffers")
 {
+    lmqtt_rx_buffer_decode = &lmqtt_rx_buffer_decode_mock;
+    lmqtt_tx_buffer_encode = &lmqtt_tx_buffer_encode_mock;
+
     ADD_TEST(should_process_input_without_data);
     ADD_TEST(should_process_input_with_complete_read_and_complete_decode);
     ADD_TEST(should_consume_read_buffer_after_decode_blocks);

@@ -153,8 +153,6 @@ lmqtt_encode_result_t publish_encode_payload(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
     int offset, u8 *buf, int buf_len, int *bytes_written);
 
-lmqtt_encoder_finder_t tx_buffer_finder_by_class(lmqtt_class_t class);
-
 lmqtt_decode_result_t rx_buffer_decode_connack(
     lmqtt_rx_buffer_t *state, u8 b);
 
@@ -166,8 +164,8 @@ lmqtt_decode_result_t rx_buffer_decode_suback(
 
 int rx_buffer_pubrel(lmqtt_rx_buffer_t *state);
 
-int rx_buffer_call_callback(lmqtt_rx_buffer_t *state);
-
-lmqtt_decode_result_t rx_buffer_decode_type(lmqtt_rx_buffer_t *state, u8 b);
+extern int (*rx_buffer_call_callback)(lmqtt_rx_buffer_t *);
+extern lmqtt_decode_result_t (*rx_buffer_decode_type)(lmqtt_rx_buffer_t *, u8);
+extern lmqtt_encoder_finder_t (*tx_buffer_finder_by_class)(lmqtt_class_t);
 
 #endif

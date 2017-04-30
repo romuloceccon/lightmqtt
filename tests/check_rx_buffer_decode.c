@@ -42,13 +42,6 @@ typedef struct _test_client_t {
 
 static test_client_t client;
 
-/* do not mock */
-lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
-    lmqtt_class_t class)
-{
-    return tx_buffer_finder_by_class(class);
-}
-
 /* mock */
 int rx_buffer_call_callback_mock(lmqtt_rx_buffer_t *state)
 {
@@ -572,6 +565,9 @@ END_TEST
 
 START_TCASE("Rx buffer decode")
 {
+    rx_buffer_call_callback = &rx_buffer_call_callback_mock;
+    rx_buffer_decode_type = &rx_buffer_decode_type_mock;
+
     ADD_TEST(should_process_complete_rx_buffer);
     ADD_TEST(should_process_partial_rx_buffer);
     ADD_TEST(should_decode_rx_buffer_continuation);

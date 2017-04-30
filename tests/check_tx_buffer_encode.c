@@ -67,24 +67,10 @@ static lmqtt_encoder_t test_finder(lmqtt_tx_buffer_t *tx_buffer,
     return encoders[tx_buffer->internal.pos];
 }
 
-/* mock */
 lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
     lmqtt_class_t class)
 {
     return test_finder_func;
-}
-
-/* do not mock */
-int rx_buffer_call_callback_mock(lmqtt_rx_buffer_t *state)
-{
-    return rx_buffer_call_callback(state);
-}
-
-/* do not mock */
-lmqtt_decode_result_t rx_buffer_decode_type_mock(
-    lmqtt_rx_buffer_t *state, u8 b)
-{
-    return rx_buffer_decode_type(state, b);
 }
 
 static lmqtt_encode_result_t encode_test_0_9(lmqtt_store_value_t *value,
@@ -417,6 +403,8 @@ END_TEST
 
 START_TCASE("Tx buffer encode")
 {
+    tx_buffer_finder_by_class = &tx_buffer_finder_by_class_mock;
+
     ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
     ADD_TEST(should_encode_tx_buffer_with_two_encoding_functions);
     ADD_TEST(should_stop_encoder_after_buffer_fills_up);

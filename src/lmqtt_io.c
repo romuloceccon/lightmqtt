@@ -1,14 +1,6 @@
 #include <lightmqtt/io.h>
 #include <string.h>
 
-/* Enable mocking of lmqtt_rx_buffer_decode() and lmqtt_tx_buffer_encode() */
-#if !defined(LMQTT_TEST) || !defined(LMQTT_RX_BUFFER_DECODE)
-    #define LMQTT_RX_BUFFER_DECODE lmqtt_rx_buffer_decode
-#endif
-#if !defined(LMQTT_TEST) || !defined(LMQTT_TX_BUFFER_ENCODE)
-    #define LMQTT_TX_BUFFER_ENCODE lmqtt_tx_buffer_encode
-#endif
-
 /******************************************************************************
  * lmqtt_input_t
  ******************************************************************************/
@@ -165,14 +157,14 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
 LMQTT_STATIC lmqtt_io_result_t client_decode_wrapper(void *data, u8 *buf,
     int buf_len, int *bytes_read)
 {
-    return LMQTT_RX_BUFFER_DECODE((lmqtt_rx_buffer_t *) data, buf, buf_len,
+    return lmqtt_rx_buffer_decode((lmqtt_rx_buffer_t *) data, buf, buf_len,
         bytes_read);
 }
 
 LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf,
     int buf_len, int *bytes_written)
 {
-    return LMQTT_TX_BUFFER_ENCODE((lmqtt_tx_buffer_t *) data, buf, buf_len,
+    return lmqtt_tx_buffer_encode((lmqtt_tx_buffer_t *) data, buf, buf_len,
         bytes_written);
 }
 

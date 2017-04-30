@@ -947,12 +947,7 @@ LMQTT_STATIC lmqtt_encoder_t tx_buffer_finder_disconnect(
     return tx_buffer->internal.pos == 0 ? &disconnect_encode_fixed_header : 0;
 }
 
-/* Enable mocking of tx_buffer_finder_by_class() */
-#if !defined(LMQTT_TEST) || !defined(TX_BUFFER_FINDER_BY_CLASS)
-    #define TX_BUFFER_FINDER_BY_CLASS tx_buffer_finder_by_class
-#endif
-
-LMQTT_STATIC lmqtt_encoder_finder_t tx_buffer_finder_by_class(
+static lmqtt_encoder_finder_t tx_buffer_finder_by_class_impl(
     lmqtt_class_t class)
 {
     switch (class) {
@@ -972,6 +967,10 @@ LMQTT_STATIC lmqtt_encoder_finder_t tx_buffer_finder_by_class(
     return NULL;
 }
 
+/* Enable mocking of tx_buffer_finder_by_class() */
+LMQTT_STATIC lmqtt_encoder_finder_t (*tx_buffer_finder_by_class)(
+    lmqtt_class_t) = &tx_buffer_finder_by_class_impl;
+
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
@@ -987,8 +986,8 @@ void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state)
     state->closed = 1;
 }
 
-lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
-    int buf_len, int *bytes_written)
+static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
+    u8 *buf, int buf_len, int *bytes_written)
 {
     int offset = 0;
     *bytes_written = 0;
@@ -996,7 +995,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     lmqtt_store_value_t value;
 
     while (!state->closed && lmqtt_store_peek(state->store, &class, &value)) {
-        lmqtt_encoder_finder_t finder = TX_BUFFER_FINDER_BY_CLASS(class);
+        lmqtt_encoder_finder_t finder = tx_buffer_finder_by_class(class);
 
         if (!finder)
             return LMQTT_IO_ERROR;
@@ -1046,6 +1045,10 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode(lmqtt_tx_buffer_t *state, u8 *buf,
     return *bytes_written > 0 || state->closed ?
         LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
 }
+
+/* Enable mocking of lmqtt_tx_buffer_encode() */
+lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(
+    lmqtt_tx_buffer_t *, u8 *, int, int *) = &lmqtt_tx_buffer_encode_impl;
 
 lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
 {
@@ -1215,18 +1218,10 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_suback(
         LMQTT_DECODE_FINISHED : LMQTT_DECODE_CONTINUE;
 }
 
-/* Enable mocking of rx_buffer_call_callback() and rx_buffer_decode_type() */
-#if !defined(LMQTT_TEST) || !defined(RX_BUFFER_CALL_CALLBACK)
-    #define RX_BUFFER_CALL_CALLBACK rx_buffer_call_callback
-#endif
-#if !defined(LMQTT_TEST) || !defined(RX_BUFFER_DECODE_TYPE)
-    #define RX_BUFFER_DECODE_TYPE rx_buffer_decode_type
-#endif
-
 /*
  * Return: 1 on success, 0 on failure
  */
-LMQTT_STATIC int rx_buffer_call_callback(lmqtt_rx_buffer_t *state)
+static int rx_buffer_call_callback_impl(lmqtt_rx_buffer_t *state)
 {
     lmqtt_store_value_t *value = &state->internal.value;
 
@@ -1236,7 +1231,11 @@ LMQTT_STATIC int rx_buffer_call_callback(lmqtt_rx_buffer_t *state)
     return 0;
 }
 
-LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_type(
+/* Enable mocking of rx_buffer_call_callback() */
+LMQTT_STATIC int (*rx_buffer_call_callback)(
+    lmqtt_rx_buffer_t *) = &rx_buffer_call_callback_impl;
+
+static lmqtt_decode_result_t rx_buffer_decode_type_impl(
     lmqtt_rx_buffer_t *state, u8 b)
 {
     if (!state->internal.decoder->decode_byte)
@@ -1244,6 +1243,10 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_type(
 
     return state->internal.decoder->decode_byte(state, b);
 }
+
+/* Enable mocking of rx_buffer_decode_type() */
+LMQTT_STATIC lmqtt_decode_result_t (*rx_buffer_decode_type)(
+    lmqtt_rx_buffer_t *, u8) = &rx_buffer_decode_type_impl;
 
 LMQTT_STATIC lmqtt_io_result_t rx_buffer_fail(lmqtt_rx_buffer_t *state)
 {
@@ -1271,7 +1274,7 @@ LMQTT_STATIC int rx_buffer_finish_packet(lmqtt_rx_buffer_t *state)
         result = lmqtt_store_append(state->store, LMQTT_CLASS_PUBREL,
             &state->internal.value);
     else
-        result = RX_BUFFER_CALL_CALLBACK(state);
+        result = rx_buffer_call_callback(state);
 
     lmqtt_rx_buffer_reset(state);
 
@@ -1311,7 +1314,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
     int rem_pos = state->internal.remain_buf_pos + 1;
     int rem_len = state->internal.header.remaining_length;
 
-    int res = RX_BUFFER_DECODE_TYPE(state, b);
+    int res = rx_buffer_decode_type(state, b);
 
     if (res == LMQTT_DECODE_ERROR)
         return LMQTT_DECODE_ERROR;
@@ -1443,11 +1446,11 @@ void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state)
 
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
 {
-    RX_BUFFER_CALL_CALLBACK(state);
+    rx_buffer_call_callback(state);
 }
 
-lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
-    int buf_len, int *bytes_read)
+static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
+    u8 *buf, int buf_len, int *bytes_read)
 {
     int i;
 
@@ -1515,6 +1518,10 @@ lmqtt_io_result_t lmqtt_rx_buffer_decode(lmqtt_rx_buffer_t *state, u8 *buf,
         return LMQTT_IO_AGAIN;
     }
 }
+
+/* Enable mocking of lmqtt_rx_buffer_decode() */
+lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(
+    lmqtt_rx_buffer_t *, u8 *, int, int *) = &lmqtt_rx_buffer_decode_impl;
 
 lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state)
 {
