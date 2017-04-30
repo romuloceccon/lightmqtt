@@ -32,7 +32,7 @@ LMQTT_STATIC int store_pop_at(lmqtt_store_t *store, int pos, int *class,
     if (store->pos > pos)
         store->pos -= 1;
     memmove(&store->entries[pos], &store->entries[pos + 1],
-        sizeof(&store->entries[0]) * (LMQTT_STORE_SIZE - pos - 1));
+        sizeof(&store->entries[0]) * (store->capacity - pos - 1));
     return 1;
 }
 
@@ -60,7 +60,7 @@ int lmqtt_store_has_current(lmqtt_store_t *store)
 
 int lmqtt_store_is_queueable(lmqtt_store_t *store)
 {
-    return store->count < LMQTT_STORE_SIZE;
+    return store->count < store->capacity;
 }
 
 int lmqtt_store_append(lmqtt_store_t *store, int class,

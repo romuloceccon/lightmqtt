@@ -1,5 +1,7 @@
 #include "check_lightmqtt.h"
 
+#define ENTRY_COUNT 16
+
 #define PREPARE \
     u8 buf[512]; \
     lmqtt_tx_buffer_t state; \
@@ -7,12 +9,16 @@
     lmqtt_io_result_t res; \
     int bytes_written; \
     lmqtt_store_value_t value; \
+    lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     memset(buf, 0xcc, sizeof(buf)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&value, 0, sizeof(value)); \
+    memset(entries, 0, sizeof(entries)); \
     state.store = &store; \
-    store.get_time = &test_time_get
+    store.get_time = &test_time_get; \
+    store.entries = entries; \
+    store.capacity = ENTRY_COUNT
 
 int test_on_publish(void *data, lmqtt_publish_t *publish)
 {

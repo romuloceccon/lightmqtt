@@ -1,6 +1,8 @@
 #include "check_lightmqtt.h"
 #include <stdio.h>
 
+#define ENTRY_COUNT 16
+
 #define PREPARE \
     int res; \
     int bytes_r; \
@@ -10,13 +12,17 @@
     void *callbacks_data = 0; \
     int class; \
     lmqtt_store_value_t value; \
+    lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&message_callbacks, 0, sizeof(message_callbacks)); \
     memset(&value, 0, sizeof(value)); \
+    memset(entries, 0, sizeof(entries)); \
     state.store = &store; \
     state.message_callbacks = &message_callbacks; \
     store.get_time = &test_time_get; \
+    store.entries = entries; \
+    store.capacity = ENTRY_COUNT; \
     value.callback_data = &callbacks_data
 
 static int pingresp_data = 0;

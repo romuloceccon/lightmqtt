@@ -1,6 +1,7 @@
 #include "check_lightmqtt.h"
 
 #define BYTES_R_PLACEHOLDER -12345
+#define ENTRY_COUNT 16
 
 #define PREPARE \
     lmqtt_rx_buffer_t state; \
@@ -10,13 +11,17 @@
     int res; \
     int data = 0; \
     lmqtt_store_value_t value; \
+    lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     memset(&client, 0, sizeof(client)); \
     memset(&buf, 0, sizeof(buf)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&value, 0, sizeof(value)); \
+    memset(entries, 0, sizeof(entries)); \
     state.store = &store; \
     store.get_time = &test_time_get; \
+    store.entries = entries; \
+    store.capacity = ENTRY_COUNT; \
     value.value = &data
 
 #define STORE_APPEND_MARK(class, id) \

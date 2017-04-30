@@ -3,6 +3,7 @@
 static test_socket_t ts;
 static char topic[4096];
 static test_buffer_t payload;
+static lmqtt_store_entry_t entries[16];
 
 static lmqtt_read_result_t test_read_blocked(void *data, u8 *buf, int buf_len,
     int *bytes_read)
@@ -27,6 +28,7 @@ static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 static void do_client_initialize(lmqtt_client_t *client)
 {
     lmqtt_client_callbacks_t callbacks;
+    lmqtt_client_buffers_t buffers;
 
     test_socket_init(&ts);
     callbacks.read = test_socket_read;
@@ -34,7 +36,10 @@ static void do_client_initialize(lmqtt_client_t *client)
     callbacks.data = &ts;
     callbacks.get_time = test_time_get;
 
-    lmqtt_client_initialize(client, &callbacks);
+    buffers.store_size = sizeof(entries);
+    buffers.store = entries;
+
+    lmqtt_client_initialize(client, &callbacks, &buffers);
 }
 
 static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,

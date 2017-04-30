@@ -4,7 +4,7 @@
 #include <lightmqtt/core.h>
 #include <lightmqtt/time.h>
 
-#define LMQTT_STORE_SIZE 16
+#define LMQTT_STORE_ENTRY_SIZE sizeof(lmqtt_store_entry_t)
 
 typedef int (*lmqtt_store_entry_callback_t)(void *, void *);
 
@@ -29,7 +29,8 @@ typedef struct _lmqtt_store_t {
     lmqtt_time_t last_touch;
     int count;
     int pos;
-    lmqtt_store_entry_t entries[LMQTT_STORE_SIZE];
+    int capacity;
+    lmqtt_store_entry_t *entries;
 } lmqtt_store_t;
 
 u16 lmqtt_store_get_id(lmqtt_store_t *store);

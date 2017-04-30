@@ -48,6 +48,11 @@ typedef struct _lmqtt_client_callbacks_t {
     lmqtt_get_time_t get_time;
 } lmqtt_client_callbacks_t;
 
+typedef struct _lmqtt_client_buffers_t {
+    int store_size;
+    void *store;
+} lmqtt_client_buffers_t;
+
 typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
 typedef void (*lmqtt_client_on_subscribe_t)(void *, lmqtt_subscribe_t *, int);
 typedef void (*lmqtt_client_on_unsubscribe_t)(void *, lmqtt_subscribe_t *, int);
@@ -78,6 +83,7 @@ typedef struct _lmqtt_client_t {
     lmqtt_store_t main_store;
     lmqtt_store_t connect_store;
     lmqtt_store_t *current_store;
+    lmqtt_store_entry_t connect_store_entry;
 
     lmqtt_client_callbacks_t callbacks;
     lmqtt_message_callbacks_t message_callbacks;
@@ -104,7 +110,7 @@ lmqtt_io_status_t client_process_output(lmqtt_client_t *client);
 lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client);
 
 void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
-    *callbacks);
+    *callbacks, lmqtt_client_buffers_t *buffers);
 void lmqtt_client_finalize(lmqtt_client_t *client);
 
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);

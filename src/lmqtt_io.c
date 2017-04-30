@@ -497,13 +497,17 @@ LMQTT_STATIC int client_process_buffer(lmqtt_client_t *client,
  ******************************************************************************/
 
 void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
-    *callbacks)
+    *callbacks, lmqtt_client_buffers_t *buffers)
 {
     memset(client, 0, sizeof(*client));
 
     memcpy(&client->callbacks, callbacks, sizeof(*callbacks));
     client->main_store.get_time = callbacks->get_time;
+    client->main_store.entries = buffers->store;
+    client->main_store.capacity = buffers->store_size / LMQTT_STORE_ENTRY_SIZE;
     client->connect_store.get_time = callbacks->get_time;
+    client->connect_store.entries = &client->connect_store_entry;
+    client->connect_store.capacity = 1;
     client->rx_state.message_callbacks = &client->message_callbacks;
 
     client_set_state_initial(client);
@@ -629,7 +633,7 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     } while (!LMQTT_WOULD_BLOCK_CONN_WR(result) &&
         !has_cur_before && has_cur_after);
 
-    if (lmqtt_store_is_queueable(client->current_store))
+    if (lmqtt_store_is_queueable(&client->main_store))
         result |= LMQTT_RES_QUEUEABLE;
     return result;
 }

@@ -1,5 +1,8 @@
 #include "check_lightmqtt.h"
 
+#define ENTRY_COUNT 16
+
+static lmqtt_store_entry_t entries[16];
 static lmqtt_rx_buffer_t state;
 static lmqtt_store_t store;
 static int class;
@@ -7,11 +10,14 @@ static lmqtt_store_value_t value;
 
 static void init_state()
 {
+    memset(entries, 0, sizeof(entries));
     memset(&state, 0, sizeof(state));
     memset(&store, 0, sizeof(store));
     memset(&value, 0, sizeof(value));
     state.store = &store;
     store.get_time = &test_time_get;
+    store.entries = entries;
+    store.capacity = ENTRY_COUNT;
     class = 0;
 }
 
@@ -50,7 +56,7 @@ START_TEST(should_not_decode_pubrel_with_full_store)
 
     init_state();
 
-    for (i = 0; i < LMQTT_STORE_SIZE; i++)
+    for (i = 0; i < store.capacity; i++)
         lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, NULL);
 
     state.internal.packet_id = 0x0102;

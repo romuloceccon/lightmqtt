@@ -2,6 +2,7 @@
 
 #define BYTES_W_PLACEHOLDER -12345
 #define BUF_PLACEHOLDER 0xcc
+#define ENTRY_COUNT 16
 
 #define PREPARE \
     int res; \
@@ -11,12 +12,16 @@
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_store_value_t value; \
+    lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     memset(encoders, 0, sizeof(encoders)); \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&value, 0, sizeof(value)); \
+    memset(entries, 0, sizeof(entries)); \
     state.store = &store; \
     store.get_time = &test_time_get; \
+    store.entries = entries; \
+    store.capacity = ENTRY_COUNT; \
     value.value = &data; \
     test_finder_func = &test_finder; \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf))

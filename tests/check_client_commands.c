@@ -10,6 +10,7 @@ typedef struct {
 static test_socket_t ts;
 static char topic[100];
 static char payload[100];
+static lmqtt_store_entry_t entries[16];
 
 static void test_cb_result_set(void *cb_result, void *data, int succeeded)
 {
@@ -83,13 +84,17 @@ static char message_received[100];
 static void do_init(lmqtt_client_t *client, long timeout)
 {
     lmqtt_client_callbacks_t callbacks;
+    lmqtt_client_buffers_t buffers;
 
     callbacks.read = test_socket_read;
     callbacks.write = test_socket_write;
     callbacks.data = &ts;
     callbacks.get_time = test_time_get;
 
-    lmqtt_client_initialize(client, &callbacks);
+    buffers.store_size = sizeof(entries);
+    buffers.store = entries;
+
+    lmqtt_client_initialize(client, &callbacks, &buffers);
 
     client->message_callbacks.on_publish = &on_message_received;
     client->message_callbacks.on_publish_allocate_topic =
@@ -217,6 +222,7 @@ START_TEST(should_initialize_client)
 {
     lmqtt_client_t client;
     lmqtt_client_callbacks_t callbacks;
+    lmqtt_client_buffers_t buffers;
 
     memset(&client, -1, sizeof(client));
 
@@ -225,7 +231,10 @@ START_TEST(should_initialize_client)
     callbacks.data = &ts;
     callbacks.get_time = test_time_get;
 
-    lmqtt_client_initialize(&client, &callbacks);
+    buffers.store_size = sizeof(entries);
+    buffers.store = entries;
+
+    lmqtt_client_initialize(&client, &callbacks, &buffers);
 
     ck_assert_ptr_eq(&ts, client.callbacks.data);
     ck_assert(client.callbacks.read);

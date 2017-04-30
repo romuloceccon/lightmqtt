@@ -1,7 +1,10 @@
 #include "check_lightmqtt.h"
 
+#define ENTRY_COUNT 16
+
 #define PREPARE \
-    int data[LMQTT_STORE_SIZE]; \
+    int data[ENTRY_COUNT]; \
+    lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     int class = -1; \
     lmqtt_store_value_t value_in; \
     lmqtt_store_value_t value_out; \
@@ -10,10 +13,13 @@
     int count = -1; \
     long secs = -1, nsecs = -1; \
     do { \
-        memset(&data, 0xcc, sizeof(data)); \
+        memset(data, 0xcc, sizeof(data)); \
+        memset(entries, 0, sizeof(entries)); \
         memset(&store, 0, sizeof(store)); \
         memset(&value_out, 0xcc, sizeof(value_out)); \
         store.get_time = &test_time_get; \
+        store.entries = entries; \
+        store.capacity = ENTRY_COUNT; \
         value_in.value = NULL; \
         value_in.callback = &callback; \
         value_in.callback_data = &callback_data; \
@@ -95,7 +101,7 @@ START_TEST(should_not_append_object_if_store_is_full)
 
     PREPARE;
 
-    for (i = 0; i < LMQTT_STORE_SIZE; i++) {
+    for (i = 0; i < store.capacity; i++) {
         value_in.packet_id = i;
         lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
     }

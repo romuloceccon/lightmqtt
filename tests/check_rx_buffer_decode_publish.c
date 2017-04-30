@@ -1,11 +1,14 @@
 #include "check_lightmqtt.h"
 #include <stdio.h>
 
+#define ENTRY_COUNT 16
+
 static lmqtt_rx_buffer_t state;
 static lmqtt_store_t store;
 static lmqtt_message_callbacks_t message_callbacks;
 static int class;
 static lmqtt_store_value_t value;
+static lmqtt_store_entry_t entries[ENTRY_COUNT];
 static lmqtt_publish_t *publish;
 static char topic[1000];
 static lmqtt_allocate_result_t allocate_topic_result;
@@ -81,6 +84,7 @@ static void init_state()
     memset(&message_callbacks, 0, sizeof(message_callbacks));
     memset(&topic, 0, sizeof(topic));
     memset(&payload, 0, sizeof(payload));
+    memset(entries, 0, sizeof(entries));
     memset(message_received, 0, sizeof(message_received));
     state.store = &store;
     state.message_callbacks = &message_callbacks;
@@ -92,6 +96,8 @@ static void init_state()
     message_callbacks.on_publish_deallocate = &test_on_publish_deallocate;
     message_callbacks.on_publish_data = &publish;
     store.get_time = &test_time_get;
+    store.entries = entries;
+    store.capacity = ENTRY_COUNT;
     allocate_topic_result = LMQTT_ALLOCATE_SUCCESS;
     allocate_payload_result = LMQTT_ALLOCATE_SUCCESS;
     allocate_topic_count = 0;

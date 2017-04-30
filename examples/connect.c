@@ -141,10 +141,12 @@ int main()
     struct timeval timeout;
     struct timeval *timeout_ptr;
     int cnt = 0;
+    lmqtt_store_entry_t entries[16];
 
     lmqtt_client_t client;
     lmqtt_connect_t connect_data;
     lmqtt_client_callbacks_t callbacks;
+    lmqtt_client_buffers_t buffers;
 
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);
@@ -167,7 +169,10 @@ int main()
     callbacks.write = write_data;
     callbacks.get_time = get_time;
 
-    lmqtt_client_initialize(&client, &callbacks);
+    buffers.store_size = sizeof(entries);
+    buffers.store = entries;
+
+    lmqtt_client_initialize(&client, &callbacks, &buffers);
 
     lmqtt_client_set_on_connect(&client, on_connect, &client);
     lmqtt_client_set_on_subscribe(&client, on_subscribe, &client);
