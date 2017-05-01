@@ -111,6 +111,10 @@ lmqtt_encode_result_t encode_buffer_encode(
     encode_buffer_builder_t builder, int offset, u8 *buf, int buf_len,
     int *bytes_written);
 
+lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
+    int encode_if_empty, int offset, u8 *buf, int buf_len, int *bytes_written,
+    lmqtt_string_t **blocking_str);
+
 lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b,
     lmqtt_string_t **blocking_str);
 

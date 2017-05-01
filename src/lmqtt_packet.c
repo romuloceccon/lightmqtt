@@ -203,6 +203,9 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     if (len == 0 && !encode_if_empty)
         return LMQTT_ENCODE_FINISHED;
 
+    if (buf_len == 0)
+        return LMQTT_ENCODE_CONTINUE;
+
     assert(buf_len > 0);
     assert(offset < len + (encode_len ? LMQTT_STRING_LEN_SIZE : 0));
 
