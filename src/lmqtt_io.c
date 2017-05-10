@@ -171,8 +171,13 @@ LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf,
 
 lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 {
-    lmqtt_input_t input = { client->callbacks.read, client->callbacks.data };
-    lmqtt_output_t output = { client_decode_wrapper, &client->rx_state };
+    lmqtt_input_t input;
+    lmqtt_output_t output;
+
+    input.read = client->callbacks.read;
+    input.data = client->callbacks.data;
+    output.write = &client_decode_wrapper;
+    output.data = &client->rx_state;
 
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_CONN,
@@ -182,8 +187,13 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 
 lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 {
-    lmqtt_input_t input = { client_encode_wrapper, &client->tx_state };
-    lmqtt_output_t output = { client->callbacks.write, client->callbacks.data };
+    lmqtt_input_t input;
+    lmqtt_output_t output;
+
+    input.read = &client_encode_wrapper;
+    input.data = &client->tx_state;
+    output.write = client->callbacks.write;
+    output.data = client->callbacks.data;
 
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_DATA,

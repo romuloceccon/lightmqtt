@@ -996,9 +996,9 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
     u8 *buf, int buf_len, int *bytes_written)
 {
     int offset = 0;
-    *bytes_written = 0;
     int class;
     lmqtt_store_value_t value;
+    *bytes_written = 0;
 
     while (!state->closed && lmqtt_store_peek(state->store, &class, &value)) {
         lmqtt_encoder_finder_t finder = tx_buffer_finder_by_class(class);
