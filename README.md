@@ -1,7 +1,7 @@
 # LightMQTT
 
 LightMQTT is a MQTT 3.1.1 client library written in pure C and designed to work
-with both embeded and large systems.
+with both embedded and large systems.
 
 ## Features
 
