@@ -14,7 +14,7 @@ AX_APPEND_COMPILE_FLAGS([-pedantic])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.10])
 AC_CHECK_HEADERS([stdint.h])
 
-AC_CONFIG_MACRO_DIRS([m4])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile src/Makefile examples/Makefile tests/Makefile])
 
