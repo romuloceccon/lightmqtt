@@ -169,7 +169,7 @@ LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf,
         bytes_written);
 }
 
-lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
+LMQTT_STATIC lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 {
     lmqtt_input_t input;
     lmqtt_output_t output;
@@ -185,7 +185,7 @@ lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
         client->read_buf, &client->read_buf_pos, client->read_buf_capacity);
 }
 
-lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
+LMQTT_STATIC lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 {
     lmqtt_input_t input;
     lmqtt_output_t output;
@@ -201,7 +201,7 @@ lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
         client->write_buf, &client->write_buf_pos, client->write_buf_capacity);
 }
 
-lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
+LMQTT_STATIC lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
 {
     int cnt;
     long s, ns;
