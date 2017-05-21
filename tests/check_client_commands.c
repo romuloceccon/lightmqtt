@@ -238,10 +238,10 @@ START_TEST(should_initialize_client)
 
     memset(&client, -1, sizeof(client));
 
-    callbacks.read = test_socket_read;
-    callbacks.write = test_socket_write;
+    callbacks.read = &test_socket_read;
+    callbacks.write = &test_socket_write;
     callbacks.data = &ts;
-    callbacks.get_time = test_time_get;
+    callbacks.get_time = &test_time_get;
 
     buffers.store_size = sizeof(entries);
     buffers.store = entries;
@@ -249,10 +249,10 @@ START_TEST(should_initialize_client)
     lmqtt_client_initialize(&client, &callbacks, &buffers);
 
     ck_assert_ptr_eq(&ts, client.callbacks.data);
-    ck_assert(client.callbacks.read);
-    ck_assert(client.callbacks.write);
-    ck_assert(client.main_store.get_time);
-    ck_assert(client.connect_store.get_time);
+    ck_assert(&test_socket_read == client.callbacks.read);
+    ck_assert(&test_socket_write == client.callbacks.write);
+    ck_assert(&test_time_get == client.main_store.get_time);
+    ck_assert(&test_time_get == client.connect_store.get_time);
     ck_assert_int_eq(0, client.failed);
     ck_assert_ptr_eq(&client.connect_store, client.rx_state.store);
     ck_assert_ptr_eq(&client.connect_store, client.tx_state.store);
