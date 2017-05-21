@@ -822,11 +822,18 @@ END_TEST
 START_TEST(should_fail_client_after_connection_timeout)
 {
     lmqtt_client_t client;
+    long secs, nsecs;
 
     test_time_set(10, 0);
     do_init_connect_process(&client, 5, 3);
 
+    test_time_set(11, 0);
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(2, secs);
+
     test_time_set(14, 0);
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(0, secs);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
     client_process_output(&client);
     ck_assert_int_eq(-1, test_socket_shift(&ts));

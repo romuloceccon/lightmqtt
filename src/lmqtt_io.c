@@ -609,7 +609,7 @@ int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 {
     int cnt;
 
-    return lmqtt_store_get_timeout(&client->main_store, &cnt, secs, nsecs);
+    return lmqtt_store_get_timeout(client->current_store, &cnt, secs, nsecs);
 }
 
 int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
