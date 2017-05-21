@@ -17,6 +17,8 @@ with both embedded and large systems.
 
 Examples are available under `examples`.
 
+### `pingpong`
+
 `pingpong` is a client which *echoes* a given message back and forth,
 demonstrating the usage of subscriptions and exchanging of QoS 2 messages. To
 test it first start the *pong* side:
@@ -32,6 +34,16 @@ identified as *ping*. Then start the *ping* side in another terminal:
 Besides having the *-i* and *-t* arguments reversed, the second instance also
 passes a message (*test*) to be sent to the other side after the initialization
 is completed (that's required and won't work if given to the first instance).
+
+### `reconnect`
+
+`reconnect` maintains a connection to the broker using a given keep alive
+interval. If the connection is dropped the client reconnects without
+reinitializing the internal data (i.e. the session state is preserved). For
+example, to connect to host 127.0.0.1 and send keep alive packets every 5
+seconds execute:
+
+    examples/reconnect -h 127.0.0.1 -i reconnect -k 5
 
 ## License
 
