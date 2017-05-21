@@ -105,6 +105,7 @@ typedef struct _lmqtt_client_t {
 
 void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
     *callbacks, lmqtt_client_buffers_t *buffers);
+void lmqtt_client_reset(lmqtt_client_t *client);
 void lmqtt_client_finalize(lmqtt_client_t *client);
 
 int lmqtt_client_connect(lmqtt_client_t *client, lmqtt_connect_t *connect);

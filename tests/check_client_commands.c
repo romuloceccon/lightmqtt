@@ -383,6 +383,31 @@ START_TEST(should_not_receive_connack_before_connect)
 }
 END_TEST
 
+START_TEST(should_not_reset_while_connecting)
+{
+    lmqtt_client_t client;
+    lmqtt_connect_t connect;
+    test_cb_result_t cb_result = { 0, 0 };
+
+    do_init(&client, 5);
+
+    lmqtt_client_set_on_connect(&client, on_connect, &cb_result);
+
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+    lmqtt_client_connect(&client, &connect);
+    client_process_output(&client);
+    ck_assert_int_eq(TEST_CONNECT, test_socket_shift(&ts));
+
+    lmqtt_client_reset(&client);
+
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    client_process_input(&client);
+    ck_assert_ptr_eq(&connect, cb_result.data);
+    ck_assert_int_eq(1, cb_result.succeeded);
+}
+END_TEST
+
 START_TEST(should_subscribe)
 {
     lmqtt_client_t client;
@@ -1140,6 +1165,21 @@ START_TEST(should_not_reconnect_after_finalize)
 }
 END_TEST
 
+START_TEST(should_reconnect_after_reset)
+{
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_init_connect_process(&client, 5, 3);
+
+    test_time_set(14, 0);
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
+
+    lmqtt_client_reset(&client);
+    ck_assert_int_eq(1, do_connect_connack_process(&client, 5));
+}
+END_TEST
+
 START_TEST(should_wait_connack_to_resend_packets_from_previous_connection)
 {
     lmqtt_client_t client;
@@ -1256,6 +1296,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_receive_connack_after_connect);
     ADD_TEST(should_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);
+    ADD_TEST(should_not_reset_while_connecting);
 
     ADD_TEST(should_subscribe);
     ADD_TEST(should_unsubscribe);
@@ -1295,6 +1336,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_finalize_client_before_connack);
     ADD_TEST(should_finalize_client_after_partial_decode);
     ADD_TEST(should_not_reconnect_after_finalize);
+    ADD_TEST(should_reconnect_after_reset);
 
     ADD_TEST(should_wait_connack_to_resend_packets_from_previous_connection);
     ADD_TEST(should_wait_connack_to_send_unsent_packets_from_previous_connection);

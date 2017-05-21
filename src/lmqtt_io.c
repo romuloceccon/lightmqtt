@@ -530,6 +530,12 @@ void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
     client_set_state_initial(client);
 }
 
+void lmqtt_client_reset(lmqtt_client_t *client)
+{
+    if (client->closed && client->failed)
+        client_set_state_initial(client);
+}
+
 void lmqtt_client_finalize(lmqtt_client_t *client)
 {
     client_set_state_failed(client);
