@@ -38,7 +38,7 @@
 #define ADD_TEST(method) tcase_add_test(tcase, method)
 
 #include "lightmqtt/packet.h"
-#include "lightmqtt/io.h"
+#include "lightmqtt/client.h"
 #include "lightmqtt/types.h"
 
 typedef struct {

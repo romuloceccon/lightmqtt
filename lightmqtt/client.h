@@ -1,5 +1,5 @@
-#ifndef _LIGHTMQTT_IO_H_
-#define _LIGHTMQTT_IO_H_
+#ifndef _LIGHTMQTT_CLIENT_H_
+#define _LIGHTMQTT_CLIENT_H_
 
 #include <lightmqtt/time.h>
 #include <lightmqtt/packet.h>

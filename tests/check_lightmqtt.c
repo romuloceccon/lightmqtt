@@ -1,5 +1,5 @@
 #include "check_lightmqtt.h"
-#include "lightmqtt/io.h"
+#include "lightmqtt/client.h"
 
 lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
     int len, int *bytes_written)

@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #include "lightmqtt/packet.h"
-#include "lightmqtt/io.h"
+#include "lightmqtt/client.h"
 
 #include "examples/helpers.h"
 

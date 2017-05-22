@@ -13,7 +13,7 @@ TESTS = $(check_PROGRAMS)
 
 TEST_BASE_SRCS = check_lightmqtt.c test_store.c test_time.c
 TEST_PACKET_SRCS = test_packet.c $(TEST_BASE_SRCS)
-TEST_IO_SRCS = test_io.c test_packet.c $(TEST_BASE_SRCS)
+TEST_IO_SRCS = test_client.c test_packet.c $(TEST_BASE_SRCS)
 
 check_time_SOURCES                    = check_time.c $(TEST_PACKET_SRCS)
 check_store_SOURCES                   = check_store.c $(TEST_PACKET_SRCS)
