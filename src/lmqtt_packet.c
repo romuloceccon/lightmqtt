@@ -56,7 +56,7 @@ int lmqtt_id_set_clear(lmqtt_id_set_t *id_set)
     id_set->count = 0;
 }
 
-int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, u16 id)
+int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id)
 {
     int i;
 
@@ -68,7 +68,7 @@ int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, u16 id)
     return 0;
 }
 
-int lmqtt_id_set_put(lmqtt_id_set_t *id_set, u16 id)
+int lmqtt_id_set_put(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id)
 {
     int i;
 
@@ -84,7 +84,7 @@ int lmqtt_id_set_put(lmqtt_id_set_t *id_set, u16 id)
     return 1;
 }
 
-int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, u16 id)
+int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id)
 {
     int i;
 
@@ -142,7 +142,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode(
 
 LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
     lmqtt_encode_buffer_t *encode_buffer, int type, int remaining_length,
-    u16 packet_id)
+    lmqtt_packet_id_t packet_id)
 {
     int res, i, v;
 
@@ -1134,7 +1134,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
     int qos = state->internal.header.qos;
-    u16 packet_id;
+    lmqtt_packet_id_t packet_id;
 
     if (rem_pos <= s_len) {
         state->internal.topic_len |= b << ((s_len - rem_pos) * 8);
@@ -1260,7 +1260,8 @@ LMQTT_STATIC lmqtt_io_result_t rx_buffer_fail(lmqtt_rx_buffer_t *state)
     return LMQTT_IO_ERROR;
 }
 
-LMQTT_STATIC int rx_buffer_pop_packet(lmqtt_rx_buffer_t *state, u16 packet_id)
+LMQTT_STATIC int rx_buffer_pop_packet(lmqtt_rx_buffer_t *state,
+    lmqtt_packet_id_t packet_id)
 {
     return lmqtt_store_pop_marked_by(state->store,
         state->internal.decoder->class, packet_id, &state->internal.value);
@@ -1305,7 +1306,7 @@ LMQTT_STATIC int rx_buffer_pop_packet_ignore(lmqtt_rx_buffer_t *state)
 LMQTT_STATIC int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
 {
     static lmqtt_store_value_t value;
-    u16 packet_id = state->internal.packet_id;
+    lmqtt_packet_id_t packet_id = state->internal.packet_id;
 
     lmqtt_id_set_remove(&state->id_set, packet_id);
 

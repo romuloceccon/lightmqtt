@@ -36,7 +36,7 @@ typedef struct _test_packet_t {
     int bytes_to_read;
     int pos;
     u8 buf[256];
-    u16 packet_id;
+    lmqtt_packet_id_t packet_id;
     void *packet_data;
 } test_packet_t;
 

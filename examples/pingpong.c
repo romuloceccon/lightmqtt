@@ -93,7 +93,7 @@ void run(const char *address, unsigned short port)
     lmqtt_store_entry_t entries[16];
     u8 rx_buffer[128];
     u8 tx_buffer[128];
-    u16 id_set_items[32];
+    lmqtt_packet_id_t id_set_items[32];
 
     lmqtt_connect_t connect_data;
     lmqtt_client_callbacks_t client_callbacks;

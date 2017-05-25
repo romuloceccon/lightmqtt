@@ -60,7 +60,7 @@ typedef enum {
 } lmqtt_allocate_result_t;
 
 typedef struct _lmqtt_id_set_t {
-    u16 *items;
+    lmqtt_packet_id_t *items;
     int capacity;
     int count;
 } lmqtt_id_set_t;
@@ -196,7 +196,7 @@ typedef struct _lmqtt_rx_buffer_t {
         struct _lmqtt_rx_buffer_decoder_t const *decoder;
         int remain_buf_pos;
         int topic_len;
-        u16 packet_id;
+        lmqtt_packet_id_t packet_id;
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
         int ignore_publish;
@@ -206,9 +206,9 @@ typedef struct _lmqtt_rx_buffer_t {
 } lmqtt_rx_buffer_t;
 
 int lmqtt_id_set_clear(lmqtt_id_set_t *id_set);
-int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, u16 id);
-int lmqtt_id_set_put(lmqtt_id_set_t *id_set, u16 id);
-int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, u16 id);
+int lmqtt_id_set_contains(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id);
+int lmqtt_id_set_put(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id);
+int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id);
 
 int lmqtt_connect_validate(lmqtt_connect_t *connect);
 int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe);

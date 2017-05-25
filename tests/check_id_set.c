@@ -3,7 +3,7 @@
 #define ID_LIST_SIZE 16
 
 static lmqtt_id_set_t id_set;
-static u16 items[ID_LIST_SIZE];
+static lmqtt_packet_id_t items[ID_LIST_SIZE];
 
 START_TEST(should_put_items)
 {

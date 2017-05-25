@@ -226,7 +226,7 @@ LMQTT_STATIC int client_subscribe_with_class(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe, lmqtt_class_t class,
     lmqtt_store_entry_callback_t cb)
 {
-    u16 packet_id;
+    lmqtt_packet_id_t packet_id;
     lmqtt_store_value_t value;
 
     if (!lmqtt_subscribe_validate(subscribe))

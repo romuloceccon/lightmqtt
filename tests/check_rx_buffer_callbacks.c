@@ -14,7 +14,7 @@
     int class; \
     lmqtt_store_value_t value; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
-    u16 id_set_items[ID_SET_SIZE]; \
+    lmqtt_packet_id_t id_set_items[ID_SET_SIZE]; \
     memset(&state, 0, sizeof(state)); \
     memset(&store, 0, sizeof(store)); \
     memset(&message_callbacks, 0, sizeof(message_callbacks)); \

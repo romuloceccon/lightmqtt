@@ -10,7 +10,7 @@ static lmqtt_message_callbacks_t message_callbacks;
 static int class;
 static lmqtt_store_value_t value;
 static lmqtt_store_entry_t entries[ENTRY_COUNT];
-static u16 id_set_items[ID_SET_SIZE];
+static lmqtt_packet_id_t id_set_items[ID_SET_SIZE];
 static lmqtt_publish_t *publish;
 static char topic[1000];
 static lmqtt_allocate_result_t allocate_topic_result;

@@ -6,10 +6,11 @@
 
 #define LMQTT_STORE_ENTRY_SIZE sizeof(lmqtt_store_entry_t)
 
+typedef u16 lmqtt_packet_id_t;
 typedef int (*lmqtt_store_entry_callback_t)(void *, void *);
 
 typedef struct _lmqtt_store_value_t {
-    u16 packet_id;
+    lmqtt_packet_id_t packet_id;
     void *value;
     lmqtt_store_entry_callback_t callback;
     void *callback_data;
@@ -25,7 +26,7 @@ typedef struct _lmqtt_store_t {
     lmqtt_get_time_t get_time;
     int keep_alive;
     int timeout;
-    u16 next_packet_id;
+    lmqtt_packet_id_t next_packet_id;
     lmqtt_time_t last_touch;
     int count;
     int pos;
@@ -33,7 +34,7 @@ typedef struct _lmqtt_store_t {
     lmqtt_store_entry_t *entries;
 } lmqtt_store_t;
 
-u16 lmqtt_store_get_id(lmqtt_store_t *store);
+lmqtt_packet_id_t lmqtt_store_get_id(lmqtt_store_t *store);
 int lmqtt_store_count(lmqtt_store_t *store);
 int lmqtt_store_has_current(lmqtt_store_t *store);
 int lmqtt_store_is_queueable(lmqtt_store_t *store);
@@ -46,8 +47,8 @@ int lmqtt_store_peek(lmqtt_store_t *store, int *class,
     lmqtt_store_value_t *value);
 int lmqtt_store_mark_current(lmqtt_store_t *store);
 int lmqtt_store_drop_current(lmqtt_store_t *store);
-int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class, u16 packet_id,
-    lmqtt_store_value_t *value);
+int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class,
+    lmqtt_packet_id_t packet_id, lmqtt_store_value_t *value);
 int lmqtt_store_shift(lmqtt_store_t *store, int *class,
     lmqtt_store_value_t *value);
 void lmqtt_store_unmark_all(lmqtt_store_t *store);

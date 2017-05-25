@@ -5,8 +5,8 @@
  * lmqtt_store_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC int store_find(lmqtt_store_t *store, int class, u16 packet_id,
-    int *pos)
+LMQTT_STATIC int store_find(lmqtt_store_t *store, int class,
+    lmqtt_packet_id_t packet_id, int *pos)
 {
     int i;
 
@@ -40,7 +40,7 @@ LMQTT_STATIC int store_pop_at(lmqtt_store_t *store, int pos, int *class,
  * lmqtt_store_t PUBLIC functions
  ******************************************************************************/
 
-u16 lmqtt_store_get_id(lmqtt_store_t *store)
+lmqtt_packet_id_t lmqtt_store_get_id(lmqtt_store_t *store)
 {
     return store->next_packet_id++;
 }
@@ -130,8 +130,8 @@ int lmqtt_store_peek(lmqtt_store_t *store, int *class,
     return lmqtt_store_get_at(store, store->pos, class, value);
 }
 
-int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class, u16 packet_id,
-    lmqtt_store_value_t *value)
+int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class,
+    lmqtt_packet_id_t packet_id, lmqtt_store_value_t *value)
 {
     int pos;
 
