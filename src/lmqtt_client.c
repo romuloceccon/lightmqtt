@@ -605,7 +605,8 @@ void lmqtt_client_set_message_callbacks(lmqtt_client_t *client,
         sizeof(*message_callbacks));
 }
 
-void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs)
+void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
+    unsigned short secs)
 {
     client->main_store.timeout = secs;
     client->connect_store.timeout = secs;

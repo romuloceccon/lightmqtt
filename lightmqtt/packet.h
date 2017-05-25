@@ -87,10 +87,10 @@ typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(lmqtt_store_value_t *,
     lmqtt_encode_buffer_t *);
 
 typedef struct _lmqtt_fixed_header_t {
-    int type;
-    int dup;
-    int qos;
-    int retain;
+    unsigned char type;
+    unsigned char dup;
+    unsigned char qos;
+    unsigned char retain;
     int remaining_length;
     struct {
         int bytes_read;
@@ -102,24 +102,24 @@ typedef struct _lmqtt_fixed_header_t {
 } lmqtt_fixed_header_t;
 
 typedef struct _lmqtt_subscription_t {
-    int qos;
+    unsigned char qos;
     lmqtt_string_t topic;
-    int return_code;
+    unsigned char return_code;
 } lmqtt_subscription_t;
 
 typedef struct _lmqtt_connect_t {
-    u16 keep_alive;
-    int clean_session;
-    int qos;
-    int will_retain;
+    unsigned short keep_alive;
+    unsigned char clean_session;
+    unsigned char qos;
+    unsigned char will_retain;
     lmqtt_string_t client_id;
     lmqtt_string_t will_topic;
     lmqtt_string_t will_message;
     lmqtt_string_t user_name;
     lmqtt_string_t password;
     struct {
-        int session_present;
-        int return_code;
+        unsigned char session_present;
+        unsigned char return_code;
     } response;
 } lmqtt_connect_t;
 
@@ -132,8 +132,8 @@ typedef struct _lmqtt_subscribe_t {
 } lmqtt_subscribe_t;
 
 typedef struct _lmqtt_publish_t {
-    int qos;
-    int retain;
+    unsigned char qos;
+    unsigned char retain;
     lmqtt_string_t topic;
     lmqtt_string_t payload;
     struct {

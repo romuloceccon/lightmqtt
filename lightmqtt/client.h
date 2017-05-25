@@ -127,7 +127,8 @@ void lmqtt_client_set_on_publish(lmqtt_client_t *client,
 void lmqtt_client_set_message_callbacks(lmqtt_client_t *client,
     lmqtt_message_callbacks_t *message_callbacks);
 
-void lmqtt_client_set_default_timeout(lmqtt_client_t *client, long secs);
+void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
+    unsigned short secs);
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
 int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     lmqtt_string_t **str_wr);

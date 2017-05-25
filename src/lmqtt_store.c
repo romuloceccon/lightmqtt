@@ -167,7 +167,7 @@ int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
     long *nsecs)
 {
     lmqtt_time_t *tm = NULL;
-    int when = 0;
+    unsigned short when = 0;
 
     if (store->count > 0) {
         tm = &store->entries[0].time;

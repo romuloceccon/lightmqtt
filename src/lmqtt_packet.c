@@ -1133,7 +1133,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     lmqtt_store_value_t value;
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
-    int qos = state->internal.header.qos;
+    unsigned char qos = state->internal.header.qos;
     lmqtt_packet_id_t packet_id;
 
     if (rem_pos <= s_len) {

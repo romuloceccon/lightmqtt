@@ -12,8 +12,8 @@
 
 static int socket_fd = -1;
 static lmqtt_client_t client;
-static u16 keep_alive;
-static long default_timeout;
+static unsigned short keep_alive;
+static unsigned short default_timeout;
 static char id[256];
 
 void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)

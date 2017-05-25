@@ -11,7 +11,7 @@ typedef struct _lmqtt_time_t {
 } lmqtt_time_t;
 
 int lmqtt_time_get_timeout_to(lmqtt_time_t *tm, lmqtt_get_time_t get_time,
-    long when, long *secs, long *nsecs);
+    unsigned short when, long *secs, long *nsecs);
 
 void lmqtt_time_touch(lmqtt_time_t *tm, lmqtt_get_time_t get_time);
 

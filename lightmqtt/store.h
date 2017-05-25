@@ -24,8 +24,8 @@ typedef struct _lmqtt_store_entry_t {
 
 typedef struct _lmqtt_store_t {
     lmqtt_get_time_t get_time;
-    int keep_alive;
-    int timeout;
+    unsigned short keep_alive;
+    unsigned short timeout;
     lmqtt_packet_id_t next_packet_id;
     lmqtt_time_t last_touch;
     int count;

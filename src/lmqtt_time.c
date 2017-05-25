@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 int lmqtt_time_get_timeout_to(lmqtt_time_t *tm, lmqtt_get_time_t get_time,
-    long when, long *secs, long *nsecs)
+    unsigned short when, long *secs, long *nsecs)
 {
     long tmo_secs, tmo_nsecs;
     long cur_secs, cur_nsecs;
@@ -17,7 +17,7 @@ int lmqtt_time_get_timeout_to(lmqtt_time_t *tm, lmqtt_get_time_t get_time,
         return 0;
     }
 
-    tmo_secs = tm->secs + when;
+    tmo_secs = tm->secs + (long) when;
     tmo_nsecs = tm->nsecs;
 
     get_time(&cur_secs, &cur_nsecs);
