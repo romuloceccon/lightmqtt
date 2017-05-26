@@ -67,13 +67,13 @@ typedef struct _lmqtt_id_set_t {
 } lmqtt_id_set_t;
 
 typedef struct _lmqtt_string_t {
-    size_t len;
+    long len;
     char *buf;
     void *data;
     lmqtt_read_result_t (*read)(void *, void *, size_t, size_t *);
     lmqtt_write_result_t (*write)(void *, void *, size_t, size_t *);
     struct {
-        size_t pos;
+        long pos;
     } internal;
 } lmqtt_string_t;
 
@@ -92,13 +92,13 @@ typedef struct _lmqtt_fixed_header_t {
     unsigned char dup;
     unsigned char qos;
     unsigned char retain;
-    int remaining_length;
+    long remaining_length;
     struct {
         size_t bytes_read;
         int failed;
-        int remain_len_multiplier;
-        int remain_len_accumulator;
-        int remain_len_finished;
+        long remain_len_multiplier;
+        long remain_len_accumulator;
+        long remain_len_finished;
     } internal;
 } lmqtt_fixed_header_t;
 
@@ -163,7 +163,7 @@ typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *,
 struct _lmqtt_rx_buffer_t;
 
 struct _lmqtt_rx_buffer_decoder_t {
-    int min_length;
+    long min_length;
     lmqtt_class_t class;
     int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
@@ -197,7 +197,7 @@ typedef struct _lmqtt_rx_buffer_t {
         lmqtt_fixed_header_t header;
         int header_finished;
         struct _lmqtt_rx_buffer_decoder_t const *decoder;
-        int remain_buf_pos;
+        long remain_buf_pos;
         int topic_len;
         lmqtt_packet_id_t packet_id;
         lmqtt_store_value_t value;

@@ -21,7 +21,7 @@
  ******************************************************************************/
 
 /* caller must guarantee buf is at least 4-bytes long! */
-LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(int len,
+LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(long len,
     unsigned char *buf, size_t *bytes_written)
 {
     size_t pos;
@@ -141,7 +141,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode(
 }
 
 LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
-    lmqtt_encode_buffer_t *encode_buffer, int type, int remaining_length,
+    lmqtt_encode_buffer_t *encode_buffer, int type, long remaining_length,
     lmqtt_packet_id_t packet_id)
 {
     int res, i;
@@ -188,7 +188,7 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     int encode_len, int encode_if_empty, size_t offset, unsigned char *buf,
     size_t buf_len, size_t *bytes_written, lmqtt_string_t **blocking_str)
 {
-    size_t len = str->len;
+    long len = str->len;
     int result;
     size_t pos = 0;
     size_t offset_str = offset;
@@ -196,7 +196,7 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
 
     size_t read_cnt;
     int read_res;
-    size_t remaining;
+    long remaining;
 
     *bytes_written = 0;
     *blocking_str = NULL;
@@ -225,20 +225,21 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
             offset - LMQTT_STRING_LEN_SIZE;
     }
 
-    len -= offset_str;
-    remaining = str->len - offset_str;
+    len -= (long) offset_str;
+    remaining = str->len - (long) offset_str;
 
-    if (len > buf_len - pos)
-        len = buf_len - pos;
+    if (len > (long) (buf_len - pos))
+        len = (long) (buf_len - pos);
 
-    read_res = string_fetch(str, offset_str, buf + pos, len, &read_cnt);
+    read_res = string_fetch(str, offset_str, buf + pos, (size_t) len,
+        &read_cnt);
     *bytes_written += read_cnt;
-    assert(read_cnt <= remaining);
+    assert((long) read_cnt <= remaining);
 
     if (read_res == LMQTT_READ_WOULD_BLOCK && read_cnt == 0) {
         *blocking_str = str;
         result = LMQTT_ENCODE_WOULD_BLOCK;
-    } else if (read_res == LMQTT_READ_SUCCESS && read_cnt >= remaining) {
+    } else if (read_res == LMQTT_READ_SUCCESS && (long) read_cnt >= remaining) {
         result = LMQTT_ENCODE_FINISHED;
     } else if (read_res == LMQTT_READ_SUCCESS && read_cnt > 0) {
         result = LMQTT_ENCODE_CONTINUE;
@@ -277,7 +278,7 @@ LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
         LMQTT_DECODE_FINISHED;
 }
 
-LMQTT_STATIC int string_calc_field_length(lmqtt_string_t *str)
+LMQTT_STATIC long string_calc_field_length(lmqtt_string_t *str)
 {
     return str->len > 0 ? LMQTT_STRING_LEN_SIZE + str->len : 0;
 }
@@ -369,7 +370,7 @@ LMQTT_STATIC lmqtt_decode_result_t fixed_header_decode(
 
 #define LMQTT_CONNECT_HEADER_SIZE 10
 
-LMQTT_STATIC int connect_calc_remaining_length(lmqtt_connect_t *connect)
+LMQTT_STATIC long connect_calc_remaining_length(lmqtt_connect_t *connect)
 {
     return LMQTT_CONNECT_HEADER_SIZE +
         /* client_id is always present in payload */
@@ -529,11 +530,11 @@ int lmqtt_connect_validate(lmqtt_connect_t *connect)
  * lmqtt_subscribe_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC int subscribe_calc_remaining_length(lmqtt_subscribe_t *subscribe,
+LMQTT_STATIC long subscribe_calc_remaining_length(lmqtt_subscribe_t *subscribe,
     int include_qos)
 {
     int i;
-    int result = LMQTT_PACKET_ID_SIZE;
+    long result = LMQTT_PACKET_ID_SIZE;
 
     for (i = 0; i < subscribe->count; i++)
         result += subscribe->subscriptions[i].topic.len +
@@ -634,10 +635,10 @@ int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe)
  * lmqtt_publish_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC int publish_calc_remaining_length(lmqtt_publish_t *publish)
+LMQTT_STATIC long publish_calc_remaining_length(lmqtt_publish_t *publish)
 {
-    return LMQTT_PACKET_ID_SIZE + LMQTT_STRING_LEN_SIZE + publish->topic.len +
-        publish->payload.len;
+    return LMQTT_PACKET_ID_SIZE + LMQTT_STRING_LEN_SIZE +
+        (long) publish->topic.len + (long) publish->payload.len;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
@@ -1067,11 +1068,11 @@ lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
  * lmqtt_rx_buffer_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
+LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
     lmqtt_message_on_publish_allocate_t allocate, lmqtt_string_t *str,
     size_t len, unsigned char b)
 {
-    const int rem_pos = state->internal.remain_buf_pos + 1;
+    const long rem_pos = state->internal.remain_buf_pos + 1;
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
 
@@ -1128,10 +1129,10 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     lmqtt_rx_buffer_t *state, unsigned char b)
 {
-    int rem_len = state->internal.header.remaining_length;
-    int rem_pos = state->internal.remain_buf_pos + 1;
-    static const int s_len = LMQTT_STRING_LEN_SIZE;
-    static const int p_len = LMQTT_PACKET_ID_SIZE;
+    long rem_len = state->internal.header.remaining_length;
+    long rem_pos = state->internal.remain_buf_pos + 1;
+    static const long s_len = LMQTT_STRING_LEN_SIZE;
+    static const long p_len = LMQTT_PACKET_ID_SIZE;
     lmqtt_store_value_t value;
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
@@ -1144,8 +1145,8 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
                 state->internal.topic_len + s_len + p_len > rem_len))
             return LMQTT_DECODE_ERROR;
     } else {
-        int t_len = state->internal.topic_len;
-        int p_start = s_len + t_len;
+        long t_len = (long) state->internal.topic_len;
+        long p_start = s_len + t_len;
 
         if (rem_pos == s_len + 1 && (!message->on_publish ||
                 !message->on_publish_allocate_topic ||
@@ -1210,11 +1211,12 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_suback(
     lmqtt_subscribe_t *subscribe =
         (lmqtt_subscribe_t *) state->internal.value.value;
 
-    int pos = state->internal.remain_buf_pos - LMQTT_PACKET_ID_SIZE;
+    long pos = state->internal.remain_buf_pos - LMQTT_PACKET_ID_SIZE;
 
     if (pos == 0) {
-        int len = state->internal.header.remaining_length - LMQTT_PACKET_ID_SIZE;
-        if (len != subscribe->count)
+        long len = state->internal.header.remaining_length -
+            LMQTT_PACKET_ID_SIZE;
+        if (len != (long) subscribe->count)
             return LMQTT_DECODE_ERROR;
     }
 
@@ -1222,7 +1224,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_suback(
         return LMQTT_DECODE_ERROR;
 
     subscribe->subscriptions[pos].return_code = b;
-    return pos + 1 >= subscribe->count ?
+    return pos + 1 >= (long) subscribe->count ?
         LMQTT_DECODE_FINISHED : LMQTT_DECODE_CONTINUE;
 }
 
@@ -1320,8 +1322,8 @@ LMQTT_STATIC int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
     lmqtt_rx_buffer_t *state, unsigned char b)
 {
-    int rem_pos = state->internal.remain_buf_pos + 1;
-    int rem_len = state->internal.header.remaining_length;
+    long rem_pos = state->internal.remain_buf_pos + 1;
+    long rem_len = state->internal.header.remaining_length;
 
     int res = rx_buffer_decode_type(state, b);
 
@@ -1338,8 +1340,8 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_with_id(
     lmqtt_rx_buffer_t *state, unsigned char b)
 {
-    int rem_pos = state->internal.remain_buf_pos + 1;
-    static const int p_len = LMQTT_PACKET_ID_SIZE;
+    long rem_pos = state->internal.remain_buf_pos + 1;
+    static const long p_len = LMQTT_PACKET_ID_SIZE;
 
     if (rem_pos > p_len)
         return rx_buffer_decode_remaining_without_id(state, b);
@@ -1470,7 +1472,7 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
 
     for (i = 0; i < buf_len; i++) {
         if (!state->internal.header_finished) {
-            int rem_len;
+            long rem_len;
             int res = fixed_header_decode(&state->internal.header, buf[i]);
 
             if (res == LMQTT_DECODE_ERROR)
