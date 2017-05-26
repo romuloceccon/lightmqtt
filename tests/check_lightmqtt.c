@@ -1,8 +1,8 @@
 #include "check_lightmqtt.h"
 #include "lightmqtt/client.h"
 
-lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
-    int len, int *bytes_written)
+lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
+    void *src, int len, int *bytes_written)
 {
     int cnt = test_buffer->available_len - test_buffer->pos;
     if (cnt > len)
@@ -15,7 +15,7 @@ lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
         LMQTT_IO_AGAIN : LMQTT_IO_SUCCESS;
 }
 
-lmqtt_io_result_t test_buffer_read(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_buffer_read(void *data, void *buf, int buf_len,
     int *bytes_read)
 {
     test_buffer_t *source = (test_buffer_t *) data;
@@ -24,7 +24,7 @@ lmqtt_io_result_t test_buffer_read(void *data, u8 *buf, int buf_len,
         bytes_read);
 }
 
-lmqtt_io_result_t test_buffer_write(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_buffer_write(void *data, void *buf, int buf_len,
     int *bytes_written)
 {
     test_buffer_t *destination = (test_buffer_t *) data;
@@ -48,14 +48,14 @@ void test_time_set(long secs, long nsecs)
     test_time.nsecs = nsecs;
 }
 
-lmqtt_io_result_t test_socket_read(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_socket_read(void *data, void *buf, int buf_len,
     int *bytes_read)
 {
     test_socket_t *sock = (test_socket_t *) data;
     return test_buffer_read(&sock->read_buf, buf, buf_len, bytes_read);
 }
 
-lmqtt_io_result_t test_socket_write(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_socket_write(void *data, void *buf, int buf_len,
     int *bytes_written)
 {
     test_socket_t *sock = (test_socket_t *) data;

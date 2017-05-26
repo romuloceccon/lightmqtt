@@ -155,14 +155,14 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     return writer_block;
 }
 
-LMQTT_STATIC lmqtt_io_result_t client_decode_wrapper(void *data, u8 *buf,
+LMQTT_STATIC lmqtt_io_result_t client_decode_wrapper(void *data, void *buf,
     int buf_len, int *bytes_read)
 {
     return lmqtt_rx_buffer_decode((lmqtt_rx_buffer_t *) data, buf, buf_len,
         bytes_read);
 }
 
-LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, u8 *buf,
+LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, void *buf,
     int buf_len, int *bytes_written)
 {
     return lmqtt_tx_buffer_encode((lmqtt_tx_buffer_t *) data, buf, buf_len,

@@ -10,14 +10,14 @@ static lmqtt_store_entry_t entries[16];
 static u8 rx_buffer[RX_BUFFER_SIZE];
 static u8 tx_buffer[TX_BUFFER_SIZE];
 
-static lmqtt_read_result_t test_read_blocked(void *data, u8 *buf, int buf_len,
+static lmqtt_read_result_t test_read_blocked(void *data, void *buf, int buf_len,
     int *bytes_read)
 {
     *bytes_read = 0;
     return LMQTT_READ_WOULD_BLOCK;
 }
 
-static lmqtt_read_result_t test_read_fail(void *data, u8 *buf, int buf_len,
+static lmqtt_read_result_t test_read_fail(void *data, void *buf, int buf_len,
     int *bytes_read)
 {
     *bytes_read = 0;
@@ -51,7 +51,7 @@ static void do_client_initialize(lmqtt_client_t *client)
     lmqtt_client_initialize(client, &callbacks, &buffers);
 }
 
-static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,
+static lmqtt_write_result_t test_write_block(void *data, void *buf, int len,
     int *bytes_w)
 {
     switch (test_buffer_write(data, buf, len, bytes_w)) {

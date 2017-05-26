@@ -62,7 +62,7 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
     deallocate_count++;
 }
 
-static lmqtt_write_result_t test_write_fail(void *data, u8 *buf, int len,
+static lmqtt_write_result_t test_write_fail(void *data, void *buf, int len,
     int *bytes_w)
 {
     lmqtt_string_t *str = data;

@@ -69,8 +69,8 @@ typedef struct _lmqtt_string_t {
     int len;
     char *buf;
     void *data;
-    lmqtt_read_result_t (*read)(void *, u8 *, int, int *);
-    lmqtt_write_result_t (*write)(void *, u8 *, int, int *);
+    lmqtt_read_result_t (*read)(void *, void *, int, int *);
+    lmqtt_write_result_t (*write)(void *, void *, int, int *);
     struct {
         int pos;
     } internal;

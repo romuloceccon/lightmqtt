@@ -35,8 +35,8 @@
     (((res) & LMQTT_RES_QUEUEABLE) != 0)
 #define LMQTT_ERROR_NUM(res) (0)
 
-typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, u8 *, int, int *);
-typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, u8 *, int, int *);
+typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, int, int *);
+typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, int, int *);
 
 typedef struct _lmqtt_client_callbacks_t {
     void *data;

@@ -79,19 +79,19 @@ typedef enum {
     TEST_PINGRESP
 } test_type_response_t;
 
-lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, u8 *dst, u8 *src,
-    int len, int *bytes_written);
-lmqtt_io_result_t test_buffer_read(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
+    void *src, int len, int *bytes_written);
+lmqtt_io_result_t test_buffer_read(void *data, void *buf, int buf_len,
     int *bytes_read);
-lmqtt_io_result_t test_buffer_write(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_buffer_write(void *data, void *buf, int buf_len,
     int *bytes_written);
 
 lmqtt_io_result_t test_time_get(long *secs, long *nsecs);
 void test_time_set(long secs, long nsecs);
 
-lmqtt_io_result_t test_socket_read(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_socket_read(void *data, void *buf, int buf_len,
     int *bytes_read);
-lmqtt_io_result_t test_socket_write(void *data, u8 *buf, int buf_len,
+lmqtt_io_result_t test_socket_write(void *data, void *buf, int buf_len,
     int *bytes_written);
 
 void test_socket_init(test_socket_t *socket);

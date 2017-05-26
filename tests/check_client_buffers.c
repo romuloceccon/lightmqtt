@@ -63,7 +63,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode_mock(lmqtt_tx_buffer_t *state, u8 *buf,
         buf_len, bytes_written);
 }
 
-static lmqtt_io_result_t read_test_buf_fail(void *data, u8 *buf, int buf_len,
+static lmqtt_io_result_t read_test_buf_fail(void *data, void *buf, int buf_len,
     int *bytes_read)
 {
     test_buffer_t *source = (test_buffer_t *) data;

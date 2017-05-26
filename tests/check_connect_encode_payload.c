@@ -23,7 +23,7 @@
     memset(&read_buf.buf, STR_CB_PLACEHOLDER, sizeof(read_buf.buf)); \
     value.value = &connect
 
-static lmqtt_read_result_t string_read(void *data, u8 *buf, int buf_len,
+static lmqtt_read_result_t string_read(void *data, void *buf, int buf_len,
     int *bytes_written)
 {
     test_buffer_t *test_buffer = (test_buffer_t *) data;
@@ -39,14 +39,14 @@ static lmqtt_read_result_t string_read(void *data, u8 *buf, int buf_len,
         LMQTT_READ_WOULD_BLOCK : LMQTT_READ_SUCCESS;
 }
 
-static lmqtt_read_result_t string_read_fail_again(void *data, u8 *buf,
+static lmqtt_read_result_t string_read_fail_again(void *data, void *buf,
     int buf_len, int *bytes_written)
 {
     *bytes_written = 1;
     return LMQTT_READ_WOULD_BLOCK;
 }
 
-static lmqtt_read_result_t string_read_fail_error(void *data, u8 *buf,
+static lmqtt_read_result_t string_read_fail_error(void *data, void *buf,
     int buf_len, int *bytes_written)
 {
     *bytes_written = 1;

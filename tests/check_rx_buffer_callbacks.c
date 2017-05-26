@@ -58,7 +58,7 @@ static int test_on_pingresp(void *data, void *unused)
     return 1;
 }
 
-static lmqtt_write_result_t test_write_block(void *data, u8 *buf, int len,
+static lmqtt_write_result_t test_write_block(void *data, void *buf, int len,
     int *bytes_w)
 {
     switch (test_buffer_write(data, buf, len, bytes_w)) {
