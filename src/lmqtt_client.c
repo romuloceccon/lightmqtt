@@ -369,7 +369,7 @@ LMQTT_STATIC int client_do_publish(lmqtt_client_t *client,
     lmqtt_publish_t *publish)
 {
     int class;
-    int qos = publish->qos;
+    unsigned char qos = publish->qos;
     lmqtt_store_value_t value;
 
     if (!lmqtt_publish_validate(publish))
