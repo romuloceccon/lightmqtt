@@ -1,7 +1,7 @@
 #include "check_lightmqtt.h"
 
 typedef struct {
-    u8 buf[10];
+    unsigned char buf[10];
     int len;
     int pos;
 } test_write_buffer_t;
@@ -136,7 +136,8 @@ START_TEST(should_encode_non_empty_string_on_zero_length_buffer)
     str.buf = buf;
     str.len = strlen(buf);
 
-    res = string_encode(&str, 1, 1, 0, (u8 *) buf, 0, &bytes_w, &blk);
+    res = string_encode(&str, 1, 1, 0, (unsigned char *) buf, 0, &bytes_w,
+        &blk);
     ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
     ck_assert_int_eq(0, bytes_w);
 }
@@ -154,7 +155,8 @@ START_TEST(should_encode_empty_string_on_zero_length_buffer)
     str.buf = buf;
     str.len = 0;
 
-    res = string_encode(&str, 0, 0, 0, (u8 *) buf, 0, &bytes_w, &blk);
+    res = string_encode(&str, 0, 0, 0, (unsigned char *) buf, 0, &bytes_w,
+        &blk);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(0, bytes_w);
 }

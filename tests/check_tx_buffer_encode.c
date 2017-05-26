@@ -8,7 +8,7 @@
     int res; \
     int data = 0; \
     int bytes_w = BYTES_W_PLACEHOLDER; \
-    u8 buf[256]; \
+    unsigned char buf[256]; \
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_store_value_t value; \
@@ -41,8 +41,8 @@
 static lmqtt_encoder_t encoders[10];
 
 static lmqtt_encode_result_t encode_test_range(lmqtt_store_value_t *value,
-    int offset, u8 *buf, int buf_len, int *bytes_written, int begin, int end,
-    int block_at)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written, int begin,
+    int end, int block_at)
 {
     int i;
     int pos = 0;
@@ -79,29 +79,29 @@ lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
 }
 
 static lmqtt_encode_result_t encode_test_0_9(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_encode_buffer_t *encode_buffer, int offset, unsigned char *buf,
+    int buf_len, int *bytes_written)
 {
     return encode_test_range(value, offset, buf, buf_len, bytes_written, 0, 9, 10);
 }
 
 static lmqtt_encode_result_t encode_test_50_54(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_encode_buffer_t *encode_buffer, int offset, unsigned char *buf,
+    int buf_len, int *bytes_written)
 {
     return encode_test_range(value, offset, buf, buf_len, bytes_written, 50, 54, 55);
 }
 
 static lmqtt_encode_result_t encode_test_10_19_blocking(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_test_range(value, offset, buf, buf_len, bytes_written, 10, 19, 15);
 }
 
 static lmqtt_encode_result_t encode_test_fail(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    lmqtt_encode_buffer_t *encode_buffer, int offset, unsigned char *buf,
+    int buf_len, int *bytes_written)
 {
     return LMQTT_ENCODE_ERROR;
 }

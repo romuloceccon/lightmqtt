@@ -108,7 +108,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_payload_block(
 START_TEST(should_call_connack_callback)
 {
     lmqtt_connect_t connect;
-    u8 *buf = (u8 *) "\x20\x02\x00\x01";
+    char *buf = "\x20\x02\x00\x01";
 
     PREPARE;
 
@@ -119,7 +119,7 @@ START_TEST(should_call_connack_callback)
     lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&connect, callbacks_data);
     ck_assert_int_eq(1, connect.response.return_code);
@@ -130,7 +130,7 @@ START_TEST(should_call_suback_callback)
 {
     lmqtt_subscribe_t subscribe;
     lmqtt_subscription_t subscriptions[1];
-    u8 *buf = (u8 *) "\x90\x03\x03\x04\x02";
+    char *buf = "\x90\x03\x03\x04\x02";
 
     PREPARE;
 
@@ -144,7 +144,7 @@ START_TEST(should_call_suback_callback)
     lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 5, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&subscribe, callbacks_data);
     ck_assert_int_eq(2, subscriptions[0].return_code);
@@ -155,7 +155,7 @@ START_TEST(should_call_unsuback_callback)
 {
     lmqtt_subscribe_t subscribe;
     lmqtt_subscription_t subscriptions[1];
-    u8 *buf = (u8 *) "\xb0\x02\x03\x04";
+    char *buf = "\xb0\x02\x03\x04";
 
     PREPARE;
 
@@ -169,7 +169,7 @@ START_TEST(should_call_unsuback_callback)
     lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&subscribe, callbacks_data);
 }
@@ -178,7 +178,7 @@ END_TEST
 START_TEST(should_call_publish_callback_with_qos_1)
 {
     lmqtt_publish_t publish;
-    u8 *buf = (u8 *) "\x40\x02\x05\x06";
+    char *buf = "\x40\x02\x05\x06";
 
     PREPARE;
 
@@ -193,7 +193,7 @@ START_TEST(should_call_publish_callback_with_qos_1)
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&publish, callbacks_data);
 }
@@ -202,8 +202,8 @@ END_TEST
 START_TEST(should_call_publish_callback_with_qos_2)
 {
     lmqtt_publish_t publish;
-    u8 *buf_1 = (u8 *) "\x50\x02\x0a\x0b";
-    u8 *buf_2 = (u8 *) "\x70\x02\x0a\x0b";
+    char *buf_1 = "\x50\x02\x0a\x0b";
+    char *buf_2 = "\x70\x02\x0a\x0b";
 
     PREPARE;
 
@@ -218,12 +218,12 @@ START_TEST(should_call_publish_callback_with_qos_2)
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf_1, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf_1, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(NULL, callbacks_data);
 
     lmqtt_store_mark_current(&store);
-    res = lmqtt_rx_buffer_decode(&state, buf_2, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf_2, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&publish, callbacks_data);
 }
@@ -232,7 +232,7 @@ END_TEST
 START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
 {
     lmqtt_publish_t publish;
-    u8 *buf = (u8 *) "\x70\x02\x0a\x0b";
+    char *buf = "\x70\x02\x0a\x0b";
 
     PREPARE;
 
@@ -247,7 +247,7 @@ START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_ptr_eq(NULL, callbacks_data);
 }
@@ -255,7 +255,7 @@ END_TEST
 
 START_TEST(should_call_pingresp_callback)
 {
-    u8 *buf = (u8 *) "\xd0\x00";
+    char *buf = "\xd0\x00";
 
     PREPARE;
 
@@ -263,7 +263,7 @@ START_TEST(should_call_pingresp_callback)
     lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 2, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 2, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&pingresp_data, callbacks_data);
 }
@@ -271,7 +271,7 @@ END_TEST
 
 START_TEST(should_call_message_received_callback)
 {
-    u8 *buf = (u8 *) "\x30\x06\x00\x01X\x02\x03X";
+    char *buf = "\x30\x06\x00\x01X\x02\x03X";
     char msg[100];
 
     PREPARE;
@@ -284,7 +284,7 @@ START_TEST(should_call_message_received_callback)
     message_callbacks.on_publish_allocate_payload =
         &test_on_publish_allocate_payload;
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
     ck_assert_str_eq(msg, "qos: 0, retain: 0, topic: X, payload: X");
@@ -293,7 +293,7 @@ END_TEST
 
 START_TEST(should_decode_qos_and_retain_flag)
 {
-    u8 *buf = (u8 *) "\x35\x06\x00\x01X\x00\x01X";
+    char *buf = "\x35\x06\x00\x01X\x00\x01X";
     char msg[100];
 
     PREPARE;
@@ -306,7 +306,7 @@ START_TEST(should_decode_qos_and_retain_flag)
     message_callbacks.on_publish_allocate_payload =
         &test_on_publish_allocate_payload;
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 8, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 8, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
     ck_assert_str_eq(msg, "qos: 2, retain: 1, topic: X, payload: X");
@@ -315,7 +315,7 @@ END_TEST
 
 START_TEST(should_decode_message_with_blocking_write)
 {
-    u8 *buf = (u8 *) "\x30\x08\x00\x01T\x03\x04PAY";
+    char *buf = "\x30\x08\x00\x01T\x03\x04PAY";
     char msg[100];
 
     PREPARE;
@@ -331,13 +331,15 @@ START_TEST(should_decode_message_with_blocking_write)
     payload_buffer.len = 32;
     payload_buffer.available_len = 1;
 
-    res = lmqtt_rx_buffer_decode(&state, &buf[0], 10, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) &buf[0], 10,
+        &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(8, bytes_r);
     ck_assert_ptr_eq(NULL, lmqtt_rx_buffer_get_blocking_str(&state));
 
-    res = lmqtt_rx_buffer_decode(&state, &buf[8], 2, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) &buf[8], 2,
+        &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_AGAIN, res);
     ck_assert_int_eq(0, bytes_r);
@@ -345,7 +347,8 @@ START_TEST(should_decode_message_with_blocking_write)
         lmqtt_rx_buffer_get_blocking_str(&state));
 
     payload_buffer.available_len = payload_buffer.len;
-    res = lmqtt_rx_buffer_decode(&state, &buf[8], 2, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) &buf[8], 2,
+        &bytes_r);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(2, bytes_r);
@@ -357,11 +360,11 @@ END_TEST
 
 START_TEST(should_decode_pubrel)
 {
-    u8 *buf = (u8 *) "\x62\x02\x01\x02";
+    char *buf = "\x62\x02\x01\x02";
 
     PREPARE;
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
     ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
@@ -372,7 +375,7 @@ END_TEST
 /* PINGRESP has no decode_byte callback; should return an error */
 START_TEST(should_not_call_null_decode_byte)
 {
-    u8 *buf = (u8 *) "\xd0\x01\x00";
+    char *buf = "\xd0\x01\x00";
 
     PREPARE;
 
@@ -380,7 +383,7 @@ START_TEST(should_not_call_null_decode_byte)
     lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, &value);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_rx_buffer_decode(&state, buf, 3, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 3, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_ptr_eq(0, callbacks_data);
 }

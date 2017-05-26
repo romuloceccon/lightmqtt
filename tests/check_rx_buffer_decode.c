@@ -6,7 +6,7 @@
 #define PREPARE \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
-    u8 buf[64]; \
+    unsigned char buf[64]; \
     int bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
     int data = 0; \
@@ -35,7 +35,7 @@ typedef struct _test_packet_t {
     lmqtt_decode_result_t result;
     int bytes_to_read;
     int pos;
-    u8 buf[256];
+    unsigned char buf[256];
     lmqtt_packet_id_t packet_id;
     void *packet_data;
 } test_packet_t;
@@ -60,7 +60,7 @@ int rx_buffer_call_callback_mock(lmqtt_rx_buffer_t *state)
 
 /* mock */
 lmqtt_decode_result_t rx_buffer_decode_type_mock(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     test_packet_t *packet = &client.packets[client.current_packet];
 

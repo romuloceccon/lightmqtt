@@ -79,7 +79,7 @@ typedef struct _lmqtt_string_t {
 typedef struct _lmqtt_encode_buffer_t {
     int encoded;
     int buf_len;
-    u8 buf[16];
+    unsigned char buf[16];
     lmqtt_string_t *blocking_str;
 } lmqtt_encode_buffer_t;
 
@@ -154,7 +154,7 @@ typedef struct _lmqtt_tx_buffer_t {
 } lmqtt_tx_buffer_t;
 
 typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(lmqtt_store_value_t *,
-    lmqtt_encode_buffer_t *, int, u8 *, int, int *);
+    lmqtt_encode_buffer_t *, int, unsigned char *, int, int *);
 
 typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *,
     lmqtt_store_value_t *);
@@ -166,8 +166,10 @@ struct _lmqtt_rx_buffer_decoder_t {
     lmqtt_class_t class;
     int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
-    lmqtt_decode_result_t (*decode_remaining)(struct _lmqtt_rx_buffer_t *, u8);
-    lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *, u8);
+    lmqtt_decode_result_t (*decode_remaining)(struct _lmqtt_rx_buffer_t *,
+        unsigned char);
+    lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *,
+        unsigned char);
 };
 
 typedef int (*lmqtt_message_on_publish_t)(void *, lmqtt_publish_t *);
@@ -218,12 +220,12 @@ void lmqtt_tx_buffer_reset(lmqtt_tx_buffer_t *state);
 void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state);
 lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(lmqtt_tx_buffer_t *state,
-    u8 *buf, int buf_len, int *bytes_written);
+    unsigned char *buf, int buf_len, int *bytes_written);
 
 void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state);
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(lmqtt_rx_buffer_t *state,
-    u8 *buf, int buf_len, int *bytes_read);
+    unsigned char *buf, int buf_len, int *bytes_read);
 
 #endif

@@ -46,18 +46,18 @@
 
 static test_buffer_t test_src;
 static test_buffer_t test_dst;
-static u8 rx_buffer[RX_BUFFER_SIZE];
-static u8 tx_buffer[TX_BUFFER_SIZE];
+static unsigned char rx_buffer[RX_BUFFER_SIZE];
+static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
-lmqtt_io_result_t lmqtt_rx_buffer_decode_mock(lmqtt_rx_buffer_t *state, u8 *buf,
-    int buf_len, int *bytes_read)
+lmqtt_io_result_t lmqtt_rx_buffer_decode_mock(lmqtt_rx_buffer_t *state,
+    unsigned char *buf, int buf_len, int *bytes_read)
 {
     return test_buffer_move(&test_dst,
         &test_dst.buf[test_dst.pos], buf, buf_len, bytes_read);
 }
 
-lmqtt_io_result_t lmqtt_tx_buffer_encode_mock(lmqtt_tx_buffer_t *state, u8 *buf,
-    int buf_len, int *bytes_written)
+lmqtt_io_result_t lmqtt_tx_buffer_encode_mock(lmqtt_tx_buffer_t *state,
+    unsigned char *buf, int buf_len, int *bytes_written)
 {
     return test_buffer_move(&test_src, buf, &test_src.buf[test_src.pos],
         buf_len, bytes_written);

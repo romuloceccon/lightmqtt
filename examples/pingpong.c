@@ -91,8 +91,8 @@ void run(const char *address, unsigned short port)
     struct timeval *timeout_ptr;
 
     lmqtt_store_entry_t entries[16];
-    u8 rx_buffer[128];
-    u8 tx_buffer[128];
+    unsigned char rx_buffer[128];
+    unsigned char tx_buffer[128];
     lmqtt_packet_id_t id_set_items[32];
 
     lmqtt_connect_t connect_data;

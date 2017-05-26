@@ -4,7 +4,7 @@
 #define BYTES_W_PLACEHOLDER -12345
 
 #define PREPARE \
-    u8 buf[256]; \
+    unsigned char buf[256]; \
     int bytes_w = BYTES_W_PLACEHOLDER; \
     int res; \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf))

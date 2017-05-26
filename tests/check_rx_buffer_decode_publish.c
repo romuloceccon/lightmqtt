@@ -112,9 +112,9 @@ static void init_state()
     publish = NULL;
 }
 
-static void do_decode(u8 val, lmqtt_decode_result_t exp)
+static void do_decode(char val, lmqtt_decode_result_t exp)
 {
-    int res = rx_buffer_decode_publish(&state, val);
+    int res = rx_buffer_decode_publish(&state, (unsigned char) val);
     if (res == LMQTT_DECODE_CONTINUE || res == LMQTT_DECODE_FINISHED)
         state.internal.remain_buf_pos++;
     ck_assert_int_eq(exp, res);
@@ -131,9 +131,9 @@ static void do_decode_buffer(char *buf, int len)
     memset(&state.internal.publish, 0, sizeof(state.internal.publish));
 
     for (i = 0; i < len - 1; i++)
-        do_decode((u8) buf[i], LMQTT_DECODE_CONTINUE);
+        do_decode(buf[i], LMQTT_DECODE_CONTINUE);
 
-    do_decode((u8) buf[len - 1], LMQTT_DECODE_FINISHED);
+    do_decode(buf[len - 1], LMQTT_DECODE_FINISHED);
 }
 
 START_TEST(should_decode_one_byte_topic_and_payload)
@@ -158,11 +158,11 @@ START_TEST(should_decode_long_topic_and_payload)
     do_decode(2, LMQTT_DECODE_CONTINUE);
     do_decode(3, LMQTT_DECODE_CONTINUE);
     for (i = 0; i < 0x203; i++)
-        do_decode((u8) 'x', LMQTT_DECODE_CONTINUE);
+        do_decode('x', LMQTT_DECODE_CONTINUE);
     do_decode(3, LMQTT_DECODE_CONTINUE);
-    do_decode(254, LMQTT_DECODE_CONTINUE);
-    do_decode((u8) 'a', LMQTT_DECODE_CONTINUE);
-    do_decode((u8) 'b', LMQTT_DECODE_FINISHED);
+    do_decode((unsigned char) 254, LMQTT_DECODE_CONTINUE);
+    do_decode('a', LMQTT_DECODE_CONTINUE);
+    do_decode('b', LMQTT_DECODE_FINISHED);
 
     ck_assert_uint_eq(0x203, state.internal.topic_len);
     ck_assert_uint_eq(0x3fe, state.internal.packet_id);
@@ -365,10 +365,10 @@ START_TEST(should_deallocate_publish_if_decode_fails)
     message_callbacks.on_publish_allocate_topic =
         &test_on_publish_allocate_topic_fail;
     state.internal.header.remaining_length = 10;
-    do_decode((u8) '\x00', LMQTT_DECODE_CONTINUE);
-    do_decode((u8) '\x03', LMQTT_DECODE_CONTINUE);
-    do_decode((u8) 'T', LMQTT_DECODE_CONTINUE);
-    do_decode((u8) 'O', LMQTT_DECODE_ERROR);
+    do_decode('\x00', LMQTT_DECODE_CONTINUE);
+    do_decode('\x03', LMQTT_DECODE_CONTINUE);
+    do_decode('T', LMQTT_DECODE_CONTINUE);
+    do_decode('O', LMQTT_DECODE_ERROR);
 
     ck_assert_str_eq("", message_received);
 
@@ -402,10 +402,10 @@ START_TEST(should_fail_if_id_set_is_full)
 
     do_decode(0, LMQTT_DECODE_CONTINUE);
     do_decode(1, LMQTT_DECODE_CONTINUE);
-    do_decode((u8) 'X', LMQTT_DECODE_CONTINUE);
-    do_decode(0xff, LMQTT_DECODE_CONTINUE);
-    do_decode(0xff, LMQTT_DECODE_CONTINUE);
-    do_decode((u8) 'X', LMQTT_DECODE_ERROR);
+    do_decode('X', LMQTT_DECODE_CONTINUE);
+    do_decode((unsigned char) 0xff, LMQTT_DECODE_CONTINUE);
+    do_decode((unsigned char) 0xff, LMQTT_DECODE_CONTINUE);
+    do_decode('X', LMQTT_DECODE_ERROR);
 }
 END_TEST
 

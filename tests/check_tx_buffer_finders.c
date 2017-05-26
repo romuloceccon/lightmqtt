@@ -3,7 +3,7 @@
 #define ENTRY_COUNT 16
 
 #define PREPARE \
-    u8 buf[512]; \
+    char buf[512]; \
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_io_result_t res; \
@@ -28,7 +28,7 @@ int test_on_publish(void *data, lmqtt_publish_t *publish)
 
 START_TEST(should_encode_connect)
 {
-    u8 *expected_buffer;
+    char *expected_buffer;
     int i;
     lmqtt_connect_t connect;
 
@@ -50,12 +50,13 @@ START_TEST(should_encode_connect)
     value.value = &connect;
     lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(27, bytes_written);
 
-    expected_buffer = (u8 *) "\x10\x19\x00\x04" "MQTT\x04\xc4\x01\x02\x00\x01"
+    expected_buffer = "\x10\x19\x00\x04" "MQTT\x04\xc4\x01\x02\x00\x01"
         "a\x00\x01" "b\x00\x01" "c\x00\x01" "d\x00\x01" "e";
 
     for (i = 0; i < 27; i++)
@@ -65,7 +66,7 @@ END_TEST
 
 START_TEST(should_encode_subscribe_to_one_topic)
 {
-    u8 *expected_buffer;
+    char *expected_buffer;
     int i;
     lmqtt_subscribe_t subscribe;
     lmqtt_subscription_t subscription;
@@ -85,12 +86,13 @@ START_TEST(should_encode_subscribe_to_one_topic)
     value.value = &subscribe;
     lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(11, bytes_written);
 
-    expected_buffer = (u8 *) "\x82\x09\x0a\x0b\x00\x04" "test\x02";
+    expected_buffer = "\x82\x09\x0a\x0b\x00\x04" "test\x02";
     for (i = 0; i < 11; i++)
         ck_assert_int_eq(expected_buffer[i], buf[i]);
 }
@@ -124,26 +126,27 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
     value.value = &subscribe;
     lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(267, bytes_written);
 
-    ck_assert_int_eq((u8) '\x82', buf[0]);
-    ck_assert_int_eq((u8) '\x88', buf[1]);
-    ck_assert_int_eq((u8) '\x02', buf[2]);
-    ck_assert_int_eq((u8) '\x0c', buf[3]);
-    ck_assert_int_eq((u8) '\x0d', buf[4]);
+    ck_assert_int_eq('\x82', buf[0]);
+    ck_assert_int_eq('\x88', buf[1]);
+    ck_assert_int_eq('\x02', buf[2]);
+    ck_assert_int_eq('\x0c', buf[3]);
+    ck_assert_int_eq('\x0d', buf[4]);
 
-    ck_assert_int_eq((u8) '\x00', buf[5]);
-    ck_assert_int_eq((u8) '\x7f', buf[6]);
-    ck_assert_int_eq((u8) 'x',    buf[7]);
-    ck_assert_int_eq((u8) '\x00', buf[134]);
+    ck_assert_int_eq('\x00', buf[5]);
+    ck_assert_int_eq('\x7f', buf[6]);
+    ck_assert_int_eq('x',    buf[7]);
+    ck_assert_int_eq('\x00', buf[134]);
 
-    ck_assert_int_eq((u8) '\x00', buf[135]);
-    ck_assert_int_eq((u8) '\x81', buf[136]);
-    ck_assert_int_eq((u8) 'y',    buf[137]);
-    ck_assert_int_eq((u8) '\x01', buf[266]);
+    ck_assert_int_eq('\x00', buf[135]);
+    ck_assert_int_eq('\x81', buf[136]);
+    ck_assert_int_eq('y',    buf[137]);
+    ck_assert_int_eq('\x01', buf[266]);
 }
 END_TEST
 
@@ -173,26 +176,27 @@ START_TEST(should_encode_unsubscribe_to_multiple_topics)
     value.value = &subscribe;
     lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(265, bytes_written);
 
-    ck_assert_int_eq((u8) '\xa2', buf[0]);
-    ck_assert_int_eq((u8) '\x86', buf[1]);
-    ck_assert_int_eq((u8) '\x02', buf[2]);
-    ck_assert_int_eq((u8) '\x0c', buf[3]);
-    ck_assert_int_eq((u8) '\x0d', buf[4]);
+    ck_assert_int_eq('\xa2', buf[0]);
+    ck_assert_int_eq('\x86', buf[1]);
+    ck_assert_int_eq('\x02', buf[2]);
+    ck_assert_int_eq('\x0c', buf[3]);
+    ck_assert_int_eq('\x0d', buf[4]);
 
-    ck_assert_int_eq((u8) '\x00', buf[5]);
-    ck_assert_int_eq((u8) '\x7f', buf[6]);
-    ck_assert_int_eq((u8) 'x',    buf[7]);
-    ck_assert_int_eq((u8) 'x',    buf[133]);
+    ck_assert_int_eq('\x00', buf[5]);
+    ck_assert_int_eq('\x7f', buf[6]);
+    ck_assert_int_eq('x',    buf[7]);
+    ck_assert_int_eq('x',    buf[133]);
 
-    ck_assert_int_eq((u8) '\x00', buf[134]);
-    ck_assert_int_eq((u8) '\x81', buf[135]);
-    ck_assert_int_eq((u8) 'y',    buf[136]);
-    ck_assert_int_eq((u8) 'y',    buf[264]);
+    ck_assert_int_eq('\x00', buf[134]);
+    ck_assert_int_eq('\x81', buf[135]);
+    ck_assert_int_eq('y',    buf[136]);
+    ck_assert_int_eq('y',    buf[264]);
 }
 END_TEST
 
@@ -214,7 +218,8 @@ START_TEST(should_encode_publish_with_qos_0)
     value.callback_data = &data;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_0, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(11, bytes_written);
@@ -248,7 +253,8 @@ START_TEST(should_encode_publish_with_qos_1)
     value.callback_data = &data;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(18, bytes_written);
@@ -257,12 +263,12 @@ START_TEST(should_encode_publish_with_qos_1)
     ck_assert_uint_eq(0x10, buf[1]);
     ck_assert_uint_eq(0x00, buf[2]);
     ck_assert_uint_eq(0x05, buf[3]);
-    ck_assert_uint_eq((u8) 't', buf[4]);
-    ck_assert_uint_eq((u8) 'c', buf[8]);
+    ck_assert_uint_eq('t',  buf[4]);
+    ck_assert_uint_eq('c',  buf[8]);
     ck_assert_uint_eq(0x07, buf[9]);
     ck_assert_uint_eq(0x08, buf[10]);
-    ck_assert_uint_eq((u8) 'p', buf[11]);
-    ck_assert_uint_eq((u8) 'd', buf[17]);
+    ck_assert_uint_eq('p',  buf[11]);
+    ck_assert_uint_eq('d',  buf[17]);
 
     ck_assert_int_eq(1, lmqtt_store_shift(&store, &class, &value_out));
     ck_assert_ptr_eq(&publish, value_out.value);
@@ -285,14 +291,16 @@ START_TEST(should_increment_publish_encode_count_after_encode)
     value.packet_id = 0x0708;
     value.value = &publish;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_uint_eq(0x32, buf[0]);
 
     value.packet_id = 0x0708;
     value.value = &publish;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_uint_eq(0x3a, buf[0]);
 }
@@ -307,7 +315,8 @@ START_TEST(should_encode_puback)
     value.packet_id = 0x0102;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBACK, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(4, bytes_written);
@@ -330,7 +339,8 @@ START_TEST(should_encode_pubrec)
     value.packet_id = 0x0102;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBREC, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(4, bytes_written);
@@ -357,7 +367,8 @@ START_TEST(should_encode_pubrel)
     value.value = &publish;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBREL, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(4, bytes_written);
@@ -378,7 +389,8 @@ START_TEST(should_encode_pubcomp)
     value.packet_id = 0x0102;
     lmqtt_store_append(&store, LMQTT_CLASS_PUBCOMP, &value);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(4, bytes_written);
@@ -398,13 +410,14 @@ START_TEST(should_encode_pingreq)
 
     lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, NULL);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(2, bytes_written);
 
-    ck_assert_int_eq(0xc0, buf[0]);
-    ck_assert_int_eq(0x00, buf[1]);
+    ck_assert_int_eq('\xc0', buf[0]);
+    ck_assert_int_eq('\x00', buf[1]);
 }
 END_TEST
 
@@ -414,13 +427,14 @@ START_TEST(should_encode_disconnect)
 
     lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, NULL);
 
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_written);
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_int_eq(2, bytes_written);
 
-    ck_assert_int_eq(0xe0, buf[0]);
-    ck_assert_int_eq(0x00, buf[1]);
+    ck_assert_int_eq('\xe0', buf[0]);
+    ck_assert_int_eq('\x00', buf[1]);
 }
 END_TEST
 

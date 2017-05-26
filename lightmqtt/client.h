@@ -79,10 +79,10 @@ typedef struct _lmqtt_client_t {
 
     lmqtt_rx_buffer_t rx_state;
     lmqtt_tx_buffer_t tx_state;
-    u8 *read_buf;
+    unsigned char *read_buf;
     int read_buf_pos;
     int read_buf_capacity;
-    u8 *write_buf;
+    unsigned char *write_buf;
     int write_buf_pos;
     int write_buf_capacity;
     lmqtt_store_t main_store;

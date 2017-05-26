@@ -21,8 +21,8 @@
  ******************************************************************************/
 
 /* caller must guarantee buf is at least 4-bytes long! */
-LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
-    int *bytes_written)
+LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(int len,
+    unsigned char *buf, int *bytes_written)
 {
     int pos;
 
@@ -31,7 +31,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
 
     pos = 0;
     do {
-        u8 b = len % 128;
+        unsigned char b = len % 128;
         len /= 128;
         buf[pos++] = len > 0 ? b | 0x80 : b;
     } while (len > 0);
@@ -106,8 +106,8 @@ int lmqtt_id_set_remove(lmqtt_id_set_t *id_set, lmqtt_packet_id_t id)
 
 LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode(
     lmqtt_encode_buffer_t *encode_buffer, lmqtt_store_value_t *value,
-    encode_buffer_builder_t builder, int offset, u8 *buf, int buf_len,
-    int *bytes_written)
+    encode_buffer_builder_t builder, int offset, unsigned char *buf,
+    int buf_len, int *bytes_written)
 {
     int cnt;
     int result;
@@ -168,7 +168,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
  ******************************************************************************/
 
 LMQTT_STATIC lmqtt_read_result_t string_fetch(lmqtt_string_t *str, int offset,
-    u8 *buf, int buf_len, int *bytes_written)
+    unsigned char *buf, int buf_len, int *bytes_written)
 {
     if (str->read != 0)
         /* `offset` is not used with the callback. We're actually trusting the
@@ -184,8 +184,8 @@ LMQTT_STATIC lmqtt_read_result_t string_fetch(lmqtt_string_t *str, int offset,
 }
 
 LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
-    int encode_len, int encode_if_empty, int offset, u8 *buf, int buf_len,
-    int *bytes_written, lmqtt_string_t **blocking_str)
+    int encode_len, int encode_if_empty, int offset, unsigned char *buf,
+    int buf_len, int *bytes_written, lmqtt_string_t **blocking_str)
 {
     int len = str->len;
     int result;
@@ -248,8 +248,8 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     return result;
 }
 
-LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b,
-    lmqtt_string_t **blocking_str)
+LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
+    unsigned char b, lmqtt_string_t **blocking_str)
 {
     int bytes_w;
     *blocking_str = NULL;
@@ -291,7 +291,7 @@ LMQTT_STATIC int string_validate_field_length(lmqtt_string_t *str)
  ******************************************************************************/
 
 LMQTT_STATIC lmqtt_decode_result_t fixed_header_decode(
-    lmqtt_fixed_header_t *header, u8 b)
+    lmqtt_fixed_header_t *header, unsigned char b)
 {
     int result = LMQTT_DECODE_ERROR;
 
@@ -400,7 +400,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_fixed_header(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         connect_build_fixed_header, offset, buf, buf_len, bytes_written);
@@ -409,7 +409,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_fixed_header(
 LMQTT_STATIC lmqtt_encode_result_t connect_build_variable_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
 {
-    u8 flags;
+    unsigned char flags;
     lmqtt_connect_t *connect = value->value;
 
     assert(sizeof(encode_buffer->buf) >= LMQTT_CONNECT_HEADER_SIZE);
@@ -437,7 +437,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_variable_header(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_variable_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         connect_build_variable_header, offset, buf, buf_len, bytes_written);
@@ -445,7 +445,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_variable_header(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_client_id(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_connect_t *connect = value->value;
 
@@ -455,7 +455,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_client_id(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_will_topic(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_connect_t *connect = value->value;
 
@@ -465,7 +465,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_will_topic(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_will_message(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_connect_t *connect = value->value;
 
@@ -475,7 +475,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_will_message(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_user_name(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_connect_t *connect = value->value;
 
@@ -485,7 +485,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_user_name(
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_payload_password(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_connect_t *connect = value->value;
 
@@ -553,7 +553,7 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_build_header_subscribe(
 
 LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_header_subscribe(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         &subscribe_build_header_subscribe, offset, buf, buf_len, bytes_written);
@@ -571,7 +571,7 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_build_header_unsubscribe(
 
 LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_header_unsubscribe(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         &subscribe_build_header_unsubscribe, offset, buf, buf_len,
@@ -580,7 +580,7 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_header_unsubscribe(
 
 LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_topic(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_subscribe_t *subscribe = value->value;
 
@@ -600,7 +600,7 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_build_qos(
 
 LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_qos(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         subscribe_build_qos, offset, buf, buf_len, bytes_written);
@@ -643,7 +643,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
 {
     int res, i, v;
-    u8 type;
+    unsigned char type;
     lmqtt_publish_t *publish = value->value;
 
     res = encode_remaining_length(publish_calc_remaining_length(publish),
@@ -662,7 +662,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
 
 LMQTT_STATIC lmqtt_encode_result_t publish_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         publish_build_fixed_header, offset, buf, buf_len, bytes_written);
@@ -670,7 +670,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_encode_fixed_header(
 
 LMQTT_STATIC lmqtt_encode_result_t publish_encode_topic(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_publish_t *publish = value->value;
 
@@ -694,7 +694,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_build_packet_id(
 
 LMQTT_STATIC lmqtt_encode_result_t publish_encode_packet_id(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value,
         publish_build_packet_id, offset, buf, buf_len, bytes_written);
@@ -702,7 +702,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_encode_packet_id(
 
 LMQTT_STATIC lmqtt_encode_result_t publish_encode_payload(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     lmqtt_publish_t *publish = value->value;
     return string_encode(&publish->payload, 0, 0, offset, buf, buf_len,
@@ -733,7 +733,7 @@ LMQTT_STATIC lmqtt_encode_result_t puback_build(lmqtt_store_value_t *value,
 
 LMQTT_STATIC lmqtt_encode_result_t puback_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value, &puback_build, offset,
         buf, buf_len, bytes_written);
@@ -752,7 +752,7 @@ LMQTT_STATIC lmqtt_encode_result_t pubrec_build(lmqtt_store_value_t *value,
 
 LMQTT_STATIC lmqtt_encode_result_t pubrec_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value, &pubrec_build, offset,
         buf, buf_len, bytes_written);
@@ -771,7 +771,7 @@ LMQTT_STATIC lmqtt_encode_result_t pubrel_build(
 
 LMQTT_STATIC lmqtt_encode_result_t pubrel_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value, &pubrel_build, offset,
         buf, buf_len, bytes_written);
@@ -790,7 +790,7 @@ LMQTT_STATIC lmqtt_encode_result_t pubcomp_build(lmqtt_store_value_t *value,
 
 LMQTT_STATIC lmqtt_encode_result_t pubcomp_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value, &pubcomp_build, offset,
         buf, buf_len, bytes_written);
@@ -813,7 +813,7 @@ LMQTT_STATIC lmqtt_encode_result_t pingreq_build(lmqtt_store_value_t *value,
 
 LMQTT_STATIC lmqtt_encode_result_t pingreq_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value, pingreq_build, offset,
         buf, buf_len, bytes_written);
@@ -836,7 +836,7 @@ LMQTT_STATIC lmqtt_encode_result_t disconnect_build(lmqtt_store_value_t *value,
 
 LMQTT_STATIC lmqtt_encode_result_t disconnect_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written)
+    int offset, unsigned char *buf, int buf_len, int *bytes_written)
 {
     return encode_buffer_encode(encode_buffer, value, disconnect_build, offset,
         buf, buf_len, bytes_written);
@@ -993,7 +993,7 @@ void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state)
 }
 
 static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
-    u8 *buf, int buf_len, int *bytes_written)
+    unsigned char *buf, int buf_len, int *bytes_written)
 {
     int offset = 0;
     int class;
@@ -1053,8 +1053,8 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
 }
 
 /* Enable mocking of lmqtt_tx_buffer_encode() */
-lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(
-    lmqtt_tx_buffer_t *, u8 *, int, int *) = &lmqtt_tx_buffer_encode_impl;
+lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(lmqtt_tx_buffer_t *,
+    unsigned char *, int, int *) = &lmqtt_tx_buffer_encode_impl;
 
 lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
 {
@@ -1067,7 +1067,7 @@ lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
 
 LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, int when,
     lmqtt_message_on_publish_allocate_t allocate, lmqtt_string_t *str,
-    int len, u8 b)
+    int len, unsigned char b)
 {
     const int rem_pos = state->internal.remain_buf_pos + 1;
     lmqtt_publish_t *publish = &state->internal.publish;
@@ -1103,7 +1103,7 @@ LMQTT_STATIC void rx_buffer_deallocate_publish(lmqtt_rx_buffer_t *state)
 }
 
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     lmqtt_connect_t *connect = (lmqtt_connect_t *) state->internal.value.value;
 
@@ -1124,7 +1124,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
 }
 
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     int rem_len = state->internal.header.remaining_length;
     int rem_pos = state->internal.remain_buf_pos + 1;
@@ -1203,7 +1203,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
 }
 
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_suback(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     lmqtt_subscribe_t *subscribe =
         (lmqtt_subscribe_t *) state->internal.value.value;
@@ -1242,7 +1242,7 @@ LMQTT_STATIC int (*rx_buffer_call_callback)(
     lmqtt_rx_buffer_t *) = &rx_buffer_call_callback_impl;
 
 static lmqtt_decode_result_t rx_buffer_decode_type_impl(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     if (!state->internal.decoder->decode_byte)
         return LMQTT_DECODE_ERROR;
@@ -1252,7 +1252,7 @@ static lmqtt_decode_result_t rx_buffer_decode_type_impl(
 
 /* Enable mocking of rx_buffer_decode_type() */
 LMQTT_STATIC lmqtt_decode_result_t (*rx_buffer_decode_type)(
-    lmqtt_rx_buffer_t *, u8) = &rx_buffer_decode_type_impl;
+    lmqtt_rx_buffer_t *, unsigned char) = &rx_buffer_decode_type_impl;
 
 LMQTT_STATIC lmqtt_io_result_t rx_buffer_fail(lmqtt_rx_buffer_t *state)
 {
@@ -1316,7 +1316,7 @@ LMQTT_STATIC int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
 }
 
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     int rem_pos = state->internal.remain_buf_pos + 1;
     int rem_len = state->internal.header.remaining_length;
@@ -1334,7 +1334,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
 }
 
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_with_id(
-    lmqtt_rx_buffer_t *state, u8 b)
+    lmqtt_rx_buffer_t *state, unsigned char b)
 {
     int rem_pos = state->internal.remain_buf_pos + 1;
     static const int p_len = LMQTT_PACKET_ID_SIZE;
@@ -1457,7 +1457,7 @@ void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
 }
 
 static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
-    u8 *buf, int buf_len, int *bytes_read)
+    unsigned char *buf, int buf_len, int *bytes_read)
 {
     int i;
 
@@ -1527,8 +1527,8 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
 }
 
 /* Enable mocking of lmqtt_rx_buffer_decode() */
-lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(
-    lmqtt_rx_buffer_t *, u8 *, int, int *) = &lmqtt_rx_buffer_decode_impl;
+lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(lmqtt_rx_buffer_t *,
+    unsigned char *, int, int *) = &lmqtt_rx_buffer_decode_impl;
 
 lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state)
 {

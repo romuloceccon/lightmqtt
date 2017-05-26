@@ -42,7 +42,7 @@
 #include "lightmqtt/types.h"
 
 typedef struct {
-    u8 buf[8192];
+    unsigned char buf[8192];
     int pos;
     int len;
     int available_len;
@@ -103,73 +103,75 @@ int test_socket_shift(test_socket_t *socket);
  * private functions which will be tested
  */
 
-lmqtt_encode_result_t encode_remaining_length(int len, u8 *buf,
+lmqtt_encode_result_t encode_remaining_length(int len, unsigned char *buf,
     int *bytes_written);
 
 lmqtt_encode_result_t encode_buffer_encode(
     lmqtt_encode_buffer_t *encode_buffer, lmqtt_store_value_t *value,
-    encode_buffer_builder_t builder, int offset, u8 *buf, int buf_len,
-    int *bytes_written);
+    encode_buffer_builder_t builder, int offset, unsigned char *buf,
+    int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
-    int encode_if_empty, int offset, u8 *buf, int buf_len, int *bytes_written,
+    int encode_if_empty, int offset, unsigned char *buf, int buf_len,
+    int *bytes_written, lmqtt_string_t **blocking_str);
+
+lmqtt_decode_result_t string_put(lmqtt_string_t *str, unsigned char b,
     lmqtt_string_t **blocking_str);
 
-lmqtt_decode_result_t string_put(lmqtt_string_t *str, u8 b,
-    lmqtt_string_t **blocking_str);
-
-lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header, u8 b);
+lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header,
+    unsigned char b);
 
 lmqtt_encode_result_t connect_build_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_encode_result_t connect_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t connect_build_variable_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_encode_result_t connect_encode_variable_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t connect_encode_payload_client_id(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t connect_encode_payload_user_name(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t publish_build_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_encode_result_t publish_encode_topic(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t publish_encode_packet_id(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_encode_result_t publish_encode_payload(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, u8 *buf, int buf_len, int *bytes_written);
+    int offset, unsigned char *buf, int buf_len, int *bytes_written);
 
 lmqtt_decode_result_t rx_buffer_decode_connack(
-    lmqtt_rx_buffer_t *state, u8 b);
+    lmqtt_rx_buffer_t *state, unsigned char b);
 
 lmqtt_decode_result_t rx_buffer_decode_publish(
-    lmqtt_rx_buffer_t *state, u8 b);
+    lmqtt_rx_buffer_t *state, unsigned char b);
 
 lmqtt_decode_result_t rx_buffer_decode_suback(
-    lmqtt_rx_buffer_t *state, u8 b);
+    lmqtt_rx_buffer_t *state, unsigned char b);
 
 int rx_buffer_pubrel(lmqtt_rx_buffer_t *state);
 
 extern int (*rx_buffer_call_callback)(lmqtt_rx_buffer_t *);
-extern lmqtt_decode_result_t (*rx_buffer_decode_type)(lmqtt_rx_buffer_t *, u8);
+extern lmqtt_decode_result_t (*rx_buffer_decode_type)(lmqtt_rx_buffer_t *,
+    unsigned char);
 extern lmqtt_encoder_finder_t (*tx_buffer_finder_by_class)(lmqtt_class_t);
 
 lmqtt_io_status_t client_process_input(lmqtt_client_t *client);

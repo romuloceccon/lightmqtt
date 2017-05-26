@@ -156,8 +156,8 @@ int test_socket_shift(test_socket_t *socket)
     test_buffer_t *buf = &socket->write_buf;
 
     test_type_request_t result = -4; /* invalid command */
-    u8 cmd;
-    u8 remain_len;
+    unsigned char cmd;
+    unsigned char remain_len;
     int len;
     int available = buf->pos - socket->test_pos_write;
 

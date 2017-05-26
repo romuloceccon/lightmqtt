@@ -17,7 +17,7 @@
     lmqtt_connect_t connect; \
     lmqtt_store_value_t value; \
     lmqtt_encode_buffer_t encode_buffer; \
-    u8 buf[256]; \
+    unsigned char buf[256]; \
     char client_id[256]; \
     char will_topic[256]; \
     char will_message[256]; \

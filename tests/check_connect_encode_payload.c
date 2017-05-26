@@ -9,7 +9,7 @@
     lmqtt_connect_t connect; \
     lmqtt_store_value_t value; \
     lmqtt_encode_buffer_t encode_buffer; \
-    u8 buf[128]; \
+    unsigned char buf[128]; \
     char str[256]; \
     test_buffer_t read_buf; \
     int bytes_w = BYTES_W_PLACEHOLDER; \

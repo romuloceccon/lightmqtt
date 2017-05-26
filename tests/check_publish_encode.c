@@ -3,7 +3,7 @@
 #define PREPARE \
     int res; \
     int bytes_w = 0xcccccccc; \
-    u8 buf[256]; \
+    unsigned char buf[256]; \
     lmqtt_publish_t publish; \
     lmqtt_store_value_t value; \
     lmqtt_encode_buffer_t encode_buffer; \
@@ -118,8 +118,8 @@ START_TEST(should_encode_topic)
     ck_assert_int_eq(6, bytes_w);
     ck_assert_uint_eq(0, buf[0]);
     ck_assert_uint_eq(4, buf[1]);
-    ck_assert_uint_eq((u8) 'a', buf[2]);
-    ck_assert_uint_eq((u8) 'd', buf[5]);
+    ck_assert_uint_eq((unsigned char) 'a', buf[2]);
+    ck_assert_uint_eq((unsigned char) 'd', buf[5]);
 }
 END_TEST
 
@@ -149,8 +149,8 @@ START_TEST(should_encode_payload)
         sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(7, bytes_w);
-    ck_assert_uint_eq((u8) 'p', buf[0]);
-    ck_assert_uint_eq((u8) 'd', buf[6]);
+    ck_assert_uint_eq((unsigned char) 'p', buf[0]);
+    ck_assert_uint_eq((unsigned char) 'd', buf[6]);
 }
 END_TEST
 
@@ -176,8 +176,8 @@ START_TEST(should_encode_payload_from_offset)
         sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(2, bytes_w);
-    ck_assert_uint_eq((u8) 'a', buf[0]);
-    ck_assert_uint_eq((u8) 'd', buf[1]);
+    ck_assert_uint_eq((unsigned char) 'a', buf[0]);
+    ck_assert_uint_eq((unsigned char) 'd', buf[1]);
 }
 END_TEST
 

@@ -14,8 +14,8 @@ static test_socket_t ts;
 static char topic[100];
 static char payload[100];
 static lmqtt_store_entry_t entries[16];
-static u8 rx_buffer[RX_BUFFER_SIZE];
-static u8 tx_buffer[TX_BUFFER_SIZE];
+static unsigned char rx_buffer[RX_BUFFER_SIZE];
+static unsigned char tx_buffer[TX_BUFFER_SIZE];
 static lmqtt_packet_id_t id_set_items[16];
 
 static void test_cb_result_set(void *cb_result, void *data, int succeeded)

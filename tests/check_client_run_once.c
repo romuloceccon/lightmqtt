@@ -7,8 +7,8 @@ static test_socket_t ts;
 static char topic[4096];
 static test_buffer_t payload;
 static lmqtt_store_entry_t entries[16];
-static u8 rx_buffer[RX_BUFFER_SIZE];
-static u8 tx_buffer[TX_BUFFER_SIZE];
+static unsigned char rx_buffer[RX_BUFFER_SIZE];
+static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
 static lmqtt_read_result_t test_read_blocked(void *data, void *buf, int buf_len,
     int *bytes_read)

@@ -11,8 +11,8 @@ typedef struct _lmqtt_input_t {
     void *data;
 } lmqtt_input_t;
 
-LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input, u8 *buf,
-    int *buf_pos, int buf_len, int *cnt)
+LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input,
+    unsigned char *buf, int *buf_pos, int buf_len, int *cnt)
 {
     lmqtt_io_result_t result;
 
@@ -31,8 +31,8 @@ typedef struct _lmqtt_output_t {
     void *data;
 } lmqtt_output_t;
 
-LMQTT_STATIC lmqtt_io_result_t output_write(lmqtt_output_t *output, u8 *buf,
-    int *buf_pos, int *cnt)
+LMQTT_STATIC lmqtt_io_result_t output_write(lmqtt_output_t *output,
+    unsigned char *buf, int *buf_pos, int *cnt)
 {
     lmqtt_io_result_t result;
 
@@ -115,7 +115,7 @@ LMQTT_STATIC void client_set_current_store(lmqtt_client_t *client,
 LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     lmqtt_input_t *input, lmqtt_io_status_t reader_block,
     lmqtt_output_t *output, lmqtt_io_status_t writer_block,
-    u8 *buf, int *buf_pos, int buf_len)
+    unsigned char *buf, int *buf_pos, int buf_len)
 {
     int read_allowed = 1;
     int write_allowed = 1;
