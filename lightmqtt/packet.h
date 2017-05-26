@@ -1,6 +1,7 @@
 #ifndef _LIGHTMQTT_PACKET_H_
 #define _LIGHTMQTT_PACKET_H_
 
+#include <stddef.h>
 #include <lightmqtt/core.h>
 #include <lightmqtt/store.h>
 
@@ -61,24 +62,24 @@ typedef enum {
 
 typedef struct _lmqtt_id_set_t {
     lmqtt_packet_id_t *items;
-    int capacity;
-    int count;
+    size_t capacity;
+    size_t count;
 } lmqtt_id_set_t;
 
 typedef struct _lmqtt_string_t {
-    int len;
+    size_t len;
     char *buf;
     void *data;
-    lmqtt_read_result_t (*read)(void *, void *, int, int *);
-    lmqtt_write_result_t (*write)(void *, void *, int, int *);
+    lmqtt_read_result_t (*read)(void *, void *, size_t, size_t *);
+    lmqtt_write_result_t (*write)(void *, void *, size_t, size_t *);
     struct {
-        int pos;
+        size_t pos;
     } internal;
 } lmqtt_string_t;
 
 typedef struct _lmqtt_encode_buffer_t {
     int encoded;
-    int buf_len;
+    size_t buf_len;
     unsigned char buf[16];
     lmqtt_string_t *blocking_str;
 } lmqtt_encode_buffer_t;
@@ -93,7 +94,7 @@ typedef struct _lmqtt_fixed_header_t {
     unsigned char retain;
     int remaining_length;
     struct {
-        int bytes_read;
+        size_t bytes_read;
         int failed;
         int remain_len_multiplier;
         int remain_len_accumulator;
@@ -148,13 +149,13 @@ typedef struct _lmqtt_tx_buffer_t {
 
     struct {
         int pos;
-        int offset;
+        size_t offset;
         lmqtt_encode_buffer_t buffer;
     } internal;
 } lmqtt_tx_buffer_t;
 
 typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(lmqtt_store_value_t *,
-    lmqtt_encode_buffer_t *, int, unsigned char *, int, int *);
+    lmqtt_encode_buffer_t *, size_t, unsigned char *, size_t, size_t *);
 
 typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *,
     lmqtt_store_value_t *);
@@ -174,7 +175,7 @@ struct _lmqtt_rx_buffer_decoder_t {
 
 typedef int (*lmqtt_message_on_publish_t)(void *, lmqtt_publish_t *);
 typedef lmqtt_allocate_result_t (*lmqtt_message_on_publish_allocate_t)(void *,
-    lmqtt_publish_t *, int);
+    lmqtt_publish_t *, size_t);
 typedef void (*lmqtt_message_on_publish_deallocate_t)(void *,
     lmqtt_publish_t *);
 
@@ -220,12 +221,12 @@ void lmqtt_tx_buffer_reset(lmqtt_tx_buffer_t *state);
 void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state);
 lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(lmqtt_tx_buffer_t *state,
-    unsigned char *buf, int buf_len, int *bytes_written);
+    unsigned char *buf, size_t buf_len, size_t *bytes_written);
 
 void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state);
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(lmqtt_rx_buffer_t *state,
-    unsigned char *buf, int buf_len, int *bytes_read);
+    unsigned char *buf, size_t buf_len, size_t *bytes_read);
 
 #endif

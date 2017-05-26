@@ -6,7 +6,7 @@
 
 #define PREPARE \
     int res; \
-    int bytes_r; \
+    size_t bytes_r; \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_message_callbacks_t message_callbacks; \
@@ -58,8 +58,8 @@ static int test_on_pingresp(void *data, void *unused)
     return 1;
 }
 
-static lmqtt_write_result_t test_write_block(void *data, void *buf, int len,
-    int *bytes_w)
+static lmqtt_write_result_t test_write_block(void *data, void *buf, size_t len,
+    size_t *bytes_w)
 {
     switch (test_buffer_write(data, buf, len, bytes_w)) {
         case LMQTT_IO_SUCCESS:
@@ -74,14 +74,14 @@ static int test_on_message_received(void *data, lmqtt_publish_t *publish)
 {
     char *msg = data;
     sprintf(msg, "qos: %d, retain: %d, topic: %.*s, payload: %.*s",
-        publish->qos, publish->retain, publish->topic.len,
-        topic, publish->payload.len, publish->payload.buf ? payload :
+        publish->qos, publish->retain, (int) publish->topic.len,
+        topic, (int) publish->payload.len, publish->payload.buf ? payload :
         (char *) payload_buffer.buf);
     return 1;
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->topic.len = len;
     publish->topic.buf = topic;
@@ -89,7 +89,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_payload(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->payload.len = len;
     publish->payload.buf = payload;
@@ -97,7 +97,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_payload(void *data,
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_payload_block(
-    void *data, lmqtt_publish_t *publish, int len)
+    void *data, lmqtt_publish_t *publish, size_t len)
 {
     publish->payload.len = len;
     publish->payload.data = &payload_buffer;

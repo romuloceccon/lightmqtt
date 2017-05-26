@@ -1,7 +1,7 @@
 #include "check_lightmqtt.h"
 
 #define BUF_PLACEHOLDER 0xcc
-#define BYTES_W_PLACEHOLDER -12345
+#define BYTES_W_PLACEHOLDER ((size_t) -12345)
 #define CLIENT_ID_PLACEHOLDER 'A'
 #define WILL_TOPIC_PLACEHOLDER 'B'
 #define WILL_MESSAGE_PLACEHOLDER 'C'
@@ -23,7 +23,7 @@
     char will_message[256]; \
     char user_name[256]; \
     char password[256]; \
-    int bytes_w = BYTES_W_PLACEHOLDER; \
+    size_t bytes_w = BYTES_W_PLACEHOLDER; \
     int res; \
     memset(&connect, 0, sizeof(connect)); \
     memset(&value, 0, sizeof(value)); \

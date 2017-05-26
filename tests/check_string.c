@@ -2,11 +2,12 @@
 
 typedef struct {
     unsigned char buf[10];
-    int len;
-    int pos;
+    size_t len;
+    size_t pos;
 } test_write_buffer_t;
 
-lmqtt_write_result_t test_write(void *data, void *buf, int len, int *bytes_w)
+lmqtt_write_result_t test_write(void *data, void *buf, size_t len,
+    size_t *bytes_w)
 {
     test_write_buffer_t *buffer = data;
     unsigned char *buf_c = buf;
@@ -24,8 +25,8 @@ lmqtt_write_result_t test_write(void *data, void *buf, int len, int *bytes_w)
     return LMQTT_WRITE_SUCCESS;
 }
 
-lmqtt_write_result_t test_write_fail(void *data, void *buf, int len,
-    int *bytes_w)
+lmqtt_write_result_t test_write_fail(void *data, void *buf, size_t len,
+    size_t *bytes_w)
 {
     return LMQTT_WRITE_ERROR;
 }
@@ -130,7 +131,7 @@ START_TEST(should_encode_non_empty_string_on_zero_length_buffer)
     lmqtt_string_t str;
     lmqtt_string_t *blk;
     int res;
-    int bytes_w = -1;
+    size_t bytes_w = (size_t) -1;
 
     memset(&str, 0, sizeof(str));
     str.buf = buf;
@@ -149,7 +150,7 @@ START_TEST(should_encode_empty_string_on_zero_length_buffer)
     lmqtt_string_t str;
     lmqtt_string_t *blk;
     int res;
-    int bytes_w = -1;
+    size_t bytes_w = (size_t) -1;
 
     memset(&str, 0, sizeof(str));
     str.buf = buf;

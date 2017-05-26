@@ -10,7 +10,7 @@
     lmqtt_store_value_t value_out; \
     int res; \
     lmqtt_store_t store; \
-    int count = -1; \
+    size_t count = (size_t) -1; \
     long secs = -1, nsecs = -1; \
     do { \
         memset(data, 0xcc, sizeof(data)); \

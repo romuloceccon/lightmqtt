@@ -1,13 +1,13 @@
 #include "check_lightmqtt.h"
 
-#define BYTES_R_PLACEHOLDER -12345
+#define BYTES_R_PLACEHOLDER ((size_t) -12345)
 #define ENTRY_COUNT 16
 
 #define PREPARE \
     lmqtt_rx_buffer_t state; \
     lmqtt_store_t store; \
     unsigned char buf[64]; \
-    int bytes_r = BYTES_R_PLACEHOLDER; \
+    size_t bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
     int data = 0; \
     lmqtt_store_value_t value; \
@@ -33,8 +33,8 @@
 
 typedef struct _test_packet_t {
     lmqtt_decode_result_t result;
-    int bytes_to_read;
-    int pos;
+    size_t bytes_to_read;
+    size_t pos;
     unsigned char buf[256];
     lmqtt_packet_id_t packet_id;
     void *packet_data;
@@ -72,7 +72,8 @@ lmqtt_decode_result_t rx_buffer_decode_type_mock(
         packet->result : LMQTT_DECODE_CONTINUE;
 }
 
-void set_packet_result(int i, lmqtt_decode_result_t result, int bytes_to_read)
+void set_packet_result(int i, lmqtt_decode_result_t result,
+    size_t bytes_to_read)
 {
     test_packet_t *packet = &client.packets[i];
     packet->result = result;
@@ -263,7 +264,7 @@ END_TEST
 
 START_TEST(should_touch_store_after_decode)
 {
-    int cnt = -1;
+    size_t cnt = (size_t) -1;
     long secs = -1, nsecs = -1;
     int tm_res;
 

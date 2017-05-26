@@ -10,15 +10,15 @@ static lmqtt_store_entry_t entries[16];
 static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
-static lmqtt_read_result_t test_read_blocked(void *data, void *buf, int buf_len,
-    int *bytes_read)
+static lmqtt_read_result_t test_read_blocked(void *data, void *buf,
+    size_t buf_len, size_t *bytes_read)
 {
     *bytes_read = 0;
     return LMQTT_READ_WOULD_BLOCK;
 }
 
-static lmqtt_read_result_t test_read_fail(void *data, void *buf, int buf_len,
-    int *bytes_read)
+static lmqtt_read_result_t test_read_fail(void *data, void *buf, size_t buf_len,
+    size_t *bytes_read)
 {
     *bytes_read = 0;
     return LMQTT_READ_ERROR;
@@ -51,8 +51,8 @@ static void do_client_initialize(lmqtt_client_t *client)
     lmqtt_client_initialize(client, &callbacks, &buffers);
 }
 
-static lmqtt_write_result_t test_write_block(void *data, void *buf, int len,
-    int *bytes_w)
+static lmqtt_write_result_t test_write_block(void *data, void *buf, size_t len,
+    size_t *bytes_w)
 {
     switch (test_buffer_write(data, buf, len, bytes_w)) {
         case LMQTT_IO_SUCCESS:
@@ -69,7 +69,7 @@ static int on_message_received(void *data, lmqtt_publish_t *publish)
 }
 
 static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->topic.len = len;
     publish->topic.buf = topic;
@@ -77,7 +77,7 @@ static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
 }
 
 static lmqtt_allocate_result_t on_publish_allocate_payload_block(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->payload.len = len;
     publish->payload.data = &payload;

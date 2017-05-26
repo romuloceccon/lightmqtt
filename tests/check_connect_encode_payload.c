@@ -1,6 +1,6 @@
 #include "check_lightmqtt.h"
 
-#define BYTES_W_PLACEHOLDER -12345
+#define BYTES_W_PLACEHOLDER ((size_t) -12345)
 #define BUF_PLACEHOLDER 0xcc
 #define STR_PLACEHOLDER 'A'
 #define STR_CB_PLACEHOLDER 'B'
@@ -12,7 +12,7 @@
     unsigned char buf[128]; \
     char str[256]; \
     test_buffer_t read_buf; \
-    int bytes_w = BYTES_W_PLACEHOLDER; \
+    size_t bytes_w = BYTES_W_PLACEHOLDER; \
     int res; \
     memset(&connect, 0, sizeof(connect)); \
     memset(&value, 0, sizeof(value)); \
@@ -23,11 +23,11 @@
     memset(&read_buf.buf, STR_CB_PLACEHOLDER, sizeof(read_buf.buf)); \
     value.value = &connect
 
-static lmqtt_read_result_t string_read(void *data, void *buf, int buf_len,
-    int *bytes_written)
+static lmqtt_read_result_t string_read(void *data, void *buf, size_t buf_len,
+    size_t *bytes_written)
 {
     test_buffer_t *test_buffer = (test_buffer_t *) data;
-    int count = test_buffer->available_len - test_buffer->pos;
+    size_t count = test_buffer->available_len - test_buffer->pos;
     if (count > buf_len)
         count = buf_len;
 
@@ -40,14 +40,14 @@ static lmqtt_read_result_t string_read(void *data, void *buf, int buf_len,
 }
 
 static lmqtt_read_result_t string_read_fail_again(void *data, void *buf,
-    int buf_len, int *bytes_written)
+    size_t buf_len, size_t *bytes_written)
 {
     *bytes_written = 1;
     return LMQTT_READ_WOULD_BLOCK;
 }
 
 static lmqtt_read_result_t string_read_fail_error(void *data, void *buf,
-    int buf_len, int *bytes_written)
+    size_t buf_len, size_t *bytes_written)
 {
     *bytes_written = 1;
     return LMQTT_READ_ERROR;

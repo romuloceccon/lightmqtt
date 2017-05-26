@@ -25,8 +25,8 @@ static void test_cb_result_set(void *cb_result, void *data, int succeeded)
     result->succeeded = succeeded;
 }
 
-static lmqtt_write_result_t test_write_block(void *data, void *buf, int len,
-    int *bytes_w)
+static lmqtt_write_result_t test_write_block(void *data, void *buf, size_t len,
+    size_t *bytes_w)
 {
     return LMQTT_WRITE_WOULD_BLOCK;
 }
@@ -54,13 +54,13 @@ static void on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
 static int on_message_received(void *data, lmqtt_publish_t *publish)
 {
     char *msg = data;
-    sprintf(msg, "topic: %.*s, payload: %.*s", publish->topic.len,
-        publish->topic.buf, publish->payload.len, publish->payload.buf);
+    sprintf(msg, "topic: %.*s, payload: %.*s", (int) publish->topic.len,
+        publish->topic.buf, (int) publish->payload.len, publish->payload.buf);
     return 1;
 }
 
 static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->topic.len = len;
     publish->topic.buf = topic;
@@ -68,7 +68,7 @@ static lmqtt_allocate_result_t on_publish_allocate_topic(void *data,
 }
 
 static lmqtt_allocate_result_t on_publish_allocate_topic_block(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->topic.len = len;
     publish->topic.write = &test_write_block;
@@ -76,7 +76,7 @@ static lmqtt_allocate_result_t on_publish_allocate_topic_block(void *data,
 }
 
 static lmqtt_allocate_result_t on_publish_allocate_payload(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->payload.len = len;
     publish->payload.buf = payload;
@@ -177,7 +177,7 @@ static int do_publish(lmqtt_client_t *client, int qos)
 
 static int close_read_buf(lmqtt_client_t *client)
 {
-    int previous_len = ts.read_buf.len;
+    size_t previous_len = ts.read_buf.len;
     int result;
 
     ts.read_buf.len = ts.read_buf.available_len;

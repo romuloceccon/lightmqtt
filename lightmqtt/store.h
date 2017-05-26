@@ -1,6 +1,7 @@
 #ifndef _LIGHTMQTT_STORE_H_
 #define _LIGHTMQTT_STORE_H_
 
+#include <stddef.h>
 #include <lightmqtt/core.h>
 #include <lightmqtt/time.h>
 
@@ -28,9 +29,9 @@ typedef struct _lmqtt_store_t {
     unsigned short timeout;
     lmqtt_packet_id_t next_packet_id;
     lmqtt_time_t last_touch;
-    int count;
-    int pos;
-    int capacity;
+    size_t count;
+    size_t pos;
+    size_t capacity;
     lmqtt_store_entry_t *entries;
 } lmqtt_store_t;
 
@@ -40,9 +41,9 @@ int lmqtt_store_has_current(lmqtt_store_t *store);
 int lmqtt_store_is_queueable(lmqtt_store_t *store);
 int lmqtt_store_append(lmqtt_store_t *store, int class,
     lmqtt_store_value_t *value);
-int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class,
+int lmqtt_store_get_at(lmqtt_store_t *store, size_t pos, int *class,
     lmqtt_store_value_t *value);
-int lmqtt_store_delete_at(lmqtt_store_t *store, int pos);
+int lmqtt_store_delete_at(lmqtt_store_t *store, size_t pos);
 int lmqtt_store_peek(lmqtt_store_t *store, int *class,
     lmqtt_store_value_t *value);
 int lmqtt_store_mark_current(lmqtt_store_t *store);
@@ -52,7 +53,7 @@ int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class,
 int lmqtt_store_shift(lmqtt_store_t *store, int *class,
     lmqtt_store_value_t *value);
 void lmqtt_store_unmark_all(lmqtt_store_t *store);
-int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
+int lmqtt_store_get_timeout(lmqtt_store_t *store, size_t *count, long *secs,
     long *nsecs);
 void lmqtt_store_touch(lmqtt_store_t *store);
 

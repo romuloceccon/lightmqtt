@@ -6,9 +6,9 @@
  ******************************************************************************/
 
 LMQTT_STATIC int store_find(lmqtt_store_t *store, int class,
-    lmqtt_packet_id_t packet_id, int *pos)
+    lmqtt_packet_id_t packet_id, size_t *pos)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < store->pos; i++) {
         lmqtt_store_entry_t *entry = &store->entries[i];
@@ -22,7 +22,7 @@ LMQTT_STATIC int store_find(lmqtt_store_t *store, int class,
     return 0;
 }
 
-LMQTT_STATIC int store_pop_at(lmqtt_store_t *store, int pos, int *class,
+LMQTT_STATIC int store_pop_at(lmqtt_store_t *store, size_t pos, int *class,
     lmqtt_store_value_t *value)
 {
     if (!lmqtt_store_get_at(store, pos, class, value))
@@ -83,7 +83,7 @@ int lmqtt_store_append(lmqtt_store_t *store, int class,
     return 1;
 }
 
-int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class,
+int lmqtt_store_get_at(lmqtt_store_t *store, size_t pos, int *class,
     lmqtt_store_value_t *value)
 {
     lmqtt_store_entry_t *entry;
@@ -104,7 +104,7 @@ int lmqtt_store_get_at(lmqtt_store_t *store, int pos, int *class,
     return 1;
 }
 
-int lmqtt_store_delete_at(lmqtt_store_t *store, int pos)
+int lmqtt_store_delete_at(lmqtt_store_t *store, size_t pos)
 {
     return store_pop_at(store, pos, NULL, NULL);
 }
@@ -133,7 +133,7 @@ int lmqtt_store_peek(lmqtt_store_t *store, int *class,
 int lmqtt_store_pop_marked_by(lmqtt_store_t *store, int class,
     lmqtt_packet_id_t packet_id, lmqtt_store_value_t *value)
 {
-    int pos;
+    size_t pos;
 
     if (store_find(store, class, packet_id, &pos)) {
         return store_pop_at(store, pos, NULL, value);
@@ -163,7 +163,7 @@ void lmqtt_store_unmark_all(lmqtt_store_t *store)
         memcpy(&store->entries[i].time, &tm, sizeof(tm));
 }
 
-int lmqtt_store_get_timeout(lmqtt_store_t *store, int *count, long *secs,
+int lmqtt_store_get_timeout(lmqtt_store_t *store, size_t *count, long *secs,
     long *nsecs)
 {
     lmqtt_time_t *tm = NULL;

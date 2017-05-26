@@ -2,7 +2,7 @@
 
 #define PREPARE \
     int res; \
-    int bytes_w = 0xcccccccc; \
+    size_t bytes_w = 0xcccccccc; \
     unsigned char buf[256]; \
     lmqtt_publish_t publish; \
     lmqtt_store_value_t value; \

@@ -1,13 +1,13 @@
 #include "check_lightmqtt.h"
 
-#define BYTES_W_PLACEHOLDER -12345
+#define BYTES_W_PLACEHOLDER ((size_t) -12345)
 #define BUF_PLACEHOLDER 0xcc
 #define ENTRY_COUNT 16
 
 #define PREPARE \
     int res; \
     int data = 0; \
-    int bytes_w = BYTES_W_PLACEHOLDER; \
+    size_t bytes_w = BYTES_W_PLACEHOLDER; \
     unsigned char buf[256]; \
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
@@ -41,11 +41,11 @@
 static lmqtt_encoder_t encoders[10];
 
 static lmqtt_encode_result_t encode_test_range(lmqtt_store_value_t *value,
-    int offset, unsigned char *buf, int buf_len, int *bytes_written, int begin,
-    int end, int block_at)
+    size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written,
+    size_t begin, size_t end, size_t block_at)
 {
-    int i;
-    int pos = 0;
+    size_t i;
+    size_t pos = 0;
     int *data = value->value;
 
     assert(buf_len >= 0);
@@ -79,29 +79,29 @@ lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
 }
 
 static lmqtt_encode_result_t encode_test_0_9(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, unsigned char *buf,
-    int buf_len, int *bytes_written)
+    lmqtt_encode_buffer_t *encode_buffer, size_t offset, unsigned char *buf,
+    size_t buf_len, size_t *bytes_written)
 {
     return encode_test_range(value, offset, buf, buf_len, bytes_written, 0, 9, 10);
 }
 
 static lmqtt_encode_result_t encode_test_50_54(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, unsigned char *buf,
-    int buf_len, int *bytes_written)
+    lmqtt_encode_buffer_t *encode_buffer, size_t offset, unsigned char *buf,
+    size_t buf_len, size_t *bytes_written)
 {
     return encode_test_range(value, offset, buf, buf_len, bytes_written, 50, 54, 55);
 }
 
 static lmqtt_encode_result_t encode_test_10_19_blocking(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
-    int offset, unsigned char *buf, int buf_len, int *bytes_written)
+    size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written)
 {
     return encode_test_range(value, offset, buf, buf_len, bytes_written, 10, 19, 15);
 }
 
 static lmqtt_encode_result_t encode_test_fail(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer, int offset, unsigned char *buf,
-    int buf_len, int *bytes_written)
+    lmqtt_encode_buffer_t *encode_buffer, size_t offset, unsigned char *buf,
+    size_t buf_len, size_t *bytes_written)
 {
     return LMQTT_ENCODE_ERROR;
 }

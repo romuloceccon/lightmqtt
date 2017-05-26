@@ -2,9 +2,9 @@
 #include "lightmqtt/client.h"
 
 lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
-    void *src, int len, int *bytes_written)
+    void *src, size_t len, size_t *bytes_written)
 {
-    int cnt = test_buffer->available_len - test_buffer->pos;
+    size_t cnt = test_buffer->available_len - test_buffer->pos;
     if (cnt > len)
         cnt = len;
     memcpy(dst, src, cnt);
@@ -15,8 +15,8 @@ lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
         LMQTT_IO_AGAIN : LMQTT_IO_SUCCESS;
 }
 
-lmqtt_io_result_t test_buffer_read(void *data, void *buf, int buf_len,
-    int *bytes_read)
+lmqtt_io_result_t test_buffer_read(void *data, void *buf, size_t buf_len,
+    size_t *bytes_read)
 {
     test_buffer_t *source = (test_buffer_t *) data;
 
@@ -24,8 +24,8 @@ lmqtt_io_result_t test_buffer_read(void *data, void *buf, int buf_len,
         bytes_read);
 }
 
-lmqtt_io_result_t test_buffer_write(void *data, void *buf, int buf_len,
-    int *bytes_written)
+lmqtt_io_result_t test_buffer_write(void *data, void *buf, size_t buf_len,
+    size_t *bytes_written)
 {
     test_buffer_t *destination = (test_buffer_t *) data;
 
@@ -48,15 +48,15 @@ void test_time_set(long secs, long nsecs)
     test_time.nsecs = nsecs;
 }
 
-lmqtt_io_result_t test_socket_read(void *data, void *buf, int buf_len,
-    int *bytes_read)
+lmqtt_io_result_t test_socket_read(void *data, void *buf, size_t buf_len,
+    size_t *bytes_read)
 {
     test_socket_t *sock = (test_socket_t *) data;
     return test_buffer_read(&sock->read_buf, buf, buf_len, bytes_read);
 }
 
-lmqtt_io_result_t test_socket_write(void *data, void *buf, int buf_len,
-    int *bytes_written)
+lmqtt_io_result_t test_socket_write(void *data, void *buf, size_t buf_len,
+    size_t *bytes_written)
 {
     test_socket_t *sock = (test_socket_t *) data;
     return test_buffer_write(&sock->write_buf, buf, buf_len, bytes_written);
@@ -75,8 +75,8 @@ void test_socket_append_param(test_socket_t *socket, int val, int param)
     test_buffer_t *buf = &socket->read_buf;
 
     char src[4096];
-    int len = 0;
-    int rem_len;
+    size_t len = 0;
+    size_t rem_len;
 
     switch (val) {
         case TEST_CONNACK_SUCCESS:
@@ -158,8 +158,8 @@ int test_socket_shift(test_socket_t *socket)
     test_type_request_t result = -4; /* invalid command */
     unsigned char cmd;
     unsigned char remain_len;
-    int len;
-    int available = buf->pos - socket->test_pos_write;
+    size_t len;
+    size_t available = buf->pos - socket->test_pos_write;
 
     if (available <= 0)
         return -1; /* eof */

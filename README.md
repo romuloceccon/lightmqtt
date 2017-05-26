@@ -9,7 +9,7 @@ with both embedded and large systems.
 
 * Fully asynchronous (no threads)
 * Supports QoS 0, 1 and 2 messages
-* No `malloc`'s. Pure C. (Only dependency is `string.h`)
+* No `malloc`'s. Pure C. (Only dependencies are `stddef.h` and `string.h`)
 * Handles large payloads in both directions
 * Minimal memory requirements, even with large payloads (about 2 KB)
 

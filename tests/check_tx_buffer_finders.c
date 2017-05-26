@@ -7,7 +7,7 @@
     lmqtt_tx_buffer_t state; \
     lmqtt_store_t store; \
     lmqtt_io_result_t res; \
-    int bytes_written; \
+    size_t bytes_written; \
     lmqtt_store_value_t value; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     memset(buf, 0xcc, sizeof(buf)); \

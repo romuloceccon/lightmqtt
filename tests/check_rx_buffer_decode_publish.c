@@ -26,13 +26,14 @@ static int test_on_publish(void *data, lmqtt_publish_t *publish)
 {
     lmqtt_publish_t **dst = (lmqtt_publish_t **) data;
     *dst = publish;
-    sprintf(message_received, "topic: %.*s, payload: %.*s", publish->topic.len,
-        publish->topic.buf, publish->payload.len, publish->payload.buf);
+    sprintf(message_received, "topic: %.*s, payload: %.*s",
+        (int) publish->topic.len, publish->topic.buf,
+        (int) publish->payload.len, publish->payload.buf);
     return 1;
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     if (allocate_topic_result == LMQTT_ALLOCATE_SUCCESS) {
         publish->topic.len = len;
@@ -43,7 +44,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_payload(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     if (allocate_payload_result == LMQTT_ALLOCATE_SUCCESS) {
         publish->payload.len = len;
@@ -62,15 +63,15 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
     deallocate_count++;
 }
 
-static lmqtt_write_result_t test_write_fail(void *data, void *buf, int len,
-    int *bytes_w)
+static lmqtt_write_result_t test_write_fail(void *data, void *buf, size_t len,
+    size_t *bytes_w)
 {
     lmqtt_string_t *str = data;
     return str->internal.pos >= 1 ? LMQTT_WRITE_ERROR : LMQTT_WRITE_SUCCESS;
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_topic_fail(void *data,
-    lmqtt_publish_t *publish, int len)
+    lmqtt_publish_t *publish, size_t len)
 {
     publish->topic.len = len;
     publish->topic.data = &publish->topic;
@@ -120,7 +121,7 @@ static void do_decode(char val, lmqtt_decode_result_t exp)
     ck_assert_int_eq(exp, res);
 }
 
-static void do_decode_buffer(char *buf, int len)
+static void do_decode_buffer(char *buf, size_t len)
 {
     int i;
 

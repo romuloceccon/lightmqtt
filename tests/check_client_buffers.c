@@ -50,21 +50,21 @@ static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode_mock(lmqtt_rx_buffer_t *state,
-    unsigned char *buf, int buf_len, int *bytes_read)
+    unsigned char *buf, size_t buf_len, size_t *bytes_read)
 {
     return test_buffer_move(&test_dst,
         &test_dst.buf[test_dst.pos], buf, buf_len, bytes_read);
 }
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode_mock(lmqtt_tx_buffer_t *state,
-    unsigned char *buf, int buf_len, int *bytes_written)
+    unsigned char *buf, size_t buf_len, size_t *bytes_written)
 {
     return test_buffer_move(&test_src, buf, &test_src.buf[test_src.pos],
         buf_len, bytes_written);
 }
 
-static lmqtt_io_result_t read_test_buf_fail(void *data, void *buf, int buf_len,
-    int *bytes_read)
+static lmqtt_io_result_t read_test_buf_fail(void *data, void *buf,
+    size_t buf_len, size_t *bytes_read)
 {
     test_buffer_t *source = (test_buffer_t *) data;
     source->call_count += 1;

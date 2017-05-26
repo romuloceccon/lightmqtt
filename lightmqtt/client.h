@@ -1,6 +1,7 @@
 #ifndef _LIGHTMQTT_CLIENT_H_
 #define _LIGHTMQTT_CLIENT_H_
 
+#include <stddef.h>
 #include <lightmqtt/time.h>
 #include <lightmqtt/packet.h>
 
@@ -35,8 +36,8 @@
     (((res) & LMQTT_RES_QUEUEABLE) != 0)
 #define LMQTT_ERROR_NUM(res) (0)
 
-typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, int, int *);
-typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, int, int *);
+typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *);
+typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, size_t, size_t *);
 
 typedef struct _lmqtt_client_callbacks_t {
     void *data;
@@ -46,13 +47,13 @@ typedef struct _lmqtt_client_callbacks_t {
 } lmqtt_client_callbacks_t;
 
 typedef struct _lmqtt_client_buffers_t {
-    int store_size;
+    size_t store_size;
     void *store;
-    int rx_buffer_size;
+    size_t rx_buffer_size;
     void *rx_buffer;
-    int tx_buffer_size;
+    size_t tx_buffer_size;
     void *tx_buffer;
-    int id_set_size;
+    size_t id_set_size;
     void *id_set;
 } lmqtt_client_buffers_t;
 
@@ -80,11 +81,11 @@ typedef struct _lmqtt_client_t {
     lmqtt_rx_buffer_t rx_state;
     lmqtt_tx_buffer_t tx_state;
     unsigned char *read_buf;
-    int read_buf_pos;
-    int read_buf_capacity;
+    size_t read_buf_pos;
+    size_t read_buf_capacity;
     unsigned char *write_buf;
-    int write_buf_pos;
-    int write_buf_capacity;
+    size_t write_buf_pos;
+    size_t write_buf_capacity;
     lmqtt_store_t main_store;
     lmqtt_store_t connect_store;
     lmqtt_store_t *current_store;

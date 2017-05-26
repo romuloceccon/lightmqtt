@@ -54,8 +54,9 @@ void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 
 int on_message(void *data, lmqtt_publish_t *message)
 {
-    fprintf(stderr, "%.*s (%d): %.*s\n", message->topic.len, message->topic.buf,
-        count++, message->payload.len, message->payload.buf);
+    fprintf(stderr, "%.*s (%d): %.*s\n", (int) message->topic.len,
+        message->topic.buf, count++, (int) message->payload.len,
+        message->payload.buf);
 
     memset(&publish, 0, sizeof(publish));
     publish.qos = 2;
@@ -69,7 +70,7 @@ int on_message(void *data, lmqtt_publish_t *message)
 }
 
 lmqtt_allocate_result_t on_message_allocate_topic(void *data,
-    lmqtt_publish_t *publish, int size)
+    lmqtt_publish_t *publish, size_t size)
 {
     publish->topic.buf = message_topic;
     publish->topic.len = size;
@@ -77,7 +78,7 @@ lmqtt_allocate_result_t on_message_allocate_topic(void *data,
 }
 
 lmqtt_allocate_result_t on_message_allocate_payload(void *data,
-    lmqtt_publish_t *publish, int size)
+    lmqtt_publish_t *publish, size_t size)
 {
     publish->payload.buf = message_payload;
     publish->payload.len = size;

@@ -1,11 +1,11 @@
 #include "check_lightmqtt.h"
 
 #define BUF_PLACEHOLDER 0xcc
-#define BYTES_W_PLACEHOLDER -12345
+#define BYTES_W_PLACEHOLDER ((size_t) -12345)
 
 #define PREPARE \
     unsigned char buf[256]; \
-    int bytes_w = BYTES_W_PLACEHOLDER; \
+    size_t bytes_w = BYTES_W_PLACEHOLDER; \
     int res; \
     memset(buf, BUF_PLACEHOLDER, sizeof(buf))
 

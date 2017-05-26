@@ -2,7 +2,7 @@
 
 #define PREPARE \
     unsigned char buf[512]; \
-    int bytes_w = 0xcccccccc; \
+    size_t bytes_w = 0xcccccccc; \
     lmqtt_encode_buffer_t encode_buffer; \
     lmqtt_encode_result_t res; \
     int cnt; \
