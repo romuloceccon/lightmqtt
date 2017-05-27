@@ -1,6 +1,7 @@
 *~
 *.swp
 /build
+/build-docs
 
 Makefile.in
 /aclocal.m4

@@ -1,6 +1,7 @@
 # LightMQTT
 
 [![Build Status](https://travis-ci.org/romuloceccon/lightmqtt.svg?branch=master)](https://travis-ci.org/romuloceccon/lightmqtt)
+[![Documentation](https://codedocs.xyz/romuloceccon/lightmqtt.svg)](https://codedocs.xyz/romuloceccon/lightmqtt)
 
 LightMQTT is a MQTT 3.1.1 client library written in pure C and designed to work
 with both embedded and large systems.
