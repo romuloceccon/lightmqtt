@@ -198,7 +198,7 @@ typedef struct _lmqtt_rx_buffer_t {
         int header_finished;
         struct _lmqtt_rx_buffer_decoder_t const *decoder;
         long remain_buf_pos;
-        int topic_len;
+        unsigned short topic_len;
         lmqtt_packet_id_t packet_id;
         lmqtt_store_value_t value;
         lmqtt_publish_t publish;
