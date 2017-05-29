@@ -7,7 +7,7 @@
 
 #define LMQTT_STORE_ENTRY_SIZE sizeof(lmqtt_store_entry_t)
 
-typedef u16 lmqtt_packet_id_t;
+typedef unsigned short lmqtt_packet_id_t;
 typedef int (*lmqtt_store_entry_callback_t)(void *, void *);
 
 typedef struct _lmqtt_store_value_t {
