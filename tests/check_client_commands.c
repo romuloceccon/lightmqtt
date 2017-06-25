@@ -238,6 +238,8 @@ START_TEST(should_initialize_client)
 
     memset(&client, -1, sizeof(client));
 
+    test_time_set(5, 0);
+
     callbacks.read = &test_socket_read;
     callbacks.write = &test_socket_write;
     callbacks.data = &ts;
@@ -256,6 +258,7 @@ START_TEST(should_initialize_client)
     ck_assert_int_eq(0, client.failed);
     ck_assert_ptr_eq(&client.connect_store, client.rx_state.store);
     ck_assert_ptr_eq(&client.connect_store, client.tx_state.store);
+    ck_assert_int_eq(5, client.connect_store.last_touch.secs);
 }
 END_TEST
 
@@ -326,10 +329,12 @@ START_TEST(should_receive_connack_after_connect)
     lmqtt_client_connect(&client, &connect);
     client_process_output(&client);
 
+    test_time_set(5, 0);
     test_socket_append(&ts, TEST_CONNACK_SUCCESS);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
     ck_assert_ptr_eq(&connect, cb_result.data);
     ck_assert_int_eq(1, cb_result.succeeded);
+    ck_assert_int_eq(5, client.main_store.last_touch.secs);
 
     /* should not receive connack twice */
     cb_result.data = 0;
@@ -789,7 +794,7 @@ START_TEST(should_not_send_pingreq_after_disconnect)
     lmqtt_client_t client;
 
     test_time_set(10, 0);
-    do_init_connect_connack_process(&client, 5, 3);
+    do_init_connect_connack_process(&client, 5, 0);
 
     test_time_set(16, 0);
     ck_assert_int_eq(1, lmqtt_client_disconnect(&client));
@@ -1180,6 +1185,32 @@ START_TEST(should_reconnect_after_reset)
 }
 END_TEST
 
+START_TEST(should_touch_store_on_reset)
+{
+    lmqtt_client_t client;
+    long secs, nsecs;
+
+    test_time_set(10, 0);
+    do_init_connect_process(&client, 5, 3);
+
+    test_time_set(15, 0);
+    client_keep_alive(&client);
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(0, secs);
+
+    test_time_set(20, 0);
+    lmqtt_client_reset(&client);
+    /* no CONNECT packet enqueued; should not return timeout */
+    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    test_time_set(21, 0);
+    /* should not touch store here */
+    do_connect(&client, 5, 0);
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    /* 1 second passed since reset; remaining timeout should be 2 */
+    ck_assert_int_eq(2, secs);
+}
+END_TEST
+
 START_TEST(should_wait_connack_to_resend_packets_from_previous_connection)
 {
     lmqtt_client_t client;
@@ -1337,6 +1368,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_finalize_client_after_partial_decode);
     ADD_TEST(should_not_reconnect_after_finalize);
     ADD_TEST(should_reconnect_after_reset);
+    ADD_TEST(should_touch_store_on_reset);
 
     ADD_TEST(should_wait_connack_to_resend_packets_from_previous_connection);
     ADD_TEST(should_wait_connack_to_send_unsent_packets_from_previous_connection);

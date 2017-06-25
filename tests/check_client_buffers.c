@@ -8,10 +8,18 @@
         memset(&client, 0, sizeof(client)); \
         memset(&test_src, 0, sizeof(test_src)); \
         memset(&test_dst, 0, sizeof(test_dst)); \
+        memset(entries, 0, sizeof(entries)); \
         client.callbacks.data = &test_src; \
         client.callbacks.read = test_buffer_read; \
         client.read_buf = rx_buffer; \
         client.read_buf_capacity = RX_BUFFER_SIZE; \
+        client.connect_store.get_time = &test_time_get; \
+        client.connect_store.entries = &client.connect_store_entry; \
+        client.connect_store.capacity = 1; \
+        client.main_store.get_time = &test_time_get; \
+        client.main_store.entries = entries; \
+        client.main_store.capacity = ENTRY_COUNT; \
+        client.current_store = &client.main_store; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -24,10 +32,18 @@
         memset(&client, 0, sizeof(client)); \
         memset(&test_dst, 0, sizeof(test_dst)); \
         memset(&test_src, 0, sizeof(test_src)); \
+        memset(entries, 0, sizeof(entries)); \
         client.callbacks.data = &test_dst; \
         client.callbacks.write = test_buffer_write; \
         client.write_buf = tx_buffer; \
         client.write_buf_capacity = TX_BUFFER_SIZE; \
+        client.connect_store.get_time = &test_time_get; \
+        client.connect_store.entries = &client.connect_store_entry; \
+        client.connect_store.capacity = 1; \
+        client.main_store.get_time = &test_time_get; \
+        client.main_store.entries = entries; \
+        client.main_store.capacity = ENTRY_COUNT; \
+        client.current_store = &client.main_store; \
         test_src.len = sizeof(test_src.buf); \
         test_dst.len = sizeof(test_dst.buf); \
         for (i = 0; i < test_src.len; i++) \
@@ -36,6 +52,7 @@
 
 #define RX_BUFFER_SIZE 512
 #define TX_BUFFER_SIZE 512
+#define ENTRY_COUNT 1
 
 #define CHECK_BUF_FILL_AT(test_buf, n) \
     ck_assert_uint_eq(BYTE_AT(n), test_buf[n])
@@ -48,6 +65,7 @@ static test_buffer_t test_src;
 static test_buffer_t test_dst;
 static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
+static lmqtt_store_entry_t entries[ENTRY_COUNT];
 
 lmqtt_io_result_t lmqtt_rx_buffer_decode_mock(lmqtt_rx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_read)
@@ -378,6 +396,64 @@ START_TEST(should_return_eof_if_encode_blocks_and_write_closes)
 }
 END_TEST
 
+START_TEST(should_touch_store_after_read)
+{
+    lmqtt_client_t client;
+
+    PREPARE_READ;
+
+    test_src.len = 5;
+    test_src.available_len = test_src.len;
+    test_dst.available_len = test_dst.len;
+
+    test_time_set(5, 0);
+    client_process_input(&client);
+
+    ck_assert_int_eq(5, client.main_store.last_touch.secs);
+}
+END_TEST
+
+START_TEST(should_not_touch_store_if_read_blocks)
+{
+    lmqtt_client_t client;
+
+    PREPARE_READ;
+
+    test_src.len = 5;
+    test_src.available_len = 1;
+    test_dst.available_len = test_dst.len;
+
+    test_time_set(5, 0);
+    client_process_input(&client);
+
+    test_time_set(8, 0);
+    client_process_input(&client);
+
+    ck_assert_int_eq(5, client.main_store.last_touch.secs);
+}
+END_TEST
+
+START_TEST(should_touch_store_when_decode_unblocks)
+{
+    lmqtt_client_t client;
+
+    PREPARE_READ;
+
+    test_src.len = 5;
+    test_src.available_len = 3;
+    test_dst.available_len = 0;
+
+    test_time_set(5, 0);
+    client_process_input(&client);
+
+    test_dst.available_len = test_dst.len;
+    test_time_set(8, 0);
+    client_process_input(&client);
+
+    ck_assert_int_eq(8, client.main_store.last_touch.secs);
+}
+END_TEST
+
 START_TCASE("Client buffers")
 {
     lmqtt_rx_buffer_decode = &lmqtt_rx_buffer_decode_mock;
@@ -395,5 +471,8 @@ START_TCASE("Client buffers")
     ADD_TEST(should_write_remaining_buffer_if_encode_reaches_eof);
     ADD_TEST(should_return_block_conn_if_both_encode_and_write_block);
     ADD_TEST(should_return_eof_if_encode_blocks_and_write_closes);
+    ADD_TEST(should_touch_store_after_read);
+    ADD_TEST(should_not_touch_store_if_read_blocks);
+    ADD_TEST(should_touch_store_when_decode_unblocks);
 }
 END_TCASE

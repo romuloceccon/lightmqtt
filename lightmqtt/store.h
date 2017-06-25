@@ -19,7 +19,6 @@ typedef struct _lmqtt_store_value_t {
 
 typedef struct _lmqtt_store_entry_t {
     int class;
-    lmqtt_time_t time;
     lmqtt_store_value_t value;
 } lmqtt_store_entry_t;
 

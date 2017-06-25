@@ -427,35 +427,6 @@ START_TEST(should_unmark_all)
 }
 END_TEST
 
-START_TEST(should_reset_times_after_unmark_all)
-{
-    PREPARE;
-
-    store.timeout = 10;
-    store.keep_alive = 15;
-
-    test_time_set(2, 0);
-    value_in.packet_id = 1;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
-
-    test_time_set(10, 0);
-    lmqtt_store_mark_current(&store);
-    lmqtt_store_unmark_all(&store);
-    lmqtt_store_mark_current(&store);
-
-    test_time_set(14, 0);
-    res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(1, res);
-    ck_assert_int_eq(6, secs);
-
-    lmqtt_store_shift(&store, &class, &value_out);
-
-    res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(1, res);
-    ck_assert_int_eq(11, secs);
-}
-END_TEST
-
 START_TEST(should_count_items)
 {
     PREPARE;
@@ -542,7 +513,7 @@ START_TEST(should_not_delete_nonexistent_item)
 }
 END_TEST
 
-START_TEST(should_get_timeout_before_append_or_touch)
+START_TEST(should_get_timeout_before_touch)
 {
     PREPARE;
 
@@ -554,30 +525,6 @@ START_TEST(should_get_timeout_before_append_or_touch)
     ck_assert_int_eq(0, res);
     ck_assert_int_eq(0, count);
     ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_timeout_after_append)
-{
-    PREPARE;
-
-    store.timeout = 10;
-    store.keep_alive = 15;
-
-    test_time_set(2, 0);
-    value_in.packet_id = 1;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
-
-    /* should have no effect */
-    test_time_set(6, 0);
-    lmqtt_store_mark_current(&store);
-
-    test_time_set(7, 0);
-    res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(1, res);
-    ck_assert_int_eq(1, count);
-    ck_assert_int_eq(5, secs);
     ck_assert_int_eq(0, nsecs);
 }
 END_TEST
@@ -601,26 +548,6 @@ START_TEST(should_get_timeout_after_touch)
 }
 END_TEST
 
-START_TEST(should_get_timeout_after_append_with_zeroed_timeout)
-{
-    PREPARE;
-
-    store.timeout = 0;
-    store.keep_alive = 15;
-
-    test_time_set(2, 0);
-    value_in.packet_id = 1;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
-
-    test_time_set(7, 0);
-    res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(0, res);
-    ck_assert_int_eq(0, count);
-    ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
 START_TEST(should_get_timeout_after_touch_with_zeroed_keep_alive)
 {
     PREPARE;
@@ -636,30 +563,6 @@ START_TEST(should_get_timeout_after_touch_with_zeroed_keep_alive)
     ck_assert_int_eq(0, res);
     ck_assert_int_eq(0, count);
     ck_assert_int_eq(0, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
-START_TEST(should_get_timeout_after_multiple_appends)
-{
-    PREPARE;
-
-    store.timeout = 10;
-    store.keep_alive = 15;
-
-    test_time_set(2, 0);
-    value_in.packet_id = 1;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
-
-    test_time_set(6, 0);
-    value_in.packet_id = 2;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
-
-    test_time_set(7, 0);
-    res = lmqtt_store_get_timeout(&store, &count, &secs, &nsecs);
-    ck_assert_int_eq(1, res);
-    ck_assert_int_eq(2, count);
-    ck_assert_int_eq(5, secs);
     ck_assert_int_eq(0, nsecs);
 }
 END_TEST
@@ -688,17 +591,13 @@ START_TCASE("Store")
     ADD_TEST(should_drop_current_object);
     ADD_TEST(should_not_drop_nonexistent_object);
     ADD_TEST(should_unmark_all);
-    ADD_TEST(should_reset_times_after_unmark_all);
     ADD_TEST(should_count_items);
     ADD_TEST(should_get_item_at_position);
     ADD_TEST(should_not_get_nonexistent_item);
     ADD_TEST(should_delete_item_at_position);
     ADD_TEST(should_not_delete_nonexistent_item);
-    ADD_TEST(should_get_timeout_before_append_or_touch);
-    ADD_TEST(should_get_timeout_after_append);
+    ADD_TEST(should_get_timeout_before_touch);
     ADD_TEST(should_get_timeout_after_touch);
-    ADD_TEST(should_get_timeout_after_append_with_zeroed_timeout);
     ADD_TEST(should_get_timeout_after_touch_with_zeroed_keep_alive);
-    ADD_TEST(should_get_timeout_after_multiple_appends);
 }
 END_TCASE

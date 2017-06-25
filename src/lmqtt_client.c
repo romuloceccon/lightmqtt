@@ -123,11 +123,12 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     lmqtt_io_result_t res_wr = LMQTT_IO_SUCCESS;
     size_t cnt_rd = -1;
     size_t cnt_wr = -1;
+    int stale = 1;
 
     if (client->failed)
         return LMQTT_IO_STATUS_ERROR;
 
-    while (read_allowed || write_allowed) {
+    while (1) {
         read_allowed = read_allowed && *buf_pos < buf_len &&
             (res_rd = input_read(input, buf, buf_pos, buf_len,
                 &cnt_rd)) == LMQTT_IO_SUCCESS && cnt_rd > 0;
@@ -141,7 +142,18 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
 
         if (client_is_error(client, res_wr))
             return LMQTT_IO_STATUS_ERROR;
+
+        if (!read_allowed && !write_allowed)
+            break;
+
+        stale = 0;
     }
+
+    /* Even when processing a CONNACK this will touch the correct store, because
+       client->current_store will be updated during the callback called from
+       lmqtt_rx_buffer_decode(). */
+    if (!stale)
+        lmqtt_store_touch(client->current_store);
 
     if (client_is_eof(client, res_rd, cnt_rd))
         return LMQTT_IO_STATUS_READY;
@@ -423,6 +435,7 @@ LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client)
     client->closed = 1;
     client->failed = 0;
 
+    lmqtt_store_touch(&client->connect_store);
     client_set_current_store(client, &client->connect_store);
     client_cleanup_stores(client, !client->clean_session);
 

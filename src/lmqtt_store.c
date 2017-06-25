@@ -74,7 +74,6 @@ int lmqtt_store_append(lmqtt_store_t *store, int class,
     entry = &store->entries[store->count++];
 
     entry->class = class;
-    lmqtt_time_touch(&entry->time, store->get_time);
     if (value)
         memcpy(&entry->value, value, sizeof(entry->value));
     else
@@ -152,30 +151,14 @@ int lmqtt_store_shift(lmqtt_store_t *store, int *class,
 
 void lmqtt_store_unmark_all(lmqtt_store_t *store)
 {
-    lmqtt_time_t tm;
-    int i;
-
     store->pos = 0;
-
-    lmqtt_time_touch(&tm, store->get_time);
-    memcpy(&store->last_touch, &tm, sizeof(tm));
-    for (i = 0; i < store->count; i++)
-        memcpy(&store->entries[i].time, &tm, sizeof(tm));
 }
 
 int lmqtt_store_get_timeout(lmqtt_store_t *store, size_t *count, long *secs,
     long *nsecs)
 {
-    lmqtt_time_t *tm = NULL;
-    unsigned short when = 0;
-
-    if (store->count > 0) {
-        tm = &store->entries[0].time;
-        when = store->timeout;
-    } else {
-        tm = &store->last_touch;
-        when = store->keep_alive;
-    }
+    lmqtt_time_t *tm = &store->last_touch;
+    unsigned short when = store->count > 0 ? store->timeout : store->keep_alive;
 
     if (when == 0 || tm->secs == 0 && tm->nsecs == 0) {
         *count = 0;

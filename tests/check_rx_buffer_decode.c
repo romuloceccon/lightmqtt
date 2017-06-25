@@ -262,40 +262,6 @@ START_TEST(should_decode_rx_buffer_with_two_packets)
 }
 END_TEST
 
-START_TEST(should_touch_store_after_decode)
-{
-    size_t cnt = (size_t) -1;
-    long secs = -1, nsecs = -1;
-    int tm_res;
-
-    PREPARE;
-
-    buf[0] = 0x20;
-    buf[1] = 2;
-    buf[2] = 0;
-    buf[3] = 5;
-
-    store.timeout = 10;
-    store.keep_alive = 20;
-
-    STORE_APPEND_MARK(LMQTT_CLASS_CONNECT, 0);
-    set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
-
-    test_time_set(8, 0);
-
-    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
-    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
-
-    test_time_set(15, 0);
-
-    tm_res = lmqtt_store_get_timeout(&store, &cnt, &secs, &nsecs);
-    ck_assert_int_eq(1, tm_res);
-    ck_assert_int_eq(0, cnt);
-    ck_assert_int_eq(13, secs);
-    ck_assert_int_eq(0, nsecs);
-}
-END_TEST
-
 START_TEST(should_not_touch_store_after_decoding_empty_buffer)
 {
     PREPARE;
@@ -582,7 +548,6 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_not_decode_rx_buffer_after_error);
     ADD_TEST(should_reset_rx_buffer_after_successful_processing);
     ADD_TEST(should_decode_rx_buffer_with_two_packets);
-    ADD_TEST(should_touch_store_after_decode);
     ADD_TEST(should_not_touch_store_after_decoding_empty_buffer);
     ADD_TEST(should_decode_rx_buffer_with_allowed_null_data);
     ADD_TEST(should_decode_rx_buffer_with_disallowed_null_data);

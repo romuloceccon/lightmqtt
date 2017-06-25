@@ -1513,11 +1513,7 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
             rx_buffer_finish_packet(state);
     }
 
-    /* Even when processing a CONNACK this will touch the correct store, because
-       lmqtt_client_t will change the current store during the callback, which
-       is called from state->internal.decoder->decode_remaining() */
     if (*bytes_read > 0) {
-        lmqtt_store_touch(state->store);
         /* If decode_remaining() returns WOULD_BLOCK after we have successfully
            decoded other bytes we should not signal that some string is
            blocking, and instead wait until the decoder is called again */
