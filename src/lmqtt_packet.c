@@ -251,18 +251,19 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
 }
 
 LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
-    unsigned char b, lmqtt_string_t **blocking_str)
+    unsigned char *buf, size_t buf_len, size_t *bytes_written,
+    lmqtt_string_t **blocking_str)
 {
-    size_t bytes_w;
+    *bytes_written = 0;
     *blocking_str = NULL;
 
-    if (str->internal.pos >= str->len)
+    if (str->internal.pos + buf_len > str->len)
         return LMQTT_DECODE_ERROR;
 
     if (str->write) {
-        switch(str->write(str->data, &b, 1, &bytes_w)) {
+        switch(str->write(str->data, buf, buf_len, bytes_written)) {
             case LMQTT_IO_SUCCESS:
-                str->internal.pos++;
+                str->internal.pos += *bytes_written;
                 break;
             case LMQTT_IO_WOULD_BLOCK:
                 *blocking_str = str;
@@ -271,7 +272,9 @@ LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
                 return LMQTT_DECODE_ERROR;
         }
     } else {
-        str->buf[str->internal.pos++] = b;
+        memcpy(&str->buf[str->internal.pos], buf, buf_len);
+        *bytes_written = buf_len;
+        str->internal.pos += buf_len;
     }
 
     return str->internal.pos < str->len ? LMQTT_DECODE_CONTINUE :
@@ -1090,8 +1093,9 @@ LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
     }
 
     if (!state->internal.ignore_publish) {
-        return LMQTT_DECODE_ERROR != string_put(str, b,
-            &state->internal.blocking_str);
+        size_t cnt;
+        return LMQTT_DECODE_ERROR != string_put(str, &b, 1,
+            &cnt, &state->internal.blocking_str);
     }
     return 1;
 }

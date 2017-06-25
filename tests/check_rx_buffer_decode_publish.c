@@ -67,7 +67,13 @@ static lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
     size_t *bytes_w)
 {
     lmqtt_string_t *str = data;
-    return str->internal.pos >= 1 ? LMQTT_IO_ERROR : LMQTT_IO_SUCCESS;
+    if (str->internal.pos >= 1) {
+        *bytes_w = 0;
+        return LMQTT_IO_ERROR;
+    } else {
+        *bytes_w = len;
+        return LMQTT_IO_SUCCESS;
+    }
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_topic_fail(void *data,

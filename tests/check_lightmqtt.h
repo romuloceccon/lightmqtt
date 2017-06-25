@@ -115,8 +115,8 @@ lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
     int encode_if_empty, size_t offset, unsigned char *buf, size_t buf_len,
     size_t *bytes_written, lmqtt_string_t **blocking_str);
 
-lmqtt_decode_result_t string_put(lmqtt_string_t *str, unsigned char b,
-    lmqtt_string_t **blocking_str);
+lmqtt_decode_result_t string_put(lmqtt_string_t *str, unsigned char *buf,
+    size_t buf_len, size_t *bytes_written, lmqtt_string_t **blocking_str);
 
 lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header,
     unsigned char b);
