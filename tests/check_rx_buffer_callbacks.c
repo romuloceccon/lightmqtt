@@ -58,18 +58,6 @@ static int test_on_pingresp(void *data, void *unused)
     return 1;
 }
 
-static lmqtt_write_result_t test_write_block(void *data, void *buf, size_t len,
-    size_t *bytes_w)
-{
-    switch (test_buffer_write(data, buf, len, bytes_w)) {
-        case LMQTT_IO_SUCCESS:
-            return LMQTT_WRITE_SUCCESS;
-        case LMQTT_IO_AGAIN:
-            return LMQTT_WRITE_WOULD_BLOCK;
-    }
-    return LMQTT_WRITE_ERROR;
-}
-
 static int test_on_message_received(void *data, lmqtt_publish_t *publish)
 {
     char *msg = data;
@@ -101,7 +89,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_payload_block(
 {
     publish->payload.len = len;
     publish->payload.data = &payload_buffer;
-    publish->payload.write = &test_write_block;
+    publish->payload.write = &test_buffer_write;
     return LMQTT_ALLOCATE_SUCCESS;
 }
 
@@ -341,7 +329,7 @@ START_TEST(should_decode_message_with_blocking_write)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) &buf[8], 2,
         &bytes_r);
 
-    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_WOULD_BLOCK, res);
     ck_assert_int_eq(0, bytes_r);
     ck_assert_ptr_eq(&state.internal.publish.payload,
         lmqtt_rx_buffer_get_blocking_str(&state));

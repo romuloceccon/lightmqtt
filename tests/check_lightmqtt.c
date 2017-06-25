@@ -12,7 +12,7 @@ lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
     test_buffer->pos += cnt;
     test_buffer->call_count += 1;
     return cnt == 0 && test_buffer->available_len < test_buffer->len ?
-        LMQTT_IO_AGAIN : LMQTT_IO_SUCCESS;
+        LMQTT_IO_WOULD_BLOCK : LMQTT_IO_SUCCESS;
 }
 
 lmqtt_io_result_t test_buffer_read(void *data, void *buf, size_t buf_len,

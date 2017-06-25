@@ -168,7 +168,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
  * lmqtt_string_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_read_result_t string_fetch(lmqtt_string_t *str,
+LMQTT_STATIC lmqtt_io_result_t string_fetch(lmqtt_string_t *str,
     size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written)
 {
     if (str->read != 0)
@@ -181,7 +181,7 @@ LMQTT_STATIC lmqtt_read_result_t string_fetch(lmqtt_string_t *str,
 
     memcpy(buf, str->buf + offset, buf_len);
     *bytes_written = buf_len;
-    return LMQTT_READ_SUCCESS;
+    return LMQTT_IO_SUCCESS;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
@@ -236,12 +236,12 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     *bytes_written += read_cnt;
     assert((long) read_cnt <= remaining);
 
-    if (read_res == LMQTT_READ_WOULD_BLOCK && read_cnt == 0) {
+    if (read_res == LMQTT_IO_WOULD_BLOCK && read_cnt == 0) {
         *blocking_str = str;
         result = LMQTT_ENCODE_WOULD_BLOCK;
-    } else if (read_res == LMQTT_READ_SUCCESS && (long) read_cnt >= remaining) {
+    } else if (read_res == LMQTT_IO_SUCCESS && (long) read_cnt >= remaining) {
         result = LMQTT_ENCODE_FINISHED;
-    } else if (read_res == LMQTT_READ_SUCCESS && read_cnt > 0) {
+    } else if (read_res == LMQTT_IO_SUCCESS && read_cnt > 0) {
         result = LMQTT_ENCODE_CONTINUE;
     } else {
         result = LMQTT_ENCODE_ERROR;
@@ -261,10 +261,10 @@ LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
 
     if (str->write) {
         switch(str->write(str->data, &b, 1, &bytes_w)) {
-            case LMQTT_WRITE_SUCCESS:
+            case LMQTT_IO_SUCCESS:
                 str->internal.pos++;
                 break;
-            case LMQTT_WRITE_WOULD_BLOCK:
+            case LMQTT_IO_WOULD_BLOCK:
                 *blocking_str = str;
                 return LMQTT_DECODE_WOULD_BLOCK;
             default:
@@ -1035,7 +1035,7 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
                 state->internal.offset, buf + offset, buf_len - offset,
                 &cur_bytes);
             if (result == LMQTT_ENCODE_WOULD_BLOCK)
-                return LMQTT_IO_AGAIN;
+                return LMQTT_IO_WOULD_BLOCK;
             if (result == LMQTT_ENCODE_CONTINUE)
                 state->internal.offset += cur_bytes;
             if (result == LMQTT_ENCODE_CONTINUE || result == LMQTT_ENCODE_FINISHED)
@@ -1052,7 +1052,7 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
     }
 
     return *bytes_written > 0 || state->closed ?
-        LMQTT_IO_SUCCESS : LMQTT_IO_AGAIN;
+        LMQTT_IO_SUCCESS : LMQTT_IO_WOULD_BLOCK;
 }
 
 /* Enable mocking of lmqtt_tx_buffer_encode() */
@@ -1522,7 +1522,7 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
     } else if (buf_len == 0) {
         return LMQTT_IO_SUCCESS;
     } else {
-        return LMQTT_IO_AGAIN;
+        return LMQTT_IO_WOULD_BLOCK;
     }
 }
 

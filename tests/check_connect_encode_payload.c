@@ -23,7 +23,7 @@
     memset(&read_buf.buf, STR_CB_PLACEHOLDER, sizeof(read_buf.buf)); \
     value.value = &connect
 
-static lmqtt_read_result_t string_read(void *data, void *buf, size_t buf_len,
+static lmqtt_io_result_t string_read(void *data, void *buf, size_t buf_len,
     size_t *bytes_written)
 {
     test_buffer_t *test_buffer = (test_buffer_t *) data;
@@ -36,21 +36,21 @@ static lmqtt_read_result_t string_read(void *data, void *buf, size_t buf_len,
     *bytes_written = count;
 
     return count == 0 && test_buffer->pos < test_buffer->len ?
-        LMQTT_READ_WOULD_BLOCK : LMQTT_READ_SUCCESS;
+        LMQTT_IO_WOULD_BLOCK : LMQTT_IO_SUCCESS;
 }
 
-static lmqtt_read_result_t string_read_fail_again(void *data, void *buf,
+static lmqtt_io_result_t string_read_fail_again(void *data, void *buf,
     size_t buf_len, size_t *bytes_written)
 {
     *bytes_written = 1;
-    return LMQTT_READ_WOULD_BLOCK;
+    return LMQTT_IO_WOULD_BLOCK;
 }
 
-static lmqtt_read_result_t string_read_fail_error(void *data, void *buf,
+static lmqtt_io_result_t string_read_fail_error(void *data, void *buf,
     size_t buf_len, size_t *bytes_written)
 {
     *bytes_written = 1;
-    return LMQTT_READ_ERROR;
+    return LMQTT_IO_ERROR;
 }
 
 START_TEST(should_encode_empty_client_id)

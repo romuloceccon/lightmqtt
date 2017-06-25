@@ -261,7 +261,7 @@ START_TEST(should_encode_blocking_buffer)
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
-    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_WOULD_BLOCK, res);
     ck_assert_int_eq(0, bytes_w);
 }
 END_TEST
@@ -272,7 +272,7 @@ START_TEST(should_not_encode_null_encoder)
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
 
-    ck_assert_int_eq(LMQTT_IO_AGAIN, res);
+    ck_assert_int_eq(LMQTT_IO_WOULD_BLOCK, res);
     ck_assert_int_eq(0, bytes_w);
 }
 END_TEST

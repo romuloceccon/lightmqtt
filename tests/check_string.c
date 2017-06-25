@@ -6,8 +6,7 @@ typedef struct {
     size_t pos;
 } test_write_buffer_t;
 
-lmqtt_write_result_t test_write(void *data, void *buf, size_t len,
-    size_t *bytes_w)
+lmqtt_io_result_t test_write(void *data, void *buf, size_t len, size_t *bytes_w)
 {
     test_write_buffer_t *buffer = data;
     unsigned char *buf_c = buf;
@@ -17,18 +16,18 @@ lmqtt_write_result_t test_write(void *data, void *buf, size_t len,
 
     for (i = 0; i < len; i++) {
         if (buffer->pos >= buffer->len)
-            return LMQTT_WRITE_WOULD_BLOCK;
+            return LMQTT_IO_WOULD_BLOCK;
         buffer->buf[buffer->pos++] = buf_c[i];
         *bytes_w += 1;
     }
 
-    return LMQTT_WRITE_SUCCESS;
+    return LMQTT_IO_SUCCESS;
 }
 
-lmqtt_write_result_t test_write_fail(void *data, void *buf, size_t len,
+lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
     size_t *bytes_w)
 {
-    return LMQTT_WRITE_ERROR;
+    return LMQTT_IO_ERROR;
 }
 
 START_TEST(should_put_chars)

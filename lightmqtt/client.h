@@ -1,7 +1,6 @@
 #ifndef _LIGHTMQTT_CLIENT_H_
 #define _LIGHTMQTT_CLIENT_H_
 
-#include <stddef.h>
 #include <lightmqtt/time.h>
 #include <lightmqtt/packet.h>
 
@@ -35,9 +34,6 @@
 #define LMQTT_IS_QUEUEABLE(res) \
     (((res) & LMQTT_RES_QUEUEABLE) != 0)
 #define LMQTT_ERROR_NUM(res) (0)
-
-typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *);
-typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, size_t, size_t *);
 
 typedef struct _lmqtt_client_callbacks_t {
     void *data;

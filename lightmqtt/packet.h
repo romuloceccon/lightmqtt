@@ -43,19 +43,7 @@ typedef enum {
 } lmqtt_decode_result_t;
 
 typedef enum {
-    LMQTT_READ_SUCCESS = 130,
-    LMQTT_READ_WOULD_BLOCK,
-    LMQTT_READ_ERROR
-} lmqtt_read_result_t;
-
-typedef enum {
-    LMQTT_WRITE_SUCCESS = 140,
-    LMQTT_WRITE_WOULD_BLOCK,
-    LMQTT_WRITE_ERROR
-} lmqtt_write_result_t;
-
-typedef enum {
-    LMQTT_ALLOCATE_SUCCESS = 150,
+    LMQTT_ALLOCATE_SUCCESS = 130,
     LMQTT_ALLOCATE_IGNORE,
     LMQTT_ALLOCATE_ERROR
 } lmqtt_allocate_result_t;
@@ -70,8 +58,8 @@ typedef struct _lmqtt_string_t {
     long len;
     char *buf;
     void *data;
-    lmqtt_read_result_t (*read)(void *, void *, size_t, size_t *);
-    lmqtt_write_result_t (*write)(void *, void *, size_t, size_t *);
+    lmqtt_read_t read;
+    lmqtt_write_t write;
     struct {
         long pos;
     } internal;

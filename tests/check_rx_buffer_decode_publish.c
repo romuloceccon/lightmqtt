@@ -63,11 +63,11 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
     deallocate_count++;
 }
 
-static lmqtt_write_result_t test_write_fail(void *data, void *buf, size_t len,
+static lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
     size_t *bytes_w)
 {
     lmqtt_string_t *str = data;
-    return str->internal.pos >= 1 ? LMQTT_WRITE_ERROR : LMQTT_WRITE_SUCCESS;
+    return str->internal.pos >= 1 ? LMQTT_IO_ERROR : LMQTT_IO_SUCCESS;
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_topic_fail(void *data,

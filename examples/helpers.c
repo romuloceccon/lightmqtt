@@ -34,7 +34,7 @@ lmqtt_io_result_t socket_read(void *data, void *buf, size_t buf_len,
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
         *bytes_read = 0;
-        return LMQTT_IO_AGAIN;
+        return LMQTT_IO_WOULD_BLOCK;
     }
 
     *bytes_read = 0;
@@ -55,7 +55,7 @@ lmqtt_io_result_t socket_write(void *data, void *buf, size_t buf_len,
 
     if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EPIPE) {
         *bytes_written = 0;
-        return LMQTT_IO_AGAIN;
+        return LMQTT_IO_WOULD_BLOCK;
     }
 
     *bytes_written = 0;

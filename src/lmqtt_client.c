@@ -161,7 +161,7 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     if (client_is_eof(client, res_wr, cnt_wr))
         return LMQTT_IO_STATUS_READY;
 
-    if (res_rd == LMQTT_IO_AGAIN && *buf_pos == 0)
+    if (res_rd == LMQTT_IO_WOULD_BLOCK && *buf_pos == 0)
         return reader_block;
 
     return writer_block;

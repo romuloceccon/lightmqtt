@@ -25,10 +25,10 @@ static void test_cb_result_set(void *cb_result, void *data, int succeeded)
     result->succeeded = succeeded;
 }
 
-static lmqtt_write_result_t test_write_block(void *data, void *buf, size_t len,
+static lmqtt_io_result_t test_write_block(void *data, void *buf, size_t len,
     size_t *bytes_w)
 {
-    return LMQTT_WRITE_WOULD_BLOCK;
+    return LMQTT_IO_WOULD_BLOCK;
 }
 
 static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
