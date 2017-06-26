@@ -140,6 +140,20 @@ static void init_state()
 #define DECODE_PUBLISH_ERR_INV(b) DECODE_PUBLISH((b), LMQTT_DECODE_ERROR, 0)
 #define DECODE_PUBLISH_ERR_FULL(b) DECODE_PUBLISH((b), LMQTT_DECODE_ERROR, 1)
 
+#define DECODE_PUBLISH_MULTI(buf_p, len, exp_res, exp_cnt) \
+    do { \
+        size_t cnt; \
+        int res; \
+        lmqtt_decode_bytes_t bytes; \
+        bytes.buf_len = (len); \
+        bytes.buf = (unsigned char *) (buf_p); \
+        bytes.bytes_written = &cnt; \
+        res = rx_buffer_decode_publish(&state, &bytes); \
+        ck_assert_int_eq((exp_res), res); \
+        ck_assert_uint_eq((exp_cnt), cnt); \
+        state.internal.remain_buf_pos += (exp_cnt); \
+    } while(0)
+
 static void do_decode_buffer(char *buf, size_t len)
 {
     int i;
@@ -197,6 +211,52 @@ START_TEST(should_decode_empty_topic)
 
     DECODE_PUBLISH_CONTINUE(0);
     DECODE_PUBLISH_ERR_INV(0);
+}
+END_TEST
+
+START_TEST(should_decode_multiple_bytes_at_once)
+{
+    char *msg = "\x00\x03TOP\x02\x06PAY";
+
+    init_state();
+
+    state.internal.header.remaining_length = 10;
+
+    DECODE_PUBLISH_MULTI(&msg[0], 5, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[1], 4, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[2], 3, LMQTT_DECODE_CONTINUE, 3);
+    DECODE_PUBLISH_MULTI(&msg[5], 5, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[6], 4, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[7], 3, LMQTT_DECODE_FINISHED, 3);
+}
+END_TEST
+
+START_TEST(should_decode_multiple_bytes_after_partial_decode)
+{
+    char *msg = "\x00\x03TOP\x02\x06PAY";
+
+    init_state();
+
+    state.internal.header.remaining_length = 10;
+
+    DECODE_PUBLISH_MULTI(&msg[0], 1, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[1], 1, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[2], 1, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[3], 7, LMQTT_DECODE_CONTINUE, 2);
+}
+END_TEST
+
+START_TEST(should_decode_buffer_longer_than_topic_length)
+{
+    char *msg = "\x00\x03TOP\x02\x06PAY";
+
+    init_state();
+
+    state.internal.header.remaining_length = 10;
+
+    DECODE_PUBLISH_MULTI(&msg[0], 10, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[1], 9, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[2], 8, LMQTT_DECODE_CONTINUE, 3);
 }
 END_TEST
 
@@ -377,6 +437,25 @@ START_TEST(should_ignore_message_if_publish_callback_is_null)
 }
 END_TEST
 
+START_TEST(should_ignore_multiple_bytes_if_topic_or_payload_are_ignored)
+{
+    char *msg = "\x00\x03TOP\x02\x06PAY";
+
+    init_state();
+
+    allocate_topic_result = LMQTT_ALLOCATE_IGNORE;
+    allocate_payload_result = LMQTT_ALLOCATE_IGNORE;
+    state.internal.header.remaining_length = 10;
+
+    DECODE_PUBLISH_MULTI(&msg[0], 10, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[1], 9, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[2], 8, LMQTT_DECODE_CONTINUE, 3);
+    DECODE_PUBLISH_MULTI(&msg[5], 5, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[6], 4, LMQTT_DECODE_CONTINUE, 1);
+    DECODE_PUBLISH_MULTI(&msg[7], 3, LMQTT_DECODE_FINISHED, 3);
+}
+END_TEST
+
 START_TEST(should_deallocate_publish_if_decode_fails)
 {
     init_state();
@@ -434,6 +513,9 @@ START_TCASE("Rx buffer decode publish")
     ADD_TEST(should_decode_one_byte_topic_and_payload);
     ADD_TEST(should_decode_long_topic_and_payload);
     ADD_TEST(should_decode_empty_topic);
+    ADD_TEST(should_decode_multiple_bytes_at_once);
+    ADD_TEST(should_decode_multiple_bytes_after_partial_decode);
+    ADD_TEST(should_decode_buffer_longer_than_topic_length);
     ADD_TEST(should_decode_invalid_remaining_length);
     ADD_TEST(should_decode_empty_payload);
     ADD_TEST(should_not_reply_to_publish_with_qos_0);
@@ -446,6 +528,7 @@ START_TCASE("Rx buffer decode publish")
     ADD_TEST(should_ignore_message_if_payload_is_ignored);
     ADD_TEST(should_ignore_message_if_allocate_callback_is_null);
     ADD_TEST(should_ignore_message_if_publish_callback_is_null);
+    ADD_TEST(should_ignore_multiple_bytes_if_topic_or_payload_are_ignored);
     ADD_TEST(should_deallocate_publish_if_decode_fails);
     ADD_TEST(should_fail_if_id_set_is_full);
 }

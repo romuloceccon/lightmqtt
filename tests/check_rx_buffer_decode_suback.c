@@ -81,10 +81,44 @@ START_TEST(should_validate_suback_payload_len)
 }
 END_TEST
 
+START_TEST(should_decode_buffer_with_multiple_bytes)
+{
+    size_t cnt;
+    const char *buf = "\x00\x01\x02";
+    lmqtt_decode_bytes_t bytes;
+
+    PREPARE;
+
+    state.internal.header.remaining_length = 5;
+    state.internal.remain_buf_pos = 2;
+    subscribe.count = 3;
+
+    bytes.buf_len = 3;
+    bytes.buf = (unsigned char *) &buf[0];
+    bytes.bytes_written = &cnt;
+
+    res = rx_buffer_decode_suback(&state, &bytes);
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
+    ck_assert_uint_eq(1, cnt);
+    state.internal.remain_buf_pos++;
+
+    bytes.buf_len = 2;
+    bytes.buf = (unsigned char *) &buf[1];
+
+    res = rx_buffer_decode_suback(&state, &bytes);
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
+    ck_assert_uint_eq(1, cnt);
+
+    ck_assert_int_eq(0, subscriptions[0].return_code);
+    ck_assert_int_eq(1, subscriptions[1].return_code);
+}
+END_TEST
+
 START_TCASE("Rx buffer decode suback")
 {
     ADD_TEST(should_decode_invalid_suback_return_code);
     ADD_TEST(should_decode_suback_with_multiple_subscriptions);
     ADD_TEST(should_validate_suback_payload_len);
+    ADD_TEST(should_decode_buffer_with_multiple_bytes);
 }
 END_TCASE

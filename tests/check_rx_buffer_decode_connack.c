@@ -88,6 +88,32 @@ START_TEST(should_not_decode_third_byte)
 }
 END_TEST
 
+START_TEST(should_decode_buffer_with_multiple_bytes)
+{
+    size_t cnt;
+    const char *buf = "\x01\x03";
+    lmqtt_decode_bytes_t bytes;
+
+    PREPARE;
+
+    bytes.buf_len = 2;
+    bytes.buf = (unsigned char *) &buf[0];
+    bytes.bytes_written = &cnt;
+
+    res = rx_buffer_decode_connack(&state, &bytes);
+    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
+    ck_assert_uint_eq(1, cnt);
+    state.internal.remain_buf_pos++;
+
+    bytes.buf_len = 1;
+    bytes.buf = (unsigned char *) &buf[1];
+
+    res = rx_buffer_decode_connack(&state, &bytes);
+    ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
+    ck_assert_uint_eq(1, cnt);
+}
+END_TEST
+
 START_TCASE("Rx buffer decode connack")
 {
     ADD_TEST(should_decode_connack_valid_first_byte);
@@ -95,5 +121,6 @@ START_TCASE("Rx buffer decode connack")
     ADD_TEST(should_decode_connack_valid_second_byte);
     ADD_TEST(should_decode_connack_invalid_second_byte);
     ADD_TEST(should_not_decode_third_byte);
+    ADD_TEST(should_decode_buffer_with_multiple_bytes);
 }
 END_TCASE

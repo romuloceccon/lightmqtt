@@ -38,6 +38,7 @@ typedef struct _test_packet_t {
     unsigned char buf[256];
     lmqtt_packet_id_t packet_id;
     void *packet_data;
+    size_t bytes_per_call;
 } test_packet_t;
 
 typedef struct _test_client_t {
@@ -63,15 +64,17 @@ lmqtt_decode_result_t rx_buffer_decode_type_mock(
     lmqtt_rx_buffer_t *state, lmqtt_decode_bytes_t *bytes)
 {
     test_packet_t *packet = &client.packets[client.current_packet];
+    size_t cnt = packet->bytes_per_call;
 
     *bytes->bytes_written = 0;
-    assert(bytes->buf_len == 1);
+    assert(bytes->buf_len >= 1);
 
     if (packet->pos >= packet->bytes_to_read)
         return LMQTT_DECODE_ERROR;
 
-    packet->buf[packet->pos++] = bytes->buf[0];
-    *bytes->bytes_written += 1;
+    memcpy(&packet->buf[packet->pos], bytes->buf, cnt);
+    packet->pos += cnt;
+    *bytes->bytes_written += cnt;
     return packet->pos >= packet->bytes_to_read ?
         packet->result : LMQTT_DECODE_CONTINUE;
 }
@@ -82,6 +85,7 @@ void set_packet_result(int i, lmqtt_decode_result_t result,
     test_packet_t *packet = &client.packets[i];
     packet->result = result;
     packet->bytes_to_read = bytes_to_read;
+    packet->bytes_per_call = 1;
 }
 
 START_TEST(should_process_complete_rx_buffer)
@@ -464,6 +468,28 @@ START_TEST(should_fail_if_decoder_finishes_before_expected)
 }
 END_TEST
 
+START_TEST(should_not_fail_if_last_processed_buffer_has_multiple_bytes)
+{
+    PREPARE;
+
+    memcpy(buf, "\x32\x0a\x00\x03TOP\x01\xffPAY", 12);
+    set_packet_result(0, LMQTT_DECODE_FINISHED, 10);
+
+    res = lmqtt_rx_buffer_decode(&state, &buf[0], 10, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(10, bytes_r);
+    ck_assert_int_eq(0, client.current_packet);
+
+    client.packets[0].bytes_per_call = 2;
+    res = lmqtt_rx_buffer_decode(&state, &buf[10], 2, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_int_eq(2, bytes_r);
+    ck_assert_int_eq(1, client.current_packet);
+}
+END_TEST
+
 START_TEST(should_fail_if_connack_has_no_corresponding_connect)
 {
     PREPARE;
@@ -562,6 +588,7 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_decode_pubrec);
     ADD_TEST(should_fail_if_decoder_does_not_finish_when_expected);
     ADD_TEST(should_fail_if_decoder_finishes_before_expected);
+    ADD_TEST(should_not_fail_if_last_processed_buffer_has_multiple_bytes);
     ADD_TEST(should_fail_if_connack_has_no_corresponding_connect);
     ADD_TEST(should_fail_if_suback_has_no_corresponding_subscribe);
     ADD_TEST(should_decode_pubrel_without_corresponding_pubrec);

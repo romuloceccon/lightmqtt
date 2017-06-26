@@ -1078,6 +1078,12 @@ LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
     const long rem_pos = state->internal.remain_buf_pos + 1;
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
+    /* We may receive a buffer longer than what should be written with
+       string_put(), in the case of a topic followed by the packet id and
+       payload, or a payload followed by data from other packets; therefore the
+       actual value should be capped before continuing */
+    size_t max_len = len - (rem_pos - when);
+    size_t buf_len = bytes->buf_len > max_len ? max_len : bytes->buf_len;
 
     if (!state->internal.ignore_publish && rem_pos == when && allocate) {
         switch (allocate(message->on_publish_data, publish, len)) {
@@ -1093,11 +1099,10 @@ LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
     }
 
     if (!state->internal.ignore_publish) {
-        return LMQTT_DECODE_ERROR != string_put(str, bytes->buf, bytes->buf_len,
+        return LMQTT_DECODE_ERROR != string_put(str, bytes->buf, buf_len,
             bytes->bytes_written, &state->internal.blocking_str);
     }
-    assert(bytes->buf_len == 1);
-    *bytes->bytes_written += 1;
+    *bytes->bytes_written += buf_len;
     return 1;
 }
 
@@ -1116,7 +1121,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
     unsigned char b;
     lmqtt_connect_t *connect = (lmqtt_connect_t *) state->internal.value.value;
 
-    assert(bytes->buf_len == 1);
+    assert(bytes->buf_len >= 1);
     b = bytes->buf[0];
     *bytes->bytes_written = 0;
 
@@ -1141,7 +1146,6 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     lmqtt_rx_buffer_t *state, lmqtt_decode_bytes_t *bytes)
 {
-    unsigned char b;
     size_t *bytes_w;
     long rem_len = state->internal.header.remaining_length;
     long rem_pos = state->internal.remain_buf_pos + 1;
@@ -1153,13 +1157,12 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     unsigned char qos = state->internal.header.qos;
     lmqtt_packet_id_t packet_id;
 
-    assert(bytes->buf_len == 1);
-    b = bytes->buf[0];
+    assert(bytes->buf_len >= 1);
     bytes_w = bytes->bytes_written;
     *bytes_w = 0;
 
     if (rem_pos <= s_len) {
-        state->internal.topic_len |= b << ((s_len - rem_pos) * 8);
+        state->internal.topic_len |= bytes->buf[0] << ((s_len - rem_pos) * 8);
         if (rem_pos == s_len && (state->internal.topic_len == 0 ||
                 state->internal.topic_len + s_len + p_len > rem_len))
             return LMQTT_DECODE_ERROR;
@@ -1181,7 +1184,8 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
                 return LMQTT_DECODE_ERROR;
             }
         } else if (rem_pos <= p_start + p_len) {
-            state->internal.packet_id |= (b << ((p_len - rem_pos + p_start) * 8));
+            state->internal.packet_id |= (bytes->buf[0] << ((p_len - rem_pos +
+                    p_start) * 8));
             *bytes_w += 1;
         } else {
             if (!rx_buffer_allocate_put(state, p_start + p_len + 1,
@@ -1196,7 +1200,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
 
     if (state->internal.blocking_str)
         return LMQTT_DECODE_WOULD_BLOCK;
-    if (rem_len > rem_pos)
+    if (rem_len >= rem_pos + *bytes_w)
         return LMQTT_DECODE_CONTINUE;
 
     packet_id = state->internal.packet_id;
@@ -1239,7 +1243,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_suback(
         (lmqtt_subscribe_t *) state->internal.value.value;
     long pos = state->internal.remain_buf_pos - LMQTT_PACKET_ID_SIZE;
 
-    assert(bytes->buf_len == 1);
+    assert(bytes->buf_len >= 1);
     b = bytes->buf[0];
     *bytes->bytes_written = 0;
 
@@ -1279,8 +1283,10 @@ LMQTT_STATIC int (*rx_buffer_call_callback)(
 static lmqtt_decode_result_t rx_buffer_decode_type_impl(
     lmqtt_rx_buffer_t *state, lmqtt_decode_bytes_t *bytes)
 {
-    if (!state->internal.decoder->decode_bytes)
+    if (!state->internal.decoder->decode_bytes) {
+        *bytes->bytes_written = 0;
         return LMQTT_DECODE_ERROR;
+    }
 
     return state->internal.decoder->decode_bytes(state, bytes);
 }
@@ -1353,16 +1359,15 @@ LMQTT_STATIC int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
     lmqtt_rx_buffer_t *state, lmqtt_decode_bytes_t *bytes)
 {
-    long rem_pos = state->internal.remain_buf_pos + 1;
-    long rem_len = state->internal.header.remaining_length;
-
     int res = rx_buffer_decode_type(state, bytes);
+    long rem_pos = state->internal.remain_buf_pos + *bytes->bytes_written;
+    long rem_len = state->internal.header.remaining_length;
 
     if (res == LMQTT_DECODE_ERROR)
         return LMQTT_DECODE_ERROR;
     if (res != LMQTT_DECODE_FINISHED && rem_pos >= rem_len)
         return LMQTT_DECODE_ERROR;
-    if (res == LMQTT_DECODE_FINISHED && rem_pos < rem_len)
+    if (res == LMQTT_DECODE_FINISHED && rem_pos != rem_len)
         return LMQTT_DECODE_ERROR;
 
     return res;
@@ -1377,8 +1382,9 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_with_id(
     if (rem_pos > p_len)
         return rx_buffer_decode_remaining_without_id(state, bytes);
 
-    assert(bytes->buf_len == 1);
+    assert(bytes->buf_len >= 1);
     state->internal.packet_id |= bytes->buf[0] << ((p_len - rem_pos) * 8);
+    *bytes->bytes_written = 1;
 
     if (rem_pos == p_len && !state->internal.decoder->pop_packet_with_id(state))
         return LMQTT_DECODE_ERROR;
@@ -1495,14 +1501,13 @@ void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
 static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_read)
 {
-    int i;
-
+    int i = 0;
     *bytes_read = 0;
 
     if (state->internal.failed)
         return LMQTT_IO_ERROR;
 
-    for (i = 0; i < buf_len; i++) {
+    while (i < buf_len) {
         if (!state->internal.header_finished) {
             long rem_len;
             int res = fixed_header_decode(&state->internal.header, buf[i]);
@@ -1510,6 +1515,7 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
             if (res == LMQTT_DECODE_ERROR)
                 return rx_buffer_fail(state);
 
+            i += 1;
             *bytes_read += 1;
             if (res != LMQTT_DECODE_FINISHED)
                 continue;
@@ -1529,17 +1535,19 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
                 return rx_buffer_fail(state);
         } else {
             lmqtt_decode_result_t res;
-            size_t cnt;
             lmqtt_decode_bytes_t bytes;
-            bytes.buf_len = 1;
+            size_t cnt = 0;
+            bytes.buf_len = buf_len - i;
             bytes.buf = &buf[i];
             bytes.bytes_written = &cnt;
 
             res = state->internal.decoder->decode_remaining(state, &bytes);
             if (res == LMQTT_DECODE_FINISHED || res == LMQTT_DECODE_CONTINUE) {
-                *bytes_read += 1;
-                state->internal.remain_buf_pos += 1;
+                i += cnt;
+                *bytes_read += cnt;
+                state->internal.remain_buf_pos += cnt;
             } else if (res == LMQTT_DECODE_WOULD_BLOCK) {
+                assert(*bytes.bytes_written == 0);
                 break;
             } else {
                 return rx_buffer_fail(state);
