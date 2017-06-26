@@ -148,6 +148,12 @@ typedef lmqtt_encode_result_t (*lmqtt_encoder_t)(lmqtt_store_value_t *,
 typedef lmqtt_encoder_t (*lmqtt_encoder_finder_t)(lmqtt_tx_buffer_t *,
     lmqtt_store_value_t *);
 
+typedef struct _lmqtt_decode_bytes_t {
+    size_t buf_len;
+    unsigned char *buf;
+    size_t *bytes_written;
+} lmqtt_decode_bytes_t;
+
 struct _lmqtt_rx_buffer_t;
 
 struct _lmqtt_rx_buffer_decoder_t {
@@ -156,9 +162,9 @@ struct _lmqtt_rx_buffer_decoder_t {
     int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
     lmqtt_decode_result_t (*decode_remaining)(struct _lmqtt_rx_buffer_t *,
-        unsigned char);
-    lmqtt_decode_result_t (*decode_byte)(struct _lmqtt_rx_buffer_t *,
-        unsigned char);
+        lmqtt_decode_bytes_t *);
+    lmqtt_decode_result_t (*decode_bytes)(struct _lmqtt_rx_buffer_t *,
+        lmqtt_decode_bytes_t *);
 };
 
 typedef int (*lmqtt_message_on_publish_t)(void *, lmqtt_publish_t *);

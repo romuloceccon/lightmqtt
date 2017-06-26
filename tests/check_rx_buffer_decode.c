@@ -60,14 +60,18 @@ int rx_buffer_call_callback_mock(lmqtt_rx_buffer_t *state)
 
 /* mock */
 lmqtt_decode_result_t rx_buffer_decode_type_mock(
-    lmqtt_rx_buffer_t *state, unsigned char b)
+    lmqtt_rx_buffer_t *state, lmqtt_decode_bytes_t *bytes)
 {
     test_packet_t *packet = &client.packets[client.current_packet];
+
+    *bytes->bytes_written = 0;
+    assert(bytes->buf_len == 1);
 
     if (packet->pos >= packet->bytes_to_read)
         return LMQTT_DECODE_ERROR;
 
-    packet->buf[packet->pos++] = b;
+    packet->buf[packet->pos++] = bytes->buf[0];
+    *bytes->bytes_written += 1;
     return packet->pos >= packet->bytes_to_read ?
         packet->result : LMQTT_DECODE_CONTINUE;
 }

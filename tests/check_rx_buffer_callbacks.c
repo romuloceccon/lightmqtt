@@ -360,8 +360,8 @@ START_TEST(should_decode_pubrel)
 }
 END_TEST
 
-/* PINGRESP has no decode_byte callback; should return an error */
-START_TEST(should_not_call_null_decode_byte)
+/* PINGRESP has no decode_bytes callback; should return an error */
+START_TEST(should_not_call_null_decode_bytes)
 {
     char *buf = "\xd0\x01\x00";
 
@@ -390,6 +390,6 @@ START_TCASE("Rx buffer callbacks")
     ADD_TEST(should_decode_qos_and_retain_flag);
     ADD_TEST(should_decode_message_with_blocking_write);
     ADD_TEST(should_decode_pubrel);
-    ADD_TEST(should_not_call_null_decode_byte);
+    ADD_TEST(should_not_call_null_decode_bytes);
 }
 END_TCASE
