@@ -46,6 +46,33 @@ seconds execute:
 
     examples/reconnect -h 127.0.0.1 -i reconnect -k 5
 
+## Contributing
+
+To contribute:
+
+* Fork the project on Github
+* Checkout a new branch
+* Write one or more tests evidencing the bug or the features you want
+* Make your changes
+* Send a pull request
+
+Or open an issue on Github explaining clearly how to reproduce the bug or the
+motivation for the feature.
+
+To build the project you need
+[Autoconf Archive](https://www.gnu.org/software/autoconf-archive/) and
+[Check](https://libcheck.github.io/check/). On Linux Ubuntu/Debian/Mint they are
+available via `apt`:
+
+    $ apt install autoconf-archive check
+
+Then execute:
+
+    $ autoreconf --install
+    $ mkdir build && cd build
+    $ ../configure
+    $ make && make check
+
 ## License
 
 See `LICENSE`.
