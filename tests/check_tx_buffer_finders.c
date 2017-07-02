@@ -211,8 +211,9 @@ START_TEST(should_encode_publish_with_qos_0)
     memset(&publish, 0, sizeof(publish));
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
+    publish.payload.buf = "payload";
+    publish.payload.len = strlen(publish.payload.buf);
 
-    value.packet_id = 0x0102;
     value.value = &publish;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
     value.callback_data = &data;
@@ -222,7 +223,16 @@ START_TEST(should_encode_publish_with_qos_0)
         &bytes_written);
 
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
-    ck_assert_int_eq(11, bytes_written);
+    ck_assert_int_eq(16, bytes_written);
+
+    ck_assert_uint_eq(0x30, buf[0]);
+    ck_assert_uint_eq(0x0e, buf[1]);
+    ck_assert_uint_eq(0x00, buf[2]);
+    ck_assert_uint_eq(0x05, buf[3]);
+    ck_assert_uint_eq('t',  buf[4]);
+    ck_assert_uint_eq('c',  buf[8]);
+    ck_assert_uint_eq('p',  buf[9]);
+    ck_assert_uint_eq('d',  buf[15]);
 
     ck_assert_int_eq(0, lmqtt_store_shift(&store, &class, &value_out));
     ck_assert_ptr_eq(NULL, value_out.value);

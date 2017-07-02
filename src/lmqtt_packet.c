@@ -640,8 +640,9 @@ int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe)
 
 LMQTT_STATIC long publish_calc_remaining_length(lmqtt_publish_t *publish)
 {
-    return LMQTT_PACKET_ID_SIZE + LMQTT_STRING_LEN_SIZE +
-        (long) publish->topic.len + (long) publish->payload.len;
+    return LMQTT_STRING_LEN_SIZE + (long) publish->topic.len +
+        (publish->qos == 0 ? 0 : LMQTT_PACKET_ID_SIZE) +
+        (long) publish->payload.len;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
@@ -912,11 +913,19 @@ LMQTT_STATIC lmqtt_encoder_t tx_buffer_finder_publish(
 {
     lmqtt_publish_t *publish = value->value;
 
-    switch (tx_buffer->internal.pos) {
-        case 0: return &publish_encode_fixed_header;
-        case 1: return &publish_encode_topic;
-        case 2: return &publish_encode_packet_id;
-        case 3: return &publish_encode_payload;
+    if (publish->qos == 0) {
+        switch (tx_buffer->internal.pos) {
+            case 0: return &publish_encode_fixed_header;
+            case 1: return &publish_encode_topic;
+            case 2: return &publish_encode_payload;
+        }
+    } else {
+        switch (tx_buffer->internal.pos) {
+            case 0: return &publish_encode_fixed_header;
+            case 1: return &publish_encode_topic;
+            case 2: return &publish_encode_packet_id;
+            case 3: return &publish_encode_payload;
+        }
     }
 
     publish->internal.encode_count++;
@@ -1149,12 +1158,12 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     size_t *bytes_w;
     long rem_len = state->internal.header.remaining_length;
     long rem_pos = state->internal.remain_buf_pos + 1;
-    static const long s_len = LMQTT_STRING_LEN_SIZE;
-    static const long p_len = LMQTT_PACKET_ID_SIZE;
     lmqtt_store_value_t value;
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
     unsigned char qos = state->internal.header.qos;
+    static const long s_len = LMQTT_STRING_LEN_SIZE;
+    long p_len = qos == 0 ? 0 : LMQTT_PACKET_ID_SIZE;
     lmqtt_packet_id_t packet_id;
 
     assert(bytes->buf_len >= 1);
@@ -1401,7 +1410,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_connack = {
     &rx_buffer_decode_connack
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_publish = {
-    5,
+    3, /* this should be 3 or 5 depending on QoS, but rx_buffer_decode_publish()
+          will also validate it */
     0, /* never used */
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_ignore,

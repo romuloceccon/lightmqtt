@@ -259,7 +259,7 @@ END_TEST
 
 START_TEST(should_call_message_received_callback)
 {
-    char *buf = "\x30\x06\x00\x01X\x02\x03X";
+    char *buf = "\x30\x04\x00\x01XX";
     char msg[100];
 
     PREPARE;
@@ -272,7 +272,7 @@ START_TEST(should_call_message_received_callback)
     message_callbacks.on_publish_allocate_payload =
         &test_on_publish_allocate_payload;
 
-    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 8, &bytes_r);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 6, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
     ck_assert_str_eq(msg, "qos: 0, retain: 0, topic: X, payload: X");
@@ -303,7 +303,7 @@ END_TEST
 
 START_TEST(should_decode_message_with_blocking_write)
 {
-    char *buf = "\x30\x08\x00\x01T\x03\x04PAY";
+    char *buf = "\x32\x08\x00\x01T\x03\x04PAY";
     char msg[100];
 
     PREPARE;
@@ -342,7 +342,7 @@ START_TEST(should_decode_message_with_blocking_write)
     ck_assert_int_eq(2, bytes_r);
     ck_assert_ptr_eq(NULL, lmqtt_rx_buffer_get_blocking_str(&state));
 
-    ck_assert_str_eq("qos: 0, retain: 0, topic: T, payload: PAY", msg);
+    ck_assert_str_eq("qos: 1, retain: 0, topic: T, payload: PAY", msg);
 }
 END_TEST
 

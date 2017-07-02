@@ -100,6 +100,7 @@ static void init_state()
     state.message_callbacks = &message_callbacks;
     state.id_set.items = id_set_items;
     state.id_set.capacity = ID_SET_SIZE;
+    state.internal.header.qos = 2;
     message_callbacks.on_publish = &test_on_publish;
     message_callbacks.on_publish_allocate_topic =
         &test_on_publish_allocate_topic;
@@ -170,9 +171,22 @@ static void do_decode_buffer(char *buf, size_t len)
     DECODE_PUBLISH_FINISHED(buf[len - 1]);
 }
 
-START_TEST(should_decode_one_byte_topic_and_payload)
+START_TEST(should_decode_one_byte_topic_and_payload_with_qos_0)
 {
     init_state();
+    state.internal.header.qos = 0;
+
+    do_decode_buffer("\x00\x01xx", 4);
+
+    ck_assert_uint_eq(1, state.internal.topic_len);
+    ck_assert_uint_eq(0, state.internal.packet_id);
+}
+END_TEST
+
+START_TEST(should_decode_one_byte_topic_and_payload_with_qos_2)
+{
+    init_state();
+    state.internal.header.qos = 2;
 
     do_decode_buffer("\x00\x01x\x02\xffx", 6);
 
@@ -271,10 +285,32 @@ START_TEST(should_decode_invalid_remaining_length)
 }
 END_TEST
 
-START_TEST(should_decode_empty_payload)
+START_TEST(should_decode_malformed_publish_with_qos_2)
 {
     init_state();
 
+    /* publish with QoS 2 must have at least 5 bytes */
+    state.internal.header.remaining_length = 4;
+
+    DECODE_PUBLISH_CONTINUE(0);
+    DECODE_PUBLISH_ERR_INV(1);
+}
+END_TEST
+
+START_TEST(should_decode_empty_payload_with_qos_0)
+{
+    init_state();
+
+    state.internal.header.qos = 0;
+    do_decode_buffer("\x00\x03xxx", 5);
+}
+END_TEST
+
+START_TEST(should_decode_empty_payload_with_qos_2)
+{
+    init_state();
+
+    state.internal.header.qos = 2;
     do_decode_buffer("\x00\x03xxx\x00\x01", 7);
 }
 END_TEST
@@ -284,7 +320,7 @@ START_TEST(should_not_reply_to_publish_with_qos_0)
     init_state();
 
     state.internal.header.qos = 0;
-    do_decode_buffer("\x00\x01X\x00\x00X", 6);
+    do_decode_buffer("\x00\x01XX", 4);
 
     ck_assert_int_eq(0, lmqtt_store_peek(&store, &class, &value));
 }
@@ -510,14 +546,17 @@ END_TEST
 
 START_TCASE("Rx buffer decode publish")
 {
-    ADD_TEST(should_decode_one_byte_topic_and_payload);
+    ADD_TEST(should_decode_one_byte_topic_and_payload_with_qos_0);
+    ADD_TEST(should_decode_one_byte_topic_and_payload_with_qos_2);
     ADD_TEST(should_decode_long_topic_and_payload);
     ADD_TEST(should_decode_empty_topic);
     ADD_TEST(should_decode_multiple_bytes_at_once);
     ADD_TEST(should_decode_multiple_bytes_after_partial_decode);
     ADD_TEST(should_decode_buffer_longer_than_topic_length);
     ADD_TEST(should_decode_invalid_remaining_length);
-    ADD_TEST(should_decode_empty_payload);
+    ADD_TEST(should_decode_malformed_publish_with_qos_2);
+    ADD_TEST(should_decode_empty_payload_with_qos_0);
+    ADD_TEST(should_decode_empty_payload_with_qos_2);
     ADD_TEST(should_not_reply_to_publish_with_qos_0);
     ADD_TEST(should_reply_to_publish_with_qos_1);
     ADD_TEST(should_reply_to_publish_with_qos_2);
