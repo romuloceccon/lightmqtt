@@ -481,7 +481,7 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     lmqtt_store_entry_callback_t cb;
     int i;
     lmqtt_store_value_t value;
-    int class;
+    int kind;
 
     memset(&subscribe, 0, sizeof(subscribe));
     memset(&subscriptions, 0, sizeof(subscriptions));
@@ -498,11 +498,11 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[1]));
     ck_assert_int_eq(1, lmqtt_client_subscribe(&client, &subscribe[2]));
 
-    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    lmqtt_store_get_at(&client.main_store, 0, &kind, &value);
     ck_assert_uint_eq(0, value.packet_id);
-    lmqtt_store_get_at(&client.main_store, 1, &class, &value);
+    lmqtt_store_get_at(&client.main_store, 1, &kind, &value);
     ck_assert_uint_eq(1, value.packet_id);
-    lmqtt_store_get_at(&client.main_store, 2, &class, &value);
+    lmqtt_store_get_at(&client.main_store, 2, &kind, &value);
     ck_assert_uint_eq(2, value.packet_id);
 
     lmqtt_store_mark_current(&client.main_store);
@@ -510,11 +510,11 @@ START_TEST(should_assign_packet_ids_to_subscribe)
     lmqtt_store_mark_current(&client.main_store);
 
     ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.main_store,
-        LMQTT_CLASS_SUBSCRIBE, 0, NULL));
+        LMQTT_KIND_SUBSCRIBE, 0, NULL));
     ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.main_store,
-        LMQTT_CLASS_SUBSCRIBE, 1, NULL));
+        LMQTT_KIND_SUBSCRIBE, 1, NULL));
     ck_assert_int_eq(1, lmqtt_store_pop_marked_by(&client.main_store,
-        LMQTT_CLASS_SUBSCRIBE, 2, NULL));
+        LMQTT_KIND_SUBSCRIBE, 2, NULL));
 }
 END_TEST
 
@@ -550,7 +550,7 @@ START_TEST(should_not_subscribe_with_full_store)
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
 
-    for (i = 0; lmqtt_store_append(&client.main_store, LMQTT_CLASS_PINGREQ,
+    for (i = 0; lmqtt_store_append(&client.main_store, LMQTT_KIND_PINGREQ,
             NULL); i++)
         ;
 
@@ -563,7 +563,7 @@ START_TEST(should_publish_with_qos_0)
     lmqtt_client_t client;
     test_cb_result_t cb_result = { 0, 0 };
     lmqtt_store_value_t value;
-    int class;
+    int kind;
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
@@ -572,7 +572,7 @@ START_TEST(should_publish_with_qos_0)
 
     ck_assert_int_eq(1, do_publish(&client, 0));
     /* should NOT assign id to QoS 0 packet */
-    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    lmqtt_store_get_at(&client.main_store, 0, &kind, &value);
     ck_assert_uint_eq(0, value.packet_id);
 
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
@@ -588,7 +588,7 @@ START_TEST(should_publish_with_qos_1)
     lmqtt_client_t client;
     test_cb_result_t cb_result = { 0, 0 };
     lmqtt_store_value_t value;
-    int class;
+    int kind;
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
@@ -597,7 +597,7 @@ START_TEST(should_publish_with_qos_1)
 
     ck_assert_int_eq(1, do_publish(&client, 1));
     /* should assign id to QoS 1 packet */
-    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    lmqtt_store_get_at(&client.main_store, 0, &kind, &value);
     ck_assert_uint_eq(1, value.packet_id);
 
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
@@ -619,7 +619,7 @@ START_TEST(should_publish_with_qos_2)
     lmqtt_client_t client;
     test_cb_result_t cb_result = { 0, 0 };
     lmqtt_store_value_t value;
-    int class;
+    int kind;
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
@@ -629,7 +629,7 @@ START_TEST(should_publish_with_qos_2)
 
     ck_assert_int_eq(1, do_publish(&client, 2));
     /* should assign id to QoS 2 packet */
-    lmqtt_store_get_at(&client.main_store, 0, &class, &value);
+    lmqtt_store_get_at(&client.main_store, 0, &kind, &value);
     ck_assert_uint_eq(1, value.packet_id);
 
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
@@ -904,7 +904,7 @@ END_TEST
 START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
 {
     lmqtt_client_t client;
-    int class;
+    int kind;
     lmqtt_store_value_t value;
 
     test_time_set(10, 0);
@@ -921,8 +921,8 @@ START_TEST(should_clean_pingreq_and_disconnect_packets_after_close)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     ck_assert_int_eq(1, lmqtt_store_count(&client.main_store));
-    lmqtt_store_shift(&client.main_store, &class, &value);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_0, class);
+    lmqtt_store_shift(&client.main_store, &kind, &value);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_0, kind);
     ck_assert_ptr_eq(&publish, value.value);
 }
 END_TEST

@@ -7,7 +7,7 @@
 static lmqtt_rx_buffer_t state;
 static lmqtt_store_t store;
 static lmqtt_message_callbacks_t message_callbacks;
-static int class;
+static int kind;
 static lmqtt_store_value_t value;
 static lmqtt_store_entry_t entries[ENTRY_COUNT];
 static lmqtt_packet_id_t id_set_items[ID_SET_SIZE];
@@ -322,7 +322,7 @@ START_TEST(should_not_reply_to_publish_with_qos_0)
     state.internal.header.qos = 0;
     do_decode_buffer("\x00\x01XX", 4);
 
-    ck_assert_int_eq(0, lmqtt_store_peek(&store, &class, &value));
+    ck_assert_int_eq(0, lmqtt_store_peek(&store, &kind, &value));
 }
 END_TEST
 
@@ -333,8 +333,8 @@ START_TEST(should_reply_to_publish_with_qos_1)
     state.internal.header.qos = 1;
     do_decode_buffer("\x00\x01X\x02\x05X", 6);
 
-    ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
-    ck_assert_int_eq(LMQTT_CLASS_PUBACK, class);
+    ck_assert_int_eq(1, lmqtt_store_peek(&store, &kind, &value));
+    ck_assert_int_eq(LMQTT_KIND_PUBACK, kind);
     ck_assert_int_eq(0x0205, value.packet_id);
 }
 END_TEST
@@ -346,8 +346,8 @@ START_TEST(should_reply_to_publish_with_qos_2)
     state.internal.header.qos = 2;
     do_decode_buffer("\x00\x01X\x02\x05X", 6);
 
-    ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
-    ck_assert_int_eq(LMQTT_CLASS_PUBREC, class);
+    ck_assert_int_eq(1, lmqtt_store_peek(&store, &kind, &value));
+    ck_assert_int_eq(LMQTT_KIND_PUBREC, kind);
     ck_assert_int_eq(0x0205, value.packet_id);
 }
 END_TEST

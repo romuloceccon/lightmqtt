@@ -86,12 +86,12 @@ LMQTT_STATIC void client_cleanup_stores(lmqtt_client_t *client,
     int keep_session)
 {
     int i = 0;
-    int class;
+    int kind;
     lmqtt_store_value_t value;
 
     if (keep_session) {
-        while (lmqtt_store_get_at(&client->main_store, i, &class, NULL)) {
-            if (class == LMQTT_CLASS_PINGREQ || class == LMQTT_CLASS_DISCONNECT)
+        while (lmqtt_store_get_at(&client->main_store, i, &kind, NULL)) {
+            if (kind == LMQTT_KIND_PINGREQ || kind == LMQTT_KIND_DISCONNECT)
                 lmqtt_store_delete_at(&client->main_store, i);
             else
                 i++;
@@ -234,8 +234,8 @@ LMQTT_STATIC lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
     return LMQTT_IO_STATUS_READY;
 }
 
-LMQTT_STATIC int client_subscribe_with_class(lmqtt_client_t *client,
-    lmqtt_subscribe_t *subscribe, lmqtt_class_t class,
+LMQTT_STATIC int client_subscribe_with_kind(lmqtt_client_t *client,
+    lmqtt_subscribe_t *subscribe, lmqtt_kind_t kind,
     lmqtt_store_entry_callback_t cb)
 {
     lmqtt_packet_id_t packet_id;
@@ -251,7 +251,7 @@ LMQTT_STATIC int client_subscribe_with_class(lmqtt_client_t *client,
     value.callback = cb;
     value.callback_data = client;
 
-    return lmqtt_store_append(&client->main_store, class, &value);
+    return lmqtt_store_append(&client->main_store, kind, &value);
 }
 
 LMQTT_STATIC int client_on_connack(void *data, lmqtt_connect_t *connect)
@@ -335,7 +335,7 @@ LMQTT_STATIC int client_do_connect(lmqtt_client_t *client,
     value.callback = (lmqtt_store_entry_callback_t) &client_on_connack;
     value.callback_data = client;
 
-    if (!lmqtt_store_append(&client->connect_store, LMQTT_CLASS_CONNECT,
+    if (!lmqtt_store_append(&client->connect_store, LMQTT_KIND_CONNECT,
             &value))
         return 0;
 
@@ -352,8 +352,8 @@ LMQTT_STATIC int client_do_subscribe_fail(lmqtt_client_t *client,
 LMQTT_STATIC int client_do_subscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
-    return client_subscribe_with_class(client,
-        subscribe, LMQTT_CLASS_SUBSCRIBE,
+    return client_subscribe_with_kind(client,
+        subscribe, LMQTT_KIND_SUBSCRIBE,
         (lmqtt_store_entry_callback_t) &client_on_suback);
 }
 
@@ -366,8 +366,8 @@ LMQTT_STATIC int client_do_unsubscribe_fail(lmqtt_client_t *client,
 LMQTT_STATIC int client_do_unsubscribe(lmqtt_client_t *client,
     lmqtt_subscribe_t *subscribe)
 {
-    return client_subscribe_with_class(client,
-        subscribe, LMQTT_CLASS_UNSUBSCRIBE,
+    return client_subscribe_with_kind(client,
+        subscribe, LMQTT_KIND_UNSUBSCRIBE,
         (lmqtt_store_entry_callback_t) &client_on_unsuback);
 }
 
@@ -380,7 +380,7 @@ LMQTT_STATIC int client_do_publish_fail(lmqtt_client_t *client,
 LMQTT_STATIC int client_do_publish(lmqtt_client_t *client,
     lmqtt_publish_t *publish)
 {
-    int class;
+    int kind;
     unsigned char qos = publish->qos;
     lmqtt_store_value_t value;
 
@@ -388,10 +388,10 @@ LMQTT_STATIC int client_do_publish(lmqtt_client_t *client,
         return 0;
 
     if (qos == 0) {
-        class = LMQTT_CLASS_PUBLISH_0;
+        kind = LMQTT_KIND_PUBLISH_0;
         value.packet_id = 0;
     } else {
-        class = qos == 1 ? LMQTT_CLASS_PUBLISH_1 : LMQTT_CLASS_PUBLISH_2;
+        kind = qos == 1 ? LMQTT_KIND_PUBLISH_1 : LMQTT_KIND_PUBLISH_2;
         value.packet_id = lmqtt_store_get_id(&client->main_store);
     }
 
@@ -399,7 +399,7 @@ LMQTT_STATIC int client_do_publish(lmqtt_client_t *client,
     value.callback = (lmqtt_store_entry_callback_t) &client_on_publish;
     value.callback_data = client;
 
-    return lmqtt_store_append(&client->main_store, class, &value);
+    return lmqtt_store_append(&client->main_store, kind, &value);
 }
 
 LMQTT_STATIC int client_do_pingreq_fail(lmqtt_client_t *client)
@@ -416,7 +416,7 @@ LMQTT_STATIC int client_do_pingreq(lmqtt_client_t *client)
     value.callback = &client_on_pingresp;
     value.callback_data = client;
 
-    return lmqtt_store_append(&client->main_store, LMQTT_CLASS_PINGREQ, &value);
+    return lmqtt_store_append(&client->main_store, LMQTT_KIND_PINGREQ, &value);
 }
 
 LMQTT_STATIC int client_do_disconnect_fail(lmqtt_client_t *client)
@@ -426,7 +426,7 @@ LMQTT_STATIC int client_do_disconnect_fail(lmqtt_client_t *client)
 
 LMQTT_STATIC int client_do_disconnect(lmqtt_client_t *client)
 {
-    return lmqtt_store_append(&client->main_store, LMQTT_CLASS_DISCONNECT,
+    return lmqtt_store_append(&client->main_store, LMQTT_KIND_DISCONNECT,
         NULL);
 }
 

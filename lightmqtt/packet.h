@@ -13,20 +13,24 @@
 #define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
 #define LMQTT_CONNACK_RC_MAX 5
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
-    LMQTT_CLASS_CONNECT = 200,
-    LMQTT_CLASS_PUBLISH_0,
-    LMQTT_CLASS_PUBLISH_1,
-    LMQTT_CLASS_PUBLISH_2,
-    LMQTT_CLASS_PUBACK,
-    LMQTT_CLASS_PUBREC,
-    LMQTT_CLASS_PUBREL,
-    LMQTT_CLASS_PUBCOMP,
-    LMQTT_CLASS_SUBSCRIBE,
-    LMQTT_CLASS_UNSUBSCRIBE,
-    LMQTT_CLASS_PINGREQ,
-    LMQTT_CLASS_DISCONNECT
-} lmqtt_class_t;
+    LMQTT_KIND_CONNECT = 200,
+    LMQTT_KIND_PUBLISH_0,
+    LMQTT_KIND_PUBLISH_1,
+    LMQTT_KIND_PUBLISH_2,
+    LMQTT_KIND_PUBACK,
+    LMQTT_KIND_PUBREC,
+    LMQTT_KIND_PUBREL,
+    LMQTT_KIND_PUBCOMP,
+    LMQTT_KIND_SUBSCRIBE,
+    LMQTT_KIND_UNSUBSCRIBE,
+    LMQTT_KIND_PINGREQ,
+    LMQTT_KIND_DISCONNECT
+} lmqtt_kind_t;
 
 typedef enum {
     LMQTT_ENCODE_FINISHED = 110,
@@ -158,7 +162,7 @@ struct _lmqtt_rx_buffer_t;
 
 struct _lmqtt_rx_buffer_decoder_t {
     long min_length;
-    lmqtt_class_t class;
+    lmqtt_kind_t kind;
     int (*pop_packet_without_id)(struct _lmqtt_rx_buffer_t *);
     int (*pop_packet_with_id)(struct _lmqtt_rx_buffer_t *);
     lmqtt_decode_result_t (*decode_remaining)(struct _lmqtt_rx_buffer_t *,
@@ -222,5 +226,9 @@ void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
 lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(lmqtt_rx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_read);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

@@ -5,7 +5,7 @@
 #define PREPARE \
     int data[ENTRY_COUNT]; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
-    int class = -1; \
+    int kind = -1; \
     lmqtt_store_value_t value_in; \
     lmqtt_store_value_t value_out; \
     int res; \
@@ -47,12 +47,12 @@ START_TEST(should_append_one_object)
     PREPARE;
 
     value_in.value = &data[0];
-    res = lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value_in);
+    res = lmqtt_store_append(&store, LMQTT_KIND_CONNECT, &value_in);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_CONNECT, class);
+    ck_assert_int_eq(LMQTT_KIND_CONNECT, kind);
     ck_assert_ptr_eq(&data[0], value_out.value);
 }
 END_TEST
@@ -63,20 +63,20 @@ START_TEST(should_append_multiple_objects)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    res = lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     ck_assert_int_eq(1, res);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    res = lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[0], value_out.value);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[1], value_out.value);
 }
 END_TEST
@@ -85,12 +85,12 @@ START_TEST(should_append_null_object)
 {
     PREPARE;
 
-    res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, NULL);
+    res = lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, NULL);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(NULL, value_out.value);
 }
 END_TEST
@@ -103,11 +103,11 @@ START_TEST(should_not_append_object_if_store_is_full)
 
     for (i = 0; i < store.capacity; i++) {
         value_in.packet_id = i;
-        lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+        lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     }
 
     value_in.packet_id = i;
-    res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    res = lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -118,14 +118,14 @@ START_TEST(should_pop_object)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1,
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 1,
         &value_out);
     ck_assert_int_eq(1, res);
     ck_assert_ptr_eq(&data[0], value_out.value);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -134,7 +134,7 @@ START_TEST(should_not_pop_nonexistent_object)
 {
     PREPARE;
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 0,
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 0,
         &value_out);
     ck_assert_int_eq(0, res);
     ck_assert_ptr_eq(NULL, value_out.value);
@@ -149,19 +149,19 @@ START_TEST(should_get_second_object_after_popping_first_one)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1,
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 1,
         &value_out);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[1], value_out.value);
 }
 END_TEST
@@ -172,19 +172,19 @@ START_TEST(should_get_first_object_after_popping_second_one)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 2,
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 2,
         &value_out);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[0], value_out.value);
 }
 END_TEST
@@ -195,20 +195,20 @@ START_TEST(should_shift_object)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[0], value_out.value);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[1], value_out.value);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -219,7 +219,7 @@ START_TEST(should_shift_object_with_null_pointers)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
     res = lmqtt_store_shift(&store, NULL, NULL);
     ck_assert_int_eq(1, res);
@@ -232,9 +232,9 @@ START_TEST(should_not_peek_nonexistent_object)
 {
     PREPARE;
 
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(0, res);
-    ck_assert_int_eq(0, class);
+    ck_assert_int_eq(0, kind);
     ck_assert_ptr_eq(NULL, value_out.value);
 }
 END_TEST
@@ -245,11 +245,11 @@ START_TEST(should_peek_object)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[0], value_out.value);
 }
 END_TEST
@@ -260,11 +260,11 @@ START_TEST(should_not_peek_first_object_after_mark)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -275,16 +275,16 @@ START_TEST(should_peek_second_object_after_mark)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[1], value_out.value);
 }
 END_TEST
@@ -298,12 +298,12 @@ START_TEST(should_append_and_peek_after_mark)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    res = lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    res = lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[0], value_out.value);
 }
 END_TEST
@@ -314,12 +314,12 @@ START_TEST(should_not_pop_before_mark)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1,
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 1,
         &value_out);
     ck_assert_int_eq(0, res);
 }
@@ -331,18 +331,18 @@ START_TEST(should_peek_object_after_pop)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_PUBLISH_1, 1,
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 1,
         &value_out);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[1], value_out.value);
 }
 END_TEST
@@ -353,16 +353,16 @@ START_TEST(should_peek_object_after_shift)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
-    ck_assert_int_eq(LMQTT_CLASS_PUBLISH_1, class);
+    ck_assert_int_eq(LMQTT_KIND_PUBLISH_1, kind);
     ck_assert_ptr_eq(&data[1], value_out.value);
 }
 END_TEST
@@ -373,20 +373,20 @@ START_TEST(should_drop_current_object)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
     res = lmqtt_store_mark_current(&store);
     ck_assert_int_eq(1, res);
     res = lmqtt_store_drop_current(&store);
     ck_assert_int_eq(1, res);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
     ck_assert_ptr_eq(&data[0], value_out.value);
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -397,7 +397,7 @@ START_TEST(should_not_drop_nonexistent_object)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_store_drop_current(&store);
@@ -411,17 +411,17 @@ START_TEST(should_unmark_all)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
     lmqtt_store_mark_current(&store);
     lmqtt_store_mark_current(&store);
 
     lmqtt_store_unmark_all(&store);
 
-    res = lmqtt_store_peek(&store, &class, &value_out);
+    res = lmqtt_store_peek(&store, &kind, &value_out);
     ck_assert_int_eq(1, res);
     ck_assert_ptr_eq(&data[0], value_out.value);
 }
@@ -433,10 +433,10 @@ START_TEST(should_count_items)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
 
     ck_assert_int_eq(2, lmqtt_store_count(&store));
@@ -449,16 +449,16 @@ START_TEST(should_get_item_at_position)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 3;
     value_in.value = &data[2];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
 
-    res = lmqtt_store_get_at(&store, 1, &class, &value_out);
+    res = lmqtt_store_get_at(&store, 1, &kind, &value_out);
     ck_assert_int_eq(1, res);
     ck_assert_ptr_eq(&data[1], value_out.value);
     ck_assert_int_eq(3, lmqtt_store_count(&store));
@@ -471,9 +471,9 @@ START_TEST(should_not_get_nonexistent_item)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
-    res = lmqtt_store_get_at(&store, 1, &class, &value_out);
+    res = lmqtt_store_get_at(&store, 1, &kind, &value_out);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -484,13 +484,13 @@ START_TEST(should_delete_item_at_position)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 2;
     value_in.value = &data[1];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     value_in.packet_id = 3;
     value_in.value = &data[2];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_store_delete_at(&store, 1);
@@ -505,7 +505,7 @@ START_TEST(should_not_delete_nonexistent_item)
 
     value_in.packet_id = 1;
     value_in.value = &data[0];
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value_in);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
 
     res = lmqtt_store_delete_at(&store, 1);
     ck_assert_int_eq(0, res);

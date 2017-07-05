@@ -72,8 +72,8 @@ static lmqtt_encoder_t test_finder(lmqtt_tx_buffer_t *tx_buffer,
     return encoders[tx_buffer->internal.pos];
 }
 
-lmqtt_encoder_finder_t tx_buffer_finder_by_class_mock(
-    lmqtt_class_t class)
+lmqtt_encoder_finder_t tx_buffer_finder_by_kind_mock(
+    lmqtt_kind_t kind)
 {
     return test_finder_func;
 }
@@ -303,17 +303,17 @@ END_TEST
 
 START_TEST(should_not_track_disconnect_packet)
 {
-    int class;
+    int kind;
     lmqtt_store_value_t value_out;
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_DISCONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    res = lmqtt_store_shift(&store, &class, &value_out);
+    res = lmqtt_store_shift(&store, &kind, &value_out);
     ck_assert_int_eq(0, res);
 }
 END_TEST
@@ -323,7 +323,7 @@ START_TEST(should_close_tx_buffer_on_disconnect)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_DISCONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -341,10 +341,10 @@ START_TEST(should_not_process_packets_after_disconnect)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_DISCONNECT, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_DISCONNECT, &value);
     value.packet_id = 1;
     value.value = &data2;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
@@ -358,12 +358,12 @@ START_TEST(should_track_connect_packet)
     PREPARE;
 
     encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_CONNECT, &value);
 
     res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    res = lmqtt_store_pop_marked_by(&store, LMQTT_CLASS_CONNECT, 0, &value_out);
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_CONNECT, 0, &value_out);
     ck_assert_int_eq(1, res);
 }
 END_TEST
@@ -408,7 +408,7 @@ END_TEST
 
 START_TCASE("Tx buffer encode")
 {
-    tx_buffer_finder_by_class = &tx_buffer_finder_by_class_mock;
+    tx_buffer_finder_by_kind = &tx_buffer_finder_by_kind_mock;
 
     ADD_TEST(should_encode_tx_buffer_with_one_encoding_function);
     ADD_TEST(should_encode_tx_buffer_with_two_encoding_functions);

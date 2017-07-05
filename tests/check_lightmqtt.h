@@ -172,7 +172,7 @@ int rx_buffer_pubrel(lmqtt_rx_buffer_t *state);
 extern int (*rx_buffer_call_callback)(lmqtt_rx_buffer_t *);
 extern lmqtt_decode_result_t (*rx_buffer_decode_type)(lmqtt_rx_buffer_t *,
     lmqtt_decode_bytes_t *);
-extern lmqtt_encoder_finder_t (*tx_buffer_finder_by_class)(lmqtt_class_t);
+extern lmqtt_encoder_finder_t (*tx_buffer_finder_by_kind)(lmqtt_kind_t);
 
 lmqtt_io_status_t client_process_input(lmqtt_client_t *client);
 lmqtt_io_status_t client_process_output(lmqtt_client_t *client);

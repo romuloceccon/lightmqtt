@@ -40,11 +40,11 @@ LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(long len,
     return LMQTT_ENCODE_FINISHED;
 }
 
-LMQTT_STATIC int class_expects_response(lmqtt_class_t class)
+LMQTT_STATIC int kind_expects_response(lmqtt_kind_t kind)
 {
-    return class != LMQTT_CLASS_PUBLISH_0 && class != LMQTT_CLASS_PUBACK &&
-        class != LMQTT_CLASS_PUBREC && class != LMQTT_CLASS_PUBCOMP &&
-        class != LMQTT_CLASS_DISCONNECT;
+    return kind != LMQTT_KIND_PUBLISH_0 && kind != LMQTT_KIND_PUBACK &&
+        kind != LMQTT_KIND_PUBREC && kind != LMQTT_KIND_PUBCOMP &&
+        kind != LMQTT_KIND_DISCONNECT;
 }
 
 /******************************************************************************
@@ -968,29 +968,29 @@ LMQTT_STATIC lmqtt_encoder_t tx_buffer_finder_disconnect(
     return tx_buffer->internal.pos == 0 ? &disconnect_encode_fixed_header : 0;
 }
 
-static lmqtt_encoder_finder_t tx_buffer_finder_by_class_impl(
-    lmqtt_class_t class)
+static lmqtt_encoder_finder_t tx_buffer_finder_by_kind_impl(
+    lmqtt_kind_t kind)
 {
-    switch (class) {
-        case LMQTT_CLASS_CONNECT: return &tx_buffer_finder_connect;
-        case LMQTT_CLASS_SUBSCRIBE: return &tx_buffer_finder_subscribe;
-        case LMQTT_CLASS_UNSUBSCRIBE: return &tx_buffer_finder_unsubscribe;
-        case LMQTT_CLASS_PUBLISH_0:
-        case LMQTT_CLASS_PUBLISH_1:
-        case LMQTT_CLASS_PUBLISH_2: return &tx_buffer_finder_publish;
-        case LMQTT_CLASS_PUBACK: return &tx_buffer_finder_puback;
-        case LMQTT_CLASS_PUBREC: return &tx_buffer_finder_pubrec;
-        case LMQTT_CLASS_PUBREL: return &tx_buffer_finder_pubrel;
-        case LMQTT_CLASS_PUBCOMP: return &tx_buffer_finder_pubcomp;
-        case LMQTT_CLASS_PINGREQ: return &tx_buffer_finder_pingreq;
-        case LMQTT_CLASS_DISCONNECT: return &tx_buffer_finder_disconnect;
+    switch (kind) {
+        case LMQTT_KIND_CONNECT: return &tx_buffer_finder_connect;
+        case LMQTT_KIND_SUBSCRIBE: return &tx_buffer_finder_subscribe;
+        case LMQTT_KIND_UNSUBSCRIBE: return &tx_buffer_finder_unsubscribe;
+        case LMQTT_KIND_PUBLISH_0:
+        case LMQTT_KIND_PUBLISH_1:
+        case LMQTT_KIND_PUBLISH_2: return &tx_buffer_finder_publish;
+        case LMQTT_KIND_PUBACK: return &tx_buffer_finder_puback;
+        case LMQTT_KIND_PUBREC: return &tx_buffer_finder_pubrec;
+        case LMQTT_KIND_PUBREL: return &tx_buffer_finder_pubrel;
+        case LMQTT_KIND_PUBCOMP: return &tx_buffer_finder_pubcomp;
+        case LMQTT_KIND_PINGREQ: return &tx_buffer_finder_pingreq;
+        case LMQTT_KIND_DISCONNECT: return &tx_buffer_finder_disconnect;
     }
     return NULL;
 }
 
-/* Enable mocking of tx_buffer_finder_by_class() */
-LMQTT_STATIC lmqtt_encoder_finder_t (*tx_buffer_finder_by_class)(
-    lmqtt_class_t) = &tx_buffer_finder_by_class_impl;
+/* Enable mocking of tx_buffer_finder_by_kind() */
+LMQTT_STATIC lmqtt_encoder_finder_t (*tx_buffer_finder_by_kind)(
+    lmqtt_kind_t) = &tx_buffer_finder_by_kind_impl;
 
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
@@ -1011,12 +1011,12 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_written)
 {
     size_t offset = 0;
-    int class;
+    int kind;
     lmqtt_store_value_t value;
     *bytes_written = 0;
 
-    while (!state->closed && lmqtt_store_peek(state->store, &class, &value)) {
-        lmqtt_encoder_finder_t finder = tx_buffer_finder_by_class(class);
+    while (!state->closed && lmqtt_store_peek(state->store, &kind, &value)) {
+        lmqtt_encoder_finder_t finder = tx_buffer_finder_by_kind(kind);
 
         if (!finder)
             return LMQTT_IO_ERROR;
@@ -1027,10 +1027,10 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
             lmqtt_encoder_t encoder = finder(state, &value);
 
             if (!encoder) {
-                if (!class_expects_response(class)) {
+                if (!kind_expects_response(kind)) {
                     lmqtt_store_drop_current(state->store);
 
-                    if (class == LMQTT_CLASS_DISCONNECT) {
+                    if (kind == LMQTT_KIND_DISCONNECT) {
                         lmqtt_tx_buffer_finish(state);
                         break;
                     } else if (value.callback) {
@@ -1217,8 +1217,8 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     if (qos > 0) {
         memset(&value, 0, sizeof(value));
         value.packet_id = packet_id;
-        lmqtt_store_append(state->store, qos == 2 ? LMQTT_CLASS_PUBREC :
-            LMQTT_CLASS_PUBACK, &value);
+        lmqtt_store_append(state->store, qos == 2 ? LMQTT_KIND_PUBREC :
+            LMQTT_KIND_PUBACK, &value);
     }
 
     if (qos < 2 || !lmqtt_id_set_contains(&state->id_set, packet_id)) {
@@ -1314,7 +1314,7 @@ LMQTT_STATIC int rx_buffer_pop_packet(lmqtt_rx_buffer_t *state,
     lmqtt_packet_id_t packet_id)
 {
     return lmqtt_store_pop_marked_by(state->store,
-        state->internal.decoder->class, packet_id, &state->internal.value);
+        state->internal.decoder->kind, packet_id, &state->internal.value);
 }
 
 LMQTT_STATIC int rx_buffer_is_packet_finished(lmqtt_rx_buffer_t *state)
@@ -1327,8 +1327,8 @@ LMQTT_STATIC int rx_buffer_finish_packet(lmqtt_rx_buffer_t *state)
 {
     int result;
 
-    if (state->internal.decoder->class == LMQTT_CLASS_PUBLISH_2)
-        result = lmqtt_store_append(state->store, LMQTT_CLASS_PUBREL,
+    if (state->internal.decoder->kind == LMQTT_KIND_PUBLISH_2)
+        result = lmqtt_store_append(state->store, LMQTT_KIND_PUBREL,
             &state->internal.value);
     else
         result = rx_buffer_call_callback(state);
@@ -1362,7 +1362,7 @@ LMQTT_STATIC int rx_buffer_pubrel(lmqtt_rx_buffer_t *state)
 
     memset(&value, 0, sizeof(value));
     value.packet_id = packet_id;
-    return lmqtt_store_append(state->store, LMQTT_CLASS_PUBCOMP, &value);
+    return lmqtt_store_append(state->store, LMQTT_KIND_PUBCOMP, &value);
 }
 
 LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_without_id(
@@ -1403,7 +1403,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_remaining_with_id(
 
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_connack = {
     2,
-    LMQTT_CLASS_CONNECT,
+    LMQTT_KIND_CONNECT,
     &rx_buffer_pop_packet_without_id,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_decode_remaining_without_id,
@@ -1420,7 +1420,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_publish = {
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_puback = {
     2,
-    LMQTT_CLASS_PUBLISH_1,
+    LMQTT_KIND_PUBLISH_1,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
@@ -1428,7 +1428,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_puback = {
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrec = {
     2,
-    LMQTT_CLASS_PUBLISH_2,
+    LMQTT_KIND_PUBLISH_2,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
@@ -1444,7 +1444,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrel = {
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubcomp = {
     2,
-    LMQTT_CLASS_PUBREL,
+    LMQTT_KIND_PUBREL,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
@@ -1452,7 +1452,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubcomp = {
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_suback = {
     3,
-    LMQTT_CLASS_SUBSCRIBE,
+    LMQTT_KIND_SUBSCRIBE,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
@@ -1460,7 +1460,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_suback = {
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_unsuback = {
     2,
-    LMQTT_CLASS_UNSUBSCRIBE,
+    LMQTT_KIND_UNSUBSCRIBE,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
@@ -1468,7 +1468,7 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_unsuback = {
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pingresp = {
     0,
-    LMQTT_CLASS_PINGREQ,
+    LMQTT_KIND_PINGREQ,
     &rx_buffer_pop_packet_without_id,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_decode_remaining_without_id,

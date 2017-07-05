@@ -11,7 +11,7 @@
     lmqtt_store_t store; \
     lmqtt_message_callbacks_t message_callbacks; \
     void *callbacks_data = 0; \
-    int class; \
+    int kind; \
     lmqtt_store_value_t value; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     lmqtt_packet_id_t id_set_items[ID_SET_SIZE]; \
@@ -104,7 +104,7 @@ START_TEST(should_call_connack_callback)
 
     value.value = &connect;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_connack;
-    lmqtt_store_append(&store, LMQTT_CLASS_CONNECT, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_CONNECT, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
@@ -129,7 +129,7 @@ START_TEST(should_call_suback_callback)
     value.packet_id = 0x0304;
     value.value = &subscribe;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_suback;
-    lmqtt_store_append(&store, LMQTT_CLASS_SUBSCRIBE, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_SUBSCRIBE, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 5, &bytes_r);
@@ -154,7 +154,7 @@ START_TEST(should_call_unsuback_callback)
     value.packet_id = 0x0304;
     value.value = &subscribe;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_suback;
-    lmqtt_store_append(&store, LMQTT_CLASS_UNSUBSCRIBE, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_UNSUBSCRIBE, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
@@ -178,7 +178,7 @@ START_TEST(should_call_publish_callback_with_qos_1)
     value.packet_id = 0x0506;
     value.value = &publish;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_1, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
@@ -203,7 +203,7 @@ START_TEST(should_call_publish_callback_with_qos_2)
     value.packet_id = 0x0a0b;
     value.value = &publish;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_2, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf_1, 4, &bytes_r);
@@ -232,7 +232,7 @@ START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
     value.packet_id = 0x0a0b;
     value.value = &publish;
     value.callback = (lmqtt_store_entry_callback_t) &test_on_publish;
-    lmqtt_store_append(&store, LMQTT_CLASS_PUBLISH_2, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_2, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
@@ -248,7 +248,7 @@ START_TEST(should_call_pingresp_callback)
     PREPARE;
 
     value.callback = &test_on_pingresp;
-    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_PINGREQ, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 2, &bytes_r);
@@ -355,8 +355,8 @@ START_TEST(should_decode_pubrel)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
 
-    ck_assert_int_eq(1, lmqtt_store_peek(&store, &class, &value));
-    ck_assert_int_eq(LMQTT_CLASS_PUBCOMP, class);
+    ck_assert_int_eq(1, lmqtt_store_peek(&store, &kind, &value));
+    ck_assert_int_eq(LMQTT_KIND_PUBCOMP, kind);
 }
 END_TEST
 
@@ -368,7 +368,7 @@ START_TEST(should_not_call_null_decode_bytes)
     PREPARE;
 
     value.callback = &test_on_pingresp;
-    lmqtt_store_append(&store, LMQTT_CLASS_PINGREQ, &value);
+    lmqtt_store_append(&store, LMQTT_KIND_PINGREQ, &value);
     lmqtt_store_mark_current(&store);
 
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 3, &bytes_r);

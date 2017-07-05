@@ -35,6 +35,10 @@
     (((res) & LMQTT_RES_QUEUEABLE) != 0)
 #define LMQTT_ERROR_NUM(res) (0)
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 typedef struct _lmqtt_client_callbacks_t {
     void *data;
     lmqtt_read_t read;
@@ -129,5 +133,9 @@ void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
 int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     lmqtt_string_t **str_wr);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif
