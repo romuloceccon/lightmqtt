@@ -40,5 +40,5 @@ check_client_buffers_SOURCES          = check_client_buffers.c $(TEST_IO_SRCS)
 check_client_commands_SOURCES         = check_client_commands.c $(TEST_IO_SRCS)
 check_client_run_once_SOURCES         = check_client_run_once.c $(TEST_IO_SRCS)
 
-AM_CFLAGS = -I$(top_srcdir) @CHECK_CFLAGS@ -std=c89
+AM_CFLAGS = -I$(top_srcdir)/include @CHECK_CFLAGS@ -std=c89
 LDADD = @CHECK_LIBS@

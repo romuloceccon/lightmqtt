@@ -1,5 +1,5 @@
 AC_PREREQ([2.59])
-AC_INIT([Light MQTT], [0.1], [romuloceccon AT gmail.com])
+AC_INIT([LightMQTT], [0.1], [romuloceccon AT gmail.com])
 
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
@@ -15,6 +15,7 @@ PKG_CHECK_MODULES([CHECK], [check >= 0.9.10])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile examples/Makefile tests/Makefile])
+AC_CONFIG_FILES([Makefile include/Makefile include/lightmqtt/Makefile \
+  src/Makefile examples/Makefile tests/Makefile])
 
 AC_OUTPUT

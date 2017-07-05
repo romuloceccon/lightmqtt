@@ -7,7 +7,7 @@
 #include "lightmqtt/packet.h"
 #include "lightmqtt/client.h"
 
-#include "examples/helpers.h"
+#include "helpers.h"
 
 static lmqtt_client_t client;
 
