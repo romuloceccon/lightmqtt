@@ -1,4 +1,4 @@
-bin_PROGRAMS = reconnect pingpong
+noinst_PROGRAMS = reconnect pingpong
 
 reconnect_SOURCES = reconnect.c helpers.c
 pingpong_SOURCES = pingpong.c helpers.c
