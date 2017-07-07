@@ -49,14 +49,14 @@ START_TEST(should_decode_fixed_header_publish)
     ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x30));
     ck_assert_int_eq(LMQTT_TYPE_PUBLISH, header.type);
     ck_assert_int_eq(0, header.dup);
-    ck_assert_int_eq(0, header.qos);
+    ck_assert_int_eq(LMQTT_QOS_0, header.qos);
     ck_assert_int_eq(0, header.retain);
 
     memset(&header, 0, sizeof(header));
     ck_assert_int_eq(LMQTT_DECODE_CONTINUE, fixed_header_decode(&header, 0x3d));
     ck_assert_int_eq(LMQTT_TYPE_PUBLISH, header.type);
     ck_assert_int_eq(1, header.dup);
-    ck_assert_int_eq(2, header.qos);
+    ck_assert_int_eq(LMQTT_QOS_2, header.qos);
     ck_assert_int_eq(1, header.retain);
 }
 END_TEST

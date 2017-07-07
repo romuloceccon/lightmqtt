@@ -17,7 +17,7 @@ START_TEST(should_validate_publish_with_maximum_payload)
     lmqtt_publish_t publish;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.len = 268435455 - 9;
@@ -31,7 +31,7 @@ START_TEST(should_validate_publish_with_too_big_payload)
     lmqtt_publish_t publish;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.len = 268435455 - 9 + 1;

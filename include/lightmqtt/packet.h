@@ -33,6 +33,12 @@ typedef enum {
 } lmqtt_kind_t;
 
 typedef enum {
+    LMQTT_QOS_0 = 0,
+    LMQTT_QOS_1,
+    LMQTT_QOS_2
+} lmqtt_qos_t;
+
+typedef enum {
     LMQTT_ENCODE_FINISHED = 110,
     LMQTT_ENCODE_CONTINUE,
     LMQTT_ENCODE_WOULD_BLOCK,
@@ -95,7 +101,7 @@ typedef struct _lmqtt_fixed_header_t {
 } lmqtt_fixed_header_t;
 
 typedef struct _lmqtt_subscription_t {
-    unsigned char qos;
+    lmqtt_qos_t requested_qos;
     lmqtt_string_t topic;
     unsigned char return_code;
 } lmqtt_subscription_t;
@@ -103,7 +109,7 @@ typedef struct _lmqtt_subscription_t {
 typedef struct _lmqtt_connect_t {
     unsigned short keep_alive;
     unsigned char clean_session;
-    unsigned char qos;
+    lmqtt_qos_t will_qos;
     unsigned char will_retain;
     lmqtt_string_t client_id;
     lmqtt_string_t will_topic;
@@ -125,7 +131,7 @@ typedef struct _lmqtt_subscribe_t {
 } lmqtt_subscribe_t;
 
 typedef struct _lmqtt_publish_t {
-    unsigned char qos;
+    lmqtt_qos_t qos;
     unsigned char retain;
     lmqtt_string_t topic;
     lmqtt_string_t payload;

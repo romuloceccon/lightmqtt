@@ -29,7 +29,7 @@ void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
     memset(subscriptions, 0, sizeof(subscriptions));
     subscribe.count = 1;
     subscribe.subscriptions = subscriptions;
-    subscriptions[0].qos = 2;
+    subscriptions[0].requested_qos = LMQTT_QOS_2;
     subscriptions[0].topic.buf = id;
     subscriptions[0].topic.len = strlen(id);
 
@@ -42,7 +42,7 @@ void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
         return;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 2;
+    publish.qos = LMQTT_QOS_2;
     publish.topic.buf = to;
     publish.topic.len = strlen(to);
     publish.payload.buf = payload;
@@ -59,7 +59,7 @@ int on_message(void *data, lmqtt_publish_t *message)
         message->payload.buf);
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 2;
+    publish.qos = LMQTT_QOS_2;
     publish.topic.buf = to;
     publish.topic.len = strlen(to);
     publish.payload.buf = payload;

@@ -231,7 +231,7 @@ START_TEST(should_encode_connect_qos)
 {
     PREPARE;
 
-    connect.qos = 2;
+    connect.will_qos = LMQTT_QOS_2;
 
     res = connect_encode_variable_header(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);

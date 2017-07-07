@@ -367,7 +367,7 @@ START_TEST(should_run_with_queue_full)
 
     memset(message, 'x', sizeof(message));
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = message;
@@ -405,7 +405,7 @@ START_TEST(should_run_with_existing_session)
     do_client_initialize(&client);
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = "payload";

@@ -12,7 +12,7 @@ START_TEST(should_validate_good_subscribe)
 
     subscribe.subscriptions = &subscriptions[0];
     subscribe.count = 1;
-    subscriptions[0].qos = 2;
+    subscriptions[0].requested_qos = LMQTT_QOS_2;
     subscriptions[0].topic.buf = "test";
     subscriptions[0].topic.len = strlen(subscriptions[0].topic.buf);
 
@@ -49,7 +49,7 @@ START_TEST(should_validate_with_empty_topic)
 }
 END_TEST
 
-START_TEST(should_validate_with_invalid_qos)
+START_TEST(should_validate_with_invalid_requested_qos)
 {
     PREPARE;
 
@@ -57,7 +57,7 @@ START_TEST(should_validate_with_invalid_qos)
     subscribe.count = 1;
     subscriptions[0].topic.buf = "test";
     subscriptions[0].topic.len = strlen(subscriptions[0].topic.buf);
-    subscriptions[0].qos = 3;
+    subscriptions[0].requested_qos = 3;
 
     ck_assert_int_eq(0, lmqtt_subscribe_validate(&subscribe));
 }
@@ -69,10 +69,10 @@ START_TEST(should_validate_multiple_topics)
 
     subscribe.subscriptions = &subscriptions[0];
     subscribe.count = 2;
-    subscriptions[0].qos = 2;
+    subscriptions[0].requested_qos = LMQTT_QOS_2;
     subscriptions[0].topic.buf = "a";
     subscriptions[0].topic.len = strlen(subscriptions[0].topic.buf);
-    subscriptions[1].qos = -1;
+    subscriptions[1].requested_qos = -1;
     subscriptions[1].topic.buf = "b";
     subscriptions[1].topic.len = strlen(subscriptions[1].topic.buf);
 
@@ -86,7 +86,7 @@ START_TEST(should_validate_with_too_long_string)
 
     subscribe.subscriptions = &subscriptions[0];
     subscribe.count = 1;
-    subscriptions[0].qos = 0;
+    subscriptions[0].requested_qos = LMQTT_QOS_0;
     subscriptions[0].topic.buf = "x";
     subscriptions[0].topic.len = 0x10000;
 
@@ -100,7 +100,7 @@ START_TCASE("Subscribe validate")
     ADD_TEST(should_validate_with_zero_subscriptions);
     ADD_TEST(should_validate_with_null_subscriptions);
     ADD_TEST(should_validate_with_empty_topic);
-    ADD_TEST(should_validate_with_invalid_qos);
+    ADD_TEST(should_validate_with_invalid_requested_qos);
     ADD_TEST(should_validate_multiple_topics);
     ADD_TEST(should_validate_with_too_long_string);
 }

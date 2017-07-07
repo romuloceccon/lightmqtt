@@ -171,7 +171,7 @@ START_TEST(should_call_publish_callback_with_qos_1)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "a";
     publish.topic.len = 1;
 
@@ -196,7 +196,7 @@ START_TEST(should_call_publish_callback_with_qos_2)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 2;
+    publish.qos = LMQTT_QOS_2;
     publish.topic.buf = "a";
     publish.topic.len = 1;
 
@@ -225,7 +225,7 @@ START_TEST(should_not_release_publish_with_qos_2_without_pubrec)
     PREPARE;
 
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 2;
+    publish.qos = LMQTT_QOS_2;
     publish.topic.buf = "a";
     publish.topic.len = 1;
 

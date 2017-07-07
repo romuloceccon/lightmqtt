@@ -381,17 +381,17 @@ LMQTT_STATIC int client_do_publish(lmqtt_client_t *client,
     lmqtt_publish_t *publish)
 {
     int kind;
-    unsigned char qos = publish->qos;
+    lmqtt_qos_t qos = publish->qos;
     lmqtt_store_value_t value;
 
     if (!lmqtt_publish_validate(publish))
         return 0;
 
-    if (qos == 0) {
+    if (qos == LMQTT_QOS_0) {
         kind = LMQTT_KIND_PUBLISH_0;
         value.packet_id = 0;
     } else {
-        kind = qos == 1 ? LMQTT_KIND_PUBLISH_1 : LMQTT_KIND_PUBLISH_2;
+        kind = qos == LMQTT_QOS_1 ? LMQTT_KIND_PUBLISH_1 : LMQTT_KIND_PUBLISH_2;
         value.packet_id = lmqtt_store_get_id(&client->main_store);
     }
 

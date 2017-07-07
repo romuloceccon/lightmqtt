@@ -97,22 +97,22 @@ START_TEST(should_validate_user_name_and_password)
 }
 END_TEST
 
-START_TEST(should_validate_qos)
+START_TEST(should_validate_will_qos)
 {
     lmqtt_connect_t connect;
     memset(&connect, 0, sizeof(connect));
     connect.client_id.len = 1;
 
-    connect.qos = 0;
+    connect.will_qos = LMQTT_QOS_0;
     ck_assert(lmqtt_connect_validate(&connect));
-    connect.qos = 1;
+    connect.will_qos = LMQTT_QOS_1;
     ck_assert(lmqtt_connect_validate(&connect));
-    connect.qos = 2;
+    connect.will_qos = LMQTT_QOS_2;
     ck_assert(lmqtt_connect_validate(&connect));
 
-    connect.qos = -1;
+    connect.will_qos = -1;
     ck_assert(!lmqtt_connect_validate(&connect));
-    connect.qos = 3;
+    connect.will_qos = 3;
     ck_assert(!lmqtt_connect_validate(&connect));
 }
 END_TEST
@@ -126,6 +126,6 @@ START_TCASE("Connect validate")
     ADD_TEST(should_validate_will_topic_and_will_message);
     ADD_TEST(should_validate_will_retain_flag);
     ADD_TEST(should_validate_user_name_and_password);
-    ADD_TEST(should_validate_qos);
+    ADD_TEST(should_validate_will_qos);
 }
 END_TCASE

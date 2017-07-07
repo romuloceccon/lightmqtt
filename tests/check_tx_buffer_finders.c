@@ -78,7 +78,7 @@ START_TEST(should_encode_subscribe_to_one_topic)
     subscribe.count = 1;
     subscribe.subscriptions = &subscription;
 
-    subscription.qos = 2;
+    subscription.requested_qos = LMQTT_QOS_2;
     subscription.topic.buf = "test";
     subscription.topic.len = 4;
 
@@ -114,11 +114,11 @@ START_TEST(should_encode_subscribe_to_multiple_topics)
     subscribe.count = 2;
     subscribe.subscriptions = subscriptions;
 
-    subscriptions[0].qos = 0;
+    subscriptions[0].requested_qos = LMQTT_QOS_0;
     subscriptions[0].topic.buf = topic_1;
     subscriptions[0].topic.len = sizeof(topic_1);
 
-    subscriptions[1].qos = 1;
+    subscriptions[1].requested_qos = LMQTT_QOS_1;
     subscriptions[1].topic.buf = topic_2;
     subscriptions[1].topic.len = sizeof(topic_2);
 
@@ -251,7 +251,7 @@ START_TEST(should_encode_publish_with_qos_1)
     memset(&publish, 0, sizeof(publish));
     publish.retain = 1;
     publish.internal.encode_count++;
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = "payload";
@@ -292,7 +292,7 @@ START_TEST(should_increment_publish_encode_count_after_encode)
 
     PREPARE;
     memset(&publish, 0, sizeof(publish));
-    publish.qos = 1;
+    publish.qos = LMQTT_QOS_1;
     publish.topic.buf = "topic";
     publish.topic.len = strlen(publish.topic.buf);
     publish.payload.buf = "payload";

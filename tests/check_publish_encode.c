@@ -12,7 +12,7 @@
     memset(&publish, 0, sizeof(publish)); \
     memset(&value, 0, sizeof(value)); \
     memset(&encode_buffer, 0, sizeof(encode_buffer)); \
-    publish.qos = 1; \
+    publish.qos = LMQTT_QOS_1; \
     value.value = &publish
 
 #define INIT_TOPIC(val) \
@@ -25,7 +25,7 @@ START_TEST(should_encode_fixed_header_with_empty_payload_and_qos_0)
 {
     PREPARE;
     INIT_TOPIC("x");
-    publish.qos = 0;
+    publish.qos = LMQTT_QOS_0;
 
     res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -40,7 +40,7 @@ START_TEST(should_encode_fixed_header_with_empty_payload_and_qos_2)
 {
     PREPARE;
     INIT_TOPIC("x");
-    publish.qos = 2;
+    publish.qos = LMQTT_QOS_2;
 
     res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
@@ -101,7 +101,7 @@ START_TEST(should_encode_qos)
     PREPARE;
     INIT_TOPIC("x");
 
-    publish.qos = 2;
+    publish.qos = LMQTT_QOS_2;
 
     res = publish_build_fixed_header(&value, &encode_buffer);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);

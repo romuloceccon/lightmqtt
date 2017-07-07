@@ -163,7 +163,7 @@ static int do_init_connect_process(lmqtt_client_t *client, long keep_alive,
     return do_connect_process(client, keep_alive);
 }
 
-static int do_publish(lmqtt_client_t *client, int qos)
+static int do_publish(lmqtt_client_t *client, lmqtt_qos_t qos)
 {
     memset(&publish, 0, sizeof(publish));
     publish.qos = qos;
@@ -428,7 +428,7 @@ START_TEST(should_subscribe)
     memset(&subscription, 0, sizeof(subscription));
     subscribe.count = 1;
     subscribe.subscriptions = &subscription;
-    subscription.qos = 0;
+    subscription.requested_qos = LMQTT_QOS_0;
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
 
@@ -546,7 +546,7 @@ START_TEST(should_not_subscribe_with_full_store)
     memset(&subscription, 0, sizeof(subscription));
     subscribe.count = 1;
     subscribe.subscriptions = &subscription;
-    subscription.qos = 0;
+    subscription.requested_qos = LMQTT_QOS_0;
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
 
@@ -1091,7 +1091,7 @@ START_TEST(should_finalize_client)
     subscribe.subscriptions = &subscription;
     unsubscribe.count = 1;
     unsubscribe.subscriptions = &subscription;
-    subscription.qos = 0;
+    subscription.requested_qos = LMQTT_QOS_0;
     subscription.topic.buf = "test";
     subscription.topic.len = strlen(subscription.topic.buf);
     memset(&publish, 0, sizeof(publish));

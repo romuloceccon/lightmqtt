@@ -8,13 +8,18 @@
 #define LMQTT_FLAG_WILL_RETAIN 0x20
 #define LMQTT_FLAG_PASSWORD_FLAG 0x40
 #define LMQTT_FLAG_USER_NAME_FLAG 0x80
-#define LMQTT_OFFSET_FLAG_QOS 3
 
 #define LMQTT_STRING_LEN_SIZE 2
 #define LMQTT_PACKET_ID_SIZE 2
 #define LMQTT_REMAINING_LENGTH_MAX_SIZE 4
 
 #define STRING_LEN_BYTE(val, num) (((val) >> ((num) * 8)) & 0xff)
+
+#define LMQTT_QOS_TO_CONNECT_WILL_QOS(x) ((x) << 3)
+#define LMQTT_QOS_TO_SUBSCRIBE_REQUESTED_QOS(x) (x)
+#define LMQTT_QOS_TO_PUBLISH_QOS(x) ((x) << 1)
+#define QOS_TO_LMQTT_QOS(x) (x)
+#define IS_VALID_LMQTT_QOS(x) ((x) >= LMQTT_QOS_0 && (x) <= LMQTT_QOS_2)
 
 /******************************************************************************
  * GENERAL PRIVATE functions
@@ -421,7 +426,7 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_variable_header(
 
     memcpy(encode_buffer->buf, "\x00\x04MQTT\x04", 7);
 
-    flags = connect->qos << LMQTT_OFFSET_FLAG_QOS;
+    flags = LMQTT_QOS_TO_CONNECT_WILL_QOS(connect->will_qos);
     if (connect->clean_session)
         flags |= LMQTT_FLAG_CLEAN_SESSION;
     if (connect->will_retain)
@@ -523,7 +528,7 @@ int lmqtt_connect_validate(lmqtt_connect_t *connect)
     if (connect->user_name.len == 0 && connect->password.len != 0)
         return 0;
 
-    if (connect->qos < 0 || connect->qos > 2)
+    if (!IS_VALID_LMQTT_QOS(connect->will_qos))
         return 0;
 
     return 1;
@@ -598,7 +603,8 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_build_qos(
 {
     lmqtt_subscribe_t *subscribe = value->value;
 
-    encode_buffer->buf[0] = subscribe->internal.current->qos;
+    encode_buffer->buf[0] = LMQTT_QOS_TO_SUBSCRIBE_REQUESTED_QOS(
+        subscribe->internal.current->requested_qos);
     encode_buffer->buf_len = 1;
     return LMQTT_ENCODE_FINISHED;
 }
@@ -627,7 +633,7 @@ int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe)
         lmqtt_subscription_t *sub = &subscribe->subscriptions[i];
         if (!string_validate_field_length(&sub->topic))
             return 0;
-        if (sub->topic.len == 0 || sub->qos < 0 || sub->qos > 2)
+        if (sub->topic.len == 0 || !IS_VALID_LMQTT_QOS(sub->requested_qos))
             return 0;
     }
 
@@ -641,7 +647,7 @@ int lmqtt_subscribe_validate(lmqtt_subscribe_t *subscribe)
 LMQTT_STATIC long publish_calc_remaining_length(lmqtt_publish_t *publish)
 {
     return LMQTT_STRING_LEN_SIZE + (long) publish->topic.len +
-        (publish->qos == 0 ? 0 : LMQTT_PACKET_ID_SIZE) +
+        (publish->qos == LMQTT_QOS_0 ? 0 : LMQTT_PACKET_ID_SIZE) +
         (long) publish->payload.len;
 }
 
@@ -660,7 +666,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
 
     type = LMQTT_TYPE_PUBLISH << 4;
     type |= publish->retain ? 0x01 : 0x00;
-    type |= (publish->qos & 0x03) << 1;
+    type |= LMQTT_QOS_TO_PUBLISH_QOS(publish->qos);
     type |= publish->internal.encode_count > 0 ? 0x08 : 0x00;
     encode_buffer->buf[0] = type;
     encode_buffer->buf_len = 1 + v;
@@ -723,7 +729,7 @@ LMQTT_STATIC lmqtt_encode_result_t publish_encode_payload(
 int lmqtt_publish_validate(lmqtt_publish_t *publish)
 {
     return string_validate_field_length(&publish->topic) &&
-        publish->topic.len > 0 && publish->qos >= 0 && publish->qos <= 2 &&
+        publish->topic.len > 0 && IS_VALID_LMQTT_QOS(publish->qos) &&
         publish_calc_remaining_length(publish) <= 0xfffffff;
 }
 
@@ -913,7 +919,7 @@ LMQTT_STATIC lmqtt_encoder_t tx_buffer_finder_publish(
 {
     lmqtt_publish_t *publish = value->value;
 
-    if (publish->qos == 0) {
+    if (publish->qos == LMQTT_QOS_0) {
         switch (tx_buffer->internal.pos) {
             case 0: return &publish_encode_fixed_header;
             case 1: return &publish_encode_topic;
@@ -1161,9 +1167,9 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     lmqtt_store_value_t value;
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
-    unsigned char qos = state->internal.header.qos;
+    lmqtt_qos_t qos = QOS_TO_LMQTT_QOS(state->internal.header.qos);
     static const long s_len = LMQTT_STRING_LEN_SIZE;
-    long p_len = qos == 0 ? 0 : LMQTT_PACKET_ID_SIZE;
+    long p_len = qos == LMQTT_QOS_0 ? 0 : LMQTT_PACKET_ID_SIZE;
     lmqtt_packet_id_t packet_id;
 
     assert(bytes->buf_len >= 1);
@@ -1214,15 +1220,15 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
 
     packet_id = state->internal.packet_id;
 
-    if (qos > 0) {
+    if (qos != LMQTT_QOS_0) {
         memset(&value, 0, sizeof(value));
         value.packet_id = packet_id;
-        lmqtt_store_append(state->store, qos == 2 ? LMQTT_KIND_PUBREC :
-            LMQTT_KIND_PUBACK, &value);
+        lmqtt_store_append(state->store, qos == LMQTT_QOS_2 ?
+            LMQTT_KIND_PUBREC : LMQTT_KIND_PUBACK, &value);
     }
 
-    if (qos < 2 || !lmqtt_id_set_contains(&state->id_set, packet_id)) {
-        if (qos == 2 && !lmqtt_id_set_put(&state->id_set, packet_id)) {
+    if (qos != LMQTT_QOS_2 || !lmqtt_id_set_contains(&state->id_set, packet_id)) {
+        if (qos == LMQTT_QOS_2 && !lmqtt_id_set_put(&state->id_set, packet_id)) {
             rx_buffer_deallocate_publish(state);
             /* Here we return an error despite having already increased the
                bytes_written count, unlike everywhere else. I don't know which
