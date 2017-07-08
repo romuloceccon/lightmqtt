@@ -149,6 +149,7 @@ typedef struct _lmqtt_tx_buffer_t {
         int pos;
         size_t offset;
         lmqtt_encode_buffer_t buffer;
+        int failed;
     } internal;
 } lmqtt_tx_buffer_t;
 

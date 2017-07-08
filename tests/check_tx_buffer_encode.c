@@ -184,6 +184,42 @@ START_TEST(should_return_actual_bytes_written_after_error)
 }
 END_TEST
 
+START_TEST(should_not_encode_tx_buffer_after_error)
+{
+    PREPARE;
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_fail;
+    lmqtt_store_append(&store, 0, &value);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    bytes_w = 0xcccc;
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+    ck_assert_int_eq(0, bytes_w);
+}
+END_TEST
+
+START_TEST(should_encode_tx_buffer_again_after_reset)
+{
+    PREPARE;
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_fail;
+    lmqtt_store_append(&store, 0, &value);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+
+    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
+    lmqtt_tx_buffer_reset(&state);
+
+    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+}
+END_TEST
+
 START_TEST(should_continue_buffer_where_previous_call_stopped)
 {
     PREPARE;
@@ -414,6 +450,8 @@ START_TCASE("Tx buffer encode")
     ADD_TEST(should_encode_tx_buffer_with_two_encoding_functions);
     ADD_TEST(should_stop_encoder_after_buffer_fills_up);
     ADD_TEST(should_return_actual_bytes_written_after_error);
+    ADD_TEST(should_not_encode_tx_buffer_after_error);
+    ADD_TEST(should_encode_tx_buffer_again_after_reset);
     ADD_TEST(should_continue_buffer_where_previous_call_stopped);
     ADD_TEST(should_continue_buffer_twice_with_the_same_encoder_entry);
     ADD_TEST(should_encode_blocking_buffer);

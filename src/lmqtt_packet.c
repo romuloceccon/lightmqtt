@@ -1002,6 +1002,12 @@ static lmqtt_encoder_finder_t tx_buffer_finder_by_kind_impl(
 LMQTT_STATIC lmqtt_encoder_finder_t (*tx_buffer_finder_by_kind)(
     lmqtt_kind_t) = &tx_buffer_finder_by_kind_impl;
 
+LMQTT_STATIC lmqtt_io_result_t tx_buffer_fail(lmqtt_tx_buffer_t *state)
+{
+    state->internal.failed = 1;
+    return LMQTT_IO_ERROR;
+}
+
 /******************************************************************************
  * lmqtt_tx_buffer_t PUBLIC functions
  ******************************************************************************/
@@ -1025,11 +1031,14 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
     lmqtt_store_value_t value;
     *bytes_written = 0;
 
+    if (state->internal.failed)
+        return LMQTT_IO_ERROR;
+
     while (!state->closed && lmqtt_store_peek(state->store, &kind, &value)) {
         lmqtt_encoder_finder_t finder = tx_buffer_finder_by_kind(kind);
 
         if (!finder)
-            return LMQTT_IO_ERROR;
+            return tx_buffer_fail(state);
 
         while (1) {
             int result;
@@ -1065,7 +1074,7 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
             if (result == LMQTT_ENCODE_CONTINUE)
                 return LMQTT_IO_SUCCESS;
             if (result == LMQTT_ENCODE_ERROR)
-                return LMQTT_IO_ERROR;
+                return tx_buffer_fail(state);
 
             offset += cur_bytes;
             state->internal.pos += 1;
