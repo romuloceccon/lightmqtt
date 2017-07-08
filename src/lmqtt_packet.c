@@ -176,13 +176,15 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
 LMQTT_STATIC lmqtt_io_result_t string_fetch(lmqtt_string_t *str,
     size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written)
 {
-    if (str->read != 0)
+    if (str->read != 0) {
+        int os_error = 0;
         /* `offset` is not used with the callback. We're actually trusting the
          * encoding functions and the callback work the same way, i.e. in each
          * call the offset is equal to the previous offset plus the previous
          * read byte count. Maybe `offset` could be eliminated and those
          * expectations documented? */
-        return str->read(str->data, buf, buf_len, bytes_written);
+        return str->read(str->data, buf, buf_len, bytes_written, &os_error);
+    }
 
     memcpy(buf, str->buf + offset, buf_len);
     *bytes_written = buf_len;
@@ -266,7 +268,9 @@ LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
         return LMQTT_DECODE_ERROR;
 
     if (str->write) {
-        switch(str->write(str->data, buf, buf_len, bytes_written)) {
+        int os_error = 0;
+
+        switch(str->write(str->data, buf, buf_len, bytes_written, &os_error)) {
             case LMQTT_IO_SUCCESS:
                 str->internal.pos += *bytes_written;
                 break;

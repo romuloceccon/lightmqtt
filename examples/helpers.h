@@ -6,9 +6,9 @@
 
 lmqtt_io_result_t get_time(long *secs, long *nsecs);
 lmqtt_io_result_t socket_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read);
+    size_t *bytes_read, int *os_error);
 lmqtt_io_result_t socket_write(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written);
+    size_t *bytes_written, int *os_error);
 int socket_open(const char *address, unsigned short port);
 void socket_close(int fd);
 

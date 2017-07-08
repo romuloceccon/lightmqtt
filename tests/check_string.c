@@ -6,7 +6,8 @@ typedef struct {
     size_t pos;
 } test_write_buffer_t;
 
-lmqtt_io_result_t test_write(void *data, void *buf, size_t len, size_t *bytes_w)
+lmqtt_io_result_t test_write(void *data, void *buf, size_t len, size_t *bytes_w,
+    int *os_error)
 {
     test_write_buffer_t *buffer = data;
     unsigned char *buf_c = buf;
@@ -25,7 +26,7 @@ lmqtt_io_result_t test_write(void *data, void *buf, size_t len, size_t *bytes_w)
 }
 
 lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
-    size_t *bytes_w)
+    size_t *bytes_w, int *os_error)
 {
     return LMQTT_IO_ERROR;
 }

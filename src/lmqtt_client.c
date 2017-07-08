@@ -9,6 +9,7 @@
 typedef struct _lmqtt_input_t {
     lmqtt_read_t read;
     void *data;
+    int os_error;
 } lmqtt_input_t;
 
 LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input,
@@ -16,7 +17,8 @@ LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input,
 {
     lmqtt_io_result_t result;
 
-    result = input->read(input->data, &buf[*buf_pos], buf_len - *buf_pos, cnt);
+    result = input->read(input->data, &buf[*buf_pos], buf_len - *buf_pos, cnt,
+        &input->os_error);
     *buf_pos += *cnt;
 
     return result;
@@ -29,6 +31,7 @@ LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input,
 typedef struct _lmqtt_output_t {
     lmqtt_write_t write;
     void *data;
+    int os_error;
 } lmqtt_output_t;
 
 LMQTT_STATIC lmqtt_io_result_t output_write(lmqtt_output_t *output,
@@ -36,7 +39,8 @@ LMQTT_STATIC lmqtt_io_result_t output_write(lmqtt_output_t *output,
 {
     lmqtt_io_result_t result;
 
-    result = output->write(output->data, buf, *buf_pos, cnt);
+    result = output->write(output->data, buf, *buf_pos, cnt,
+        &output->os_error);
     memmove(&buf[0], &buf[*cnt], *buf_pos - *cnt);
     *buf_pos -= *cnt;
 
@@ -168,14 +172,14 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
 }
 
 LMQTT_STATIC lmqtt_io_result_t client_decode_wrapper(void *data, void *buf,
-    size_t buf_len, size_t *bytes_read)
+    size_t buf_len, size_t *bytes_read, int *os_error)
 {
     return lmqtt_rx_buffer_decode((lmqtt_rx_buffer_t *) data, buf, buf_len,
         bytes_read);
 }
 
 LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, void *buf,
-    size_t buf_len, size_t *bytes_written)
+    size_t buf_len, size_t *bytes_written, int *os_error)
 {
     return lmqtt_tx_buffer_encode((lmqtt_tx_buffer_t *) data, buf, buf_len,
         bytes_written);
@@ -188,8 +192,10 @@ LMQTT_STATIC lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 
     input.read = client->callbacks.read;
     input.data = client->callbacks.data;
+    input.os_error = 0;
     output.write = &client_decode_wrapper;
     output.data = &client->rx_state;
+    output.os_error = 0;
 
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_CONN,
@@ -204,8 +210,10 @@ LMQTT_STATIC lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 
     input.read = &client_encode_wrapper;
     input.data = &client->tx_state;
+    input.os_error = 0;
     output.write = client->callbacks.write;
     output.data = client->callbacks.data;
+    output.os_error = 0;
 
     return client_buffer_transfer(client,
         &input, LMQTT_IO_STATUS_BLOCK_DATA,

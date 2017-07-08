@@ -82,17 +82,17 @@ typedef enum {
 lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
     void *src, size_t len, size_t *bytes_written);
 lmqtt_io_result_t test_buffer_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read);
+    size_t *bytes_read, int *os_error);
 lmqtt_io_result_t test_buffer_write(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written);
+    size_t *bytes_written, int *os_error);
 
 lmqtt_io_result_t test_time_get(long *secs, long *nsecs);
 void test_time_set(long secs, long nsecs);
 
 lmqtt_io_result_t test_socket_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read);
+    size_t *bytes_read, int *os_error);
 lmqtt_io_result_t test_socket_write(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written);
+    size_t *bytes_written, int *os_error);
 
 void test_socket_init(test_socket_t *socket);
 void test_socket_append_param(test_socket_t *socket, int val, int param);

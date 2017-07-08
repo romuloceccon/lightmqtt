@@ -21,7 +21,7 @@ lmqtt_io_result_t get_time(long *secs, long *nsecs)
 }
 
 lmqtt_io_result_t socket_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read)
+    size_t *bytes_read, int *os_error)
 {
     int socket_fd = *((int *) data);
     int res;
@@ -38,11 +38,12 @@ lmqtt_io_result_t socket_read(void *data, void *buf, size_t buf_len,
     }
 
     *bytes_read = 0;
+    *os_error = errno;
     return LMQTT_IO_ERROR;
 }
 
 lmqtt_io_result_t socket_write(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written)
+    size_t *bytes_written, int *os_error)
 {
     int socket_fd = *((int *) data);
     int res;
@@ -59,6 +60,7 @@ lmqtt_io_result_t socket_write(void *data, void *buf, size_t buf_len,
     }
 
     *bytes_written = 0;
+    *os_error = errno;
     return LMQTT_IO_ERROR;
 }
 

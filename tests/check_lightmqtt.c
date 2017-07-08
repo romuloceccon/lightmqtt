@@ -16,7 +16,7 @@ lmqtt_io_result_t test_buffer_move(test_buffer_t *test_buffer, void *dst,
 }
 
 lmqtt_io_result_t test_buffer_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read)
+    size_t *bytes_read, int *os_error)
 {
     test_buffer_t *source = (test_buffer_t *) data;
 
@@ -25,7 +25,7 @@ lmqtt_io_result_t test_buffer_read(void *data, void *buf, size_t buf_len,
 }
 
 lmqtt_io_result_t test_buffer_write(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written)
+    size_t *bytes_written, int *os_error)
 {
     test_buffer_t *destination = (test_buffer_t *) data;
 
@@ -49,17 +49,19 @@ void test_time_set(long secs, long nsecs)
 }
 
 lmqtt_io_result_t test_socket_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read)
+    size_t *bytes_read, int *os_error)
 {
     test_socket_t *sock = (test_socket_t *) data;
-    return test_buffer_read(&sock->read_buf, buf, buf_len, bytes_read);
+    return test_buffer_read(&sock->read_buf, buf, buf_len, bytes_read,
+        os_error);
 }
 
 lmqtt_io_result_t test_socket_write(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written)
+    size_t *bytes_written, int *os_error)
 {
     test_socket_t *sock = (test_socket_t *) data;
-    return test_buffer_write(&sock->write_buf, buf, buf_len, bytes_written);
+    return test_buffer_write(&sock->write_buf, buf, buf_len, bytes_written,
+        os_error);
 }
 
 void test_socket_init(test_socket_t *socket)

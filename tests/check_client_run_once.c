@@ -11,14 +11,14 @@ static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
 static lmqtt_io_result_t test_read_blocked(void *data, void *buf,
-    size_t buf_len, size_t *bytes_read)
+    size_t buf_len, size_t *bytes_read, int *os_error)
 {
     *bytes_read = 0;
     return LMQTT_IO_WOULD_BLOCK;
 }
 
 static lmqtt_io_result_t test_read_fail(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read)
+    size_t *bytes_read, int *os_error)
 {
     *bytes_read = 0;
     return LMQTT_IO_ERROR;

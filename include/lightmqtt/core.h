@@ -17,8 +17,10 @@ typedef enum {
     LMQTT_IO_ERROR
 } lmqtt_io_result_t;
 
-typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *);
-typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, size_t, size_t *);
+typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *,
+    int *);
+typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, size_t, size_t *,
+    int *);
 
 #ifdef  __cplusplus
 }

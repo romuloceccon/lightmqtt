@@ -82,7 +82,7 @@ lmqtt_io_result_t lmqtt_tx_buffer_encode_mock(lmqtt_tx_buffer_t *state,
 }
 
 static lmqtt_io_result_t read_test_buf_fail(void *data, void *buf,
-    size_t buf_len, size_t *bytes_read)
+    size_t buf_len, size_t *bytes_read, int *os_error)
 {
     test_buffer_t *source = (test_buffer_t *) data;
     source->call_count += 1;

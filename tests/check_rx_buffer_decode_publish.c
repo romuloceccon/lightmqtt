@@ -64,7 +64,7 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
 }
 
 static lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
-    size_t *bytes_w)
+    size_t *bytes_w, int *os_error)
 {
     lmqtt_string_t *str = data;
     if (str->internal.pos >= 1) {

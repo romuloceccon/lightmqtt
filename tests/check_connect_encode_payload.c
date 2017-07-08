@@ -24,7 +24,7 @@
     value.value = &connect
 
 static lmqtt_io_result_t string_read(void *data, void *buf, size_t buf_len,
-    size_t *bytes_written)
+    size_t *bytes_written, int *os_error)
 {
     test_buffer_t *test_buffer = (test_buffer_t *) data;
     size_t count = test_buffer->available_len - test_buffer->pos;
@@ -40,14 +40,14 @@ static lmqtt_io_result_t string_read(void *data, void *buf, size_t buf_len,
 }
 
 static lmqtt_io_result_t string_read_fail_again(void *data, void *buf,
-    size_t buf_len, size_t *bytes_written)
+    size_t buf_len, size_t *bytes_written, int *os_error)
 {
     *bytes_written = 1;
     return LMQTT_IO_WOULD_BLOCK;
 }
 
 static lmqtt_io_result_t string_read_fail_error(void *data, void *buf,
-    size_t buf_len, size_t *bytes_written)
+    size_t buf_len, size_t *bytes_written, int *os_error)
 {
     *bytes_written = 1;
     return LMQTT_IO_ERROR;
