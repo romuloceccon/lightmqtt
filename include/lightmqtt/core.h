@@ -17,6 +17,13 @@ typedef enum {
     LMQTT_IO_ERROR
 } lmqtt_io_result_t;
 
+typedef enum {
+    /* bug in encoding function */
+    LMQTT_ERROR_ENCODE_INTERNAL = 1,
+    /* OS error reading string to build outgoing packet */
+    LMQTT_ERROR_ENCODE_STRING
+} lmqtt_error_t;
+
 typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *,
     int *);
 typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, size_t, size_t *,

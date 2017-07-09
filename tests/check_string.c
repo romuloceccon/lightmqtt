@@ -25,12 +25,6 @@ lmqtt_io_result_t test_write(void *data, void *buf, size_t len, size_t *bytes_w,
     return *bytes_w > 0 || len == 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_WOULD_BLOCK;
 }
 
-lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
-    size_t *bytes_w, int *os_error)
-{
-    return LMQTT_IO_ERROR;
-}
-
 START_TEST(should_put_chars)
 {
     char buf[3];
@@ -171,7 +165,7 @@ START_TEST(should_put_chars_with_decode_error)
     size_t cnt;
 
     memset(&str, 0, sizeof(str));
-    str.write = &test_write_fail;
+    str.write = &test_buffer_io_fail;
     str.len = 2;
 
     res = string_put(&str, (unsigned char *) "a", 1, &cnt, &blk);
@@ -228,16 +222,17 @@ START_TEST(should_encode_non_empty_string_on_zero_length_buffer)
 {
     char *buf = "test";
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
+    lmqtt_encode_buffer_t enc_buf;
     int res;
     size_t bytes_w = (size_t) -1;
 
     memset(&str, 0, sizeof(str));
+    memset(&enc_buf, 0, sizeof(enc_buf));
     str.buf = buf;
     str.len = strlen(buf);
 
     res = string_encode(&str, 1, 1, 0, (unsigned char *) buf, 0, &bytes_w,
-        &blk);
+        &enc_buf);
     ck_assert_int_eq(LMQTT_ENCODE_CONTINUE, res);
     ck_assert_int_eq(0, bytes_w);
 }
@@ -247,18 +242,63 @@ START_TEST(should_encode_empty_string_on_zero_length_buffer)
 {
     char *buf = "";
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
+    lmqtt_encode_buffer_t enc_buf;
     int res;
     size_t bytes_w = (size_t) -1;
 
     memset(&str, 0, sizeof(str));
+    memset(&enc_buf, 0, sizeof(enc_buf));
     str.buf = buf;
     str.len = 0;
 
     res = string_encode(&str, 0, 0, 0, (unsigned char *) buf, 0, &bytes_w,
-        &blk);
+        &enc_buf);
     ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
     ck_assert_int_eq(0, bytes_w);
+}
+END_TEST
+
+START_TEST(should_encode_string_with_blocking_read)
+{
+    unsigned char buf[64];
+    test_buffer_t test_buf;
+    lmqtt_string_t str;
+    lmqtt_encode_buffer_t enc_buf;
+    int res;
+    size_t bytes_w = (size_t) -1;
+
+    memset(&test_buf, 0, sizeof(test_buf));
+    memset(&str, 0, sizeof(str));
+    memset(&enc_buf, 0, sizeof(enc_buf));
+    str.data = &test_buf;
+    str.read = &test_buffer_read;
+    str.len = 10;
+    test_buf.len = str.len;
+
+    res = string_encode(&str, 0, 0, 0, buf, sizeof(buf), &bytes_w, &enc_buf);
+    ck_assert_int_eq(LMQTT_ENCODE_WOULD_BLOCK, res);
+    ck_assert_int_eq(0, bytes_w);
+    ck_assert_ptr_eq(&str, enc_buf.blocking_str);
+}
+END_TEST
+
+START_TEST(should_encode_string_with_read_error)
+{
+    unsigned char buf[64];
+    lmqtt_string_t str;
+    lmqtt_encode_buffer_t enc_buf;
+    int res;
+    size_t bytes_w = (size_t) -1;
+
+    memset(&str, 0, sizeof(str));
+    memset(&enc_buf, 0, sizeof(enc_buf));
+    str.read = &test_buffer_io_fail;
+    str.len = 10;
+
+    res = string_encode(&str, 0, 0, 0, buf, sizeof(buf), &bytes_w, &enc_buf);
+    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_ERROR_ENCODE_STRING, enc_buf.error);
+    ck_assert_int_eq(1, enc_buf.os_error);
 }
 END_TEST
 
@@ -274,5 +314,7 @@ START_TCASE("String")
     ADD_TEST(should_not_overflow_buffer_with_multiple_chars);
     ADD_TEST(should_encode_non_empty_string_on_zero_length_buffer);
     ADD_TEST(should_encode_empty_string_on_zero_length_buffer);
+    ADD_TEST(should_encode_string_with_blocking_read);
+    ADD_TEST(should_encode_string_with_read_error);
 }
 END_TCASE

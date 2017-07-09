@@ -33,6 +33,14 @@ lmqtt_io_result_t test_buffer_write(void *data, void *buf, size_t buf_len,
         buf, buf_len, bytes_written);
 }
 
+lmqtt_io_result_t test_buffer_io_fail(void *data, void *buf, size_t buf_len,
+    size_t *byte_cnt, int *os_error)
+{
+    *byte_cnt = 0;
+    *os_error = 1;
+    return LMQTT_IO_ERROR;
+}
+
 static lmqtt_time_t test_time;
 
 lmqtt_io_result_t test_time_get(long *secs, long *nsecs)

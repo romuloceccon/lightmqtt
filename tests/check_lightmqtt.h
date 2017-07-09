@@ -85,6 +85,8 @@ lmqtt_io_result_t test_buffer_read(void *data, void *buf, size_t buf_len,
     size_t *bytes_read, int *os_error);
 lmqtt_io_result_t test_buffer_write(void *data, void *buf, size_t buf_len,
     size_t *bytes_written, int *os_error);
+lmqtt_io_result_t test_buffer_io_fail(void *data, void *buf, size_t buf_len,
+    size_t *byte_cnt, int *os_error);
 
 lmqtt_io_result_t test_time_get(long *secs, long *nsecs);
 void test_time_set(long secs, long nsecs);
@@ -113,7 +115,7 @@ lmqtt_encode_result_t encode_buffer_encode(
 
 lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
     int encode_if_empty, size_t offset, unsigned char *buf, size_t buf_len,
-    size_t *bytes_written, lmqtt_string_t **blocking_str);
+    size_t *bytes_written, lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_decode_result_t string_put(lmqtt_string_t *str, unsigned char *buf,
     size_t buf_len, size_t *bytes_written, lmqtt_string_t **blocking_str);

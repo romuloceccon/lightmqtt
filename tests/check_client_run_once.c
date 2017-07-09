@@ -17,13 +17,6 @@ static lmqtt_io_result_t test_read_blocked(void *data, void *buf,
     return LMQTT_IO_WOULD_BLOCK;
 }
 
-static lmqtt_io_result_t test_read_fail(void *data, void *buf, size_t buf_len,
-    size_t *bytes_read, int *os_error)
-{
-    *bytes_read = 0;
-    return LMQTT_IO_ERROR;
-}
-
 static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     int *connected = (int *) data;
@@ -263,7 +256,7 @@ START_TEST(should_run_with_read_error)
     memset(&connect, 0, sizeof(connect));
     connect.clean_session = 1;
     connect.client_id.len = 10;
-    connect.client_id.read = test_read_fail;
+    connect.client_id.read = &test_buffer_io_fail;
 
     lmqtt_client_connect(&client, &connect);
 

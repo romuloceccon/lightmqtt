@@ -80,6 +80,8 @@ typedef struct _lmqtt_encode_buffer_t {
     size_t buf_len;
     unsigned char buf[16];
     lmqtt_string_t *blocking_str;
+    lmqtt_error_t error;
+    int os_error;
 } lmqtt_encode_buffer_t;
 
 typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(lmqtt_store_value_t *,
@@ -149,7 +151,8 @@ typedef struct _lmqtt_tx_buffer_t {
         int pos;
         size_t offset;
         lmqtt_encode_buffer_t buffer;
-        int failed;
+        lmqtt_error_t error;
+        int os_error;
     } internal;
 } lmqtt_tx_buffer_t;
 
@@ -224,6 +227,8 @@ int lmqtt_publish_validate(lmqtt_publish_t *publish);
 
 void lmqtt_tx_buffer_reset(lmqtt_tx_buffer_t *state);
 void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state);
+lmqtt_error_t lmqtt_tx_buffer_get_error(lmqtt_tx_buffer_t *state,
+    int *os_error);
 lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(lmqtt_tx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_written);

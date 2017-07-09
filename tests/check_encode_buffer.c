@@ -133,6 +133,7 @@ START_TEST(should_handle_build_failure)
 
     ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
     ck_assert_int_eq(0, bytes_w);
+    ck_assert_int_eq(LMQTT_ERROR_ENCODE_INTERNAL, encode_buffer.error);
 }
 END_TEST
 
