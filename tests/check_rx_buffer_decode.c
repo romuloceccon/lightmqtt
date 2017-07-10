@@ -155,6 +155,8 @@ END_TEST
 
 START_TEST(should_decode_rx_buffer_with_invalid_header)
 {
+    lmqtt_error_t error;
+    int os_error = 0xcccc;
     PREPARE;
 
     buf[1] = 2;
@@ -168,6 +170,10 @@ START_TEST(should_decode_rx_buffer_with_invalid_header)
     ck_assert_int_eq(0, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].pos);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_TYPE, error);
+    ck_assert_int_eq(0, os_error);
 }
 END_TEST
 

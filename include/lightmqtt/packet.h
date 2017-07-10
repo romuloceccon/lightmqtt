@@ -93,9 +93,9 @@ typedef struct _lmqtt_fixed_header_t {
     unsigned char qos;
     unsigned char retain;
     long remaining_length;
+    lmqtt_error_t error;
     struct {
         size_t bytes_read;
-        int failed;
         long remain_len_multiplier;
         long remain_len_accumulator;
         long remain_len_finished;
@@ -212,7 +212,8 @@ typedef struct _lmqtt_rx_buffer_t {
         lmqtt_publish_t publish;
         int ignore_publish;
         lmqtt_string_t *blocking_str;
-        int failed;
+        lmqtt_error_t error;
+        int os_error;
     } internal;
 } lmqtt_rx_buffer_t;
 
@@ -235,6 +236,8 @@ extern lmqtt_io_result_t (*lmqtt_tx_buffer_encode)(lmqtt_tx_buffer_t *state,
 
 void lmqtt_rx_buffer_reset(lmqtt_rx_buffer_t *state);
 void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state);
+lmqtt_error_t lmqtt_rx_buffer_get_error(lmqtt_rx_buffer_t *state,
+    int *os_error);
 lmqtt_string_t *lmqtt_rx_buffer_get_blocking_str(lmqtt_rx_buffer_t *state);
 extern lmqtt_io_result_t (*lmqtt_rx_buffer_decode)(lmqtt_rx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_read);

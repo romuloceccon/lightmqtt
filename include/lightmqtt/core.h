@@ -21,7 +21,22 @@ typedef enum {
     /* bug in encoding function */
     LMQTT_ERROR_ENCODE_INTERNAL = 1,
     /* OS error reading string to build outgoing packet */
-    LMQTT_ERROR_ENCODE_STRING
+    LMQTT_ERROR_ENCODE_STRING,
+    /* invalid upper nibble in fixed header of incoming packet */
+    LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_TYPE,
+    /* invalid lower nibble in fixed header of incoming packet */
+    LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_FLAGS,
+    /* invalid remaining length value */
+    LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_REMAINING_LENGTH,
+    LMQTT_ERROR_DECODE_CONNACK_INVALID_ACKNOWLEDGE_FLAGS,
+    LMQTT_ERROR_DECODE_CONNACK_INVALID_RETURN_CODE,
+    LMQTT_ERROR_DECODE_CONNACK_INVALID_LENGTH,
+    LMQTT_ERROR_DECODE_PUBLISH_INVALID_LENGTH,
+    LMQTT_ERROR_DECODE_PUBLISH_ID_SET_FULL,
+    LMQTT_ERROR_DECODE_PUBLISH_ALLOCATE_TOPIC_FAILED,
+    LMQTT_ERROR_DECODE_PUBLISH_ALLOCATE_PAYLOAD_FAILED,
+    LMQTT_ERROR_DECODE_PUBLISH_WRITE_TOPIC_FAILED,
+    LMQTT_ERROR_DECODE_PUBLISH_WRITE_PAYLOAD_FAILED
 } lmqtt_error_t;
 
 typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *,

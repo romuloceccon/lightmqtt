@@ -1,5 +1,19 @@
 #include "check_lightmqtt.h"
 
+START_TEST(should_decode_fixed_header_invalid_packet_type)
+{
+    int res;
+    lmqtt_fixed_header_t header;
+    memset(&header, 0, sizeof(header));
+
+    res = fixed_header_decode(&header, 0x00);
+
+    ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_TYPE,
+        header.error);
+}
+END_TEST
+
 START_TEST(should_decode_fixed_header_valid_connack)
 {
     int res;
@@ -22,6 +36,8 @@ START_TEST(should_decode_fixed_header_invalid_connack)
     res = fixed_header_decode(&header, 0x21);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_FLAGS,
+        header.error);
 }
 END_TEST
 
@@ -110,6 +126,8 @@ START_TEST(should_decode_fixed_header_invalid_fourth_byte)
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(0, header.remaining_length);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_REMAINING_LENGTH,
+        header.error);
 }
 END_TEST
 
@@ -178,6 +196,7 @@ END_TEST
 
 START_TCASE("Decode fixed header")
 {
+    ADD_TEST(should_decode_fixed_header_invalid_packet_type);
     ADD_TEST(should_decode_fixed_header_valid_connack);
     ADD_TEST(should_decode_fixed_header_invalid_connack);
     ADD_TEST(should_decode_fixed_header_pubrel);

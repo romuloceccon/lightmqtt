@@ -2,6 +2,8 @@
 
 #define PREPARE \
     int res; \
+    lmqtt_error_t error; \
+    int os_error = 0xcccc; \
     lmqtt_rx_buffer_t state; \
     lmqtt_connect_t connect; \
     memset(&state, 0, sizeof(state)); \
@@ -19,6 +21,8 @@
         bytes.bytes_written = &cnt; \
         res = rx_buffer_decode_connack(&state, &bytes); \
         ck_assert_uint_eq((exp_cnt), cnt); \
+        if (res == LMQTT_DECODE_ERROR) \
+            error = lmqtt_rx_buffer_get_error(&state, &os_error); \
     } while(0)
 
 #define DECODE_CONNACK_OK(b) DECODE_CONNACK((b), 1)
@@ -43,6 +47,9 @@ START_TEST(should_decode_connack_invalid_first_byte)
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(0, connect.response.session_present);
+
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_CONNACK_INVALID_ACKNOWLEDGE_FLAGS,
+        error);
 }
 END_TEST
 
@@ -71,6 +78,8 @@ START_TEST(should_decode_connack_invalid_second_byte)
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(1, connect.response.session_present);
     ck_assert_int_eq(0, connect.response.return_code);
+
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_CONNACK_INVALID_RETURN_CODE, error);
 }
 END_TEST
 
@@ -85,6 +94,7 @@ START_TEST(should_not_decode_third_byte)
     DECODE_CONNACK_ERR(0);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_CONNACK_INVALID_LENGTH, error);
 }
 END_TEST
 
