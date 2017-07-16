@@ -70,18 +70,6 @@ START_TEST(should_encode_fixed_header_with_large_payload)
 }
 END_TEST
 
-START_TEST(should_not_encode_fixed_header_with_invalid_payload_length)
-{
-    PREPARE;
-    INIT_TOPIC("x");
-
-    publish.payload.len = 268435455 - 5 + 1;
-
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
-}
-END_TEST
-
 START_TEST(should_encode_retain_flag)
 {
     PREPARE;
@@ -204,7 +192,6 @@ START_TCASE("Publish encode")
     ADD_TEST(should_encode_fixed_header_with_empty_payload_and_qos_0);
     ADD_TEST(should_encode_fixed_header_with_empty_payload_and_qos_2);
     ADD_TEST(should_encode_fixed_header_with_large_payload);
-    ADD_TEST(should_not_encode_fixed_header_with_invalid_payload_length);
     ADD_TEST(should_encode_retain_flag);
     ADD_TEST(should_encode_qos);
     ADD_TEST(should_encode_dup);

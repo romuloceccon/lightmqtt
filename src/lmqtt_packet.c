@@ -26,23 +26,20 @@
  ******************************************************************************/
 
 /* caller must guarantee buf is at least 4-bytes long! */
-LMQTT_STATIC lmqtt_encode_result_t encode_remaining_length(long len,
-    unsigned char *buf, size_t *bytes_written)
+LMQTT_STATIC size_t encode_remaining_length(long len, unsigned char *buf)
 {
-    size_t pos;
+    size_t result;
 
-    if (len < 0 || len > 0x0fffffff)
-        return LMQTT_ENCODE_ERROR;
+    assert(len >= 0 && len <= 0x0fffffff);
 
-    pos = 0;
+    result = 0;
     do {
         unsigned char b = len % 128;
         len /= 128;
-        buf[pos++] = len > 0 ? b | 0x80 : b;
+        buf[result++] = len > 0 ? b | 0x80 : b;
     } while (len > 0);
 
-    *bytes_written = pos;
-    return LMQTT_ENCODE_FINISHED;
+    return result;
 }
 
 LMQTT_STATIC int kind_expects_response(lmqtt_kind_t kind)
@@ -150,15 +147,12 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
     lmqtt_encode_buffer_t *encode_buffer, int type, long remaining_length,
     lmqtt_packet_id_t packet_id)
 {
-    int res, i;
+    int i;
     size_t v;
 
     assert(sizeof(encode_buffer->buf) >= 5);
 
-    res = encode_remaining_length(remaining_length, encode_buffer->buf + 1, &v);
-    if (res != LMQTT_ENCODE_FINISHED)
-        return LMQTT_ENCODE_ERROR;
-
+    v = encode_remaining_length(remaining_length, encode_buffer->buf + 1);
     assert(sizeof(encode_buffer->buf) >= v + LMQTT_PACKET_ID_SIZE + 1);
 
     encode_buffer->buf[0] = type;
@@ -402,15 +396,12 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
 {
     size_t remain_len_size;
-    int res;
     lmqtt_connect_t *connect = value->value;
 
     assert(sizeof(encode_buffer->buf) >= LMQTT_REMAINING_LENGTH_MAX_SIZE + 1);
 
-    res = encode_remaining_length(connect_calc_remaining_length(connect),
-        encode_buffer->buf + 1, &remain_len_size);
-    if (res != LMQTT_ENCODE_FINISHED)
-        return LMQTT_ENCODE_ERROR;
+    remain_len_size = encode_remaining_length(
+        connect_calc_remaining_length(connect), encode_buffer->buf + 1);
 
     encode_buffer->buf[0] = LMQTT_TYPE_CONNECT << 4;
     encode_buffer->buf_len = 1 + remain_len_size;
@@ -663,15 +654,16 @@ LMQTT_STATIC long publish_calc_remaining_length(lmqtt_publish_t *publish)
 LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
 {
-    int res, i;
+    int i;
     size_t v;
     unsigned char type;
     lmqtt_publish_t *publish = value->value;
 
-    res = encode_remaining_length(publish_calc_remaining_length(publish),
-        encode_buffer->buf + 1, &v);
-    if (res != LMQTT_ENCODE_FINISHED)
-        return LMQTT_ENCODE_ERROR;
+    /* lmqtt_client_t is supposed to validate packet length */
+    assert(lmqtt_publish_validate(publish));
+
+    v = encode_remaining_length(publish_calc_remaining_length(publish),
+        encode_buffer->buf + 1);
 
     type = LMQTT_TYPE_PUBLISH << 4;
     type |= publish->retain ? 0x01 : 0x00;

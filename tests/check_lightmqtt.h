@@ -105,8 +105,7 @@ int test_socket_shift(test_socket_t *socket);
  * private functions which will be tested
  */
 
-lmqtt_encode_result_t encode_remaining_length(int len, unsigned char *buf,
-    size_t *bytes_written);
+size_t encode_remaining_length(int len, unsigned char *buf);
 
 lmqtt_encode_result_t encode_buffer_encode(
     lmqtt_encode_buffer_t *encode_buffer, lmqtt_store_value_t *value,
