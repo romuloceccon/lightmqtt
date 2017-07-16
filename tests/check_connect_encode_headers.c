@@ -41,9 +41,7 @@ START_TEST(should_encode_connect_fixed_header_with_single_byte_remaining_len)
 {
     PREPARE;
 
-    res = connect_build_fixed_header(&value, &encode_buffer);
-
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    connect_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(2,    encode_buffer.buf_len);
     ck_assert_uint_eq(0x10, encode_buffer.buf[0]);
@@ -59,9 +57,7 @@ START_TEST(should_encode_connect_fixed_header_with_two_byte_remaining_len)
     connect.client_id.buf = client_id;
     connect.client_id.len = 256;
 
-    res = connect_build_fixed_header(&value, &encode_buffer);
-
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    connect_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(3,    encode_buffer.buf_len);
     ck_assert_uint_eq(0x10, encode_buffer.buf[0]);
@@ -75,9 +71,7 @@ START_TEST(should_encode_connect_variable_header)
 {
     PREPARE;
 
-    res = connect_build_variable_header(&value, &encode_buffer);
-
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    connect_build_variable_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(0x00, encode_buffer.buf[0]);
     ck_assert_uint_eq(0x04, encode_buffer.buf[1]);

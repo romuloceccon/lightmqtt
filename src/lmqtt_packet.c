@@ -117,11 +117,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode(
     assert(buf_len >= 0);
 
     if (!encode_buffer->encoded) {
-        if (builder(value, encode_buffer) != LMQTT_ENCODE_FINISHED) {
-            *bytes_written = 0;
-            encode_buffer->error = LMQTT_ERROR_ENCODE_INTERNAL;
-            return LMQTT_ENCODE_ERROR;
-        }
+        builder(value, encode_buffer);
         encode_buffer->encoded = 1;
     }
     assert(encode_buffer->buf_len > 0 && offset < encode_buffer->buf_len);
@@ -143,7 +139,7 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode(
     return result;
 }
 
-LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
+LMQTT_STATIC void encode_buffer_encode_packet_id(
     lmqtt_encode_buffer_t *encode_buffer, int type, long remaining_length,
     lmqtt_packet_id_t packet_id)
 {
@@ -161,7 +157,6 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
             LMQTT_PACKET_ID_SIZE - i - 1);
 
     encode_buffer->buf_len = v + LMQTT_PACKET_ID_SIZE + 1;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 /******************************************************************************
@@ -392,8 +387,8 @@ LMQTT_STATIC long connect_calc_remaining_length(lmqtt_connect_t *connect)
         string_calc_field_length(&connect->password);
  }
 
-LMQTT_STATIC lmqtt_encode_result_t connect_build_fixed_header(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
+LMQTT_STATIC void connect_build_fixed_header(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
     size_t remain_len_size;
     lmqtt_connect_t *connect = value->value;
@@ -405,7 +400,6 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_fixed_header(
 
     encode_buffer->buf[0] = LMQTT_TYPE_CONNECT << 4;
     encode_buffer->buf_len = 1 + remain_len_size;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_fixed_header(
@@ -416,8 +410,8 @@ LMQTT_STATIC lmqtt_encode_result_t connect_encode_fixed_header(
         connect_build_fixed_header, offset, buf, buf_len, bytes_written);
 }
 
-LMQTT_STATIC lmqtt_encode_result_t connect_build_variable_header(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
+LMQTT_STATIC void connect_build_variable_header(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
     unsigned char flags;
     lmqtt_connect_t *connect = value->value;
@@ -442,7 +436,6 @@ LMQTT_STATIC lmqtt_encode_result_t connect_build_variable_header(
     encode_buffer->buf[8] = STRING_LEN_BYTE(connect->keep_alive, 1);
     encode_buffer->buf[9] = STRING_LEN_BYTE(connect->keep_alive, 0);
     encode_buffer->buf_len = 10;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t connect_encode_variable_header(
@@ -551,12 +544,12 @@ LMQTT_STATIC long subscribe_calc_remaining_length(lmqtt_subscribe_t *subscribe,
     return result;
 }
 
-LMQTT_STATIC lmqtt_encode_result_t subscribe_build_header_subscribe(
+LMQTT_STATIC void subscribe_build_header_subscribe(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
 {
     lmqtt_subscribe_t *subscribe = value->value;
 
-    return encode_buffer_encode_packet_id(
+    encode_buffer_encode_packet_id(
         encode_buffer, (LMQTT_TYPE_SUBSCRIBE << 4) | 0x02,
         subscribe_calc_remaining_length(subscribe, 1), value->packet_id);
 }
@@ -569,12 +562,12 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_header_subscribe(
         &subscribe_build_header_subscribe, offset, buf, buf_len, bytes_written);
 }
 
-LMQTT_STATIC lmqtt_encode_result_t subscribe_build_header_unsubscribe(
+LMQTT_STATIC void subscribe_build_header_unsubscribe(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
 {
     lmqtt_subscribe_t *subscribe = value->value;
 
-    return encode_buffer_encode_packet_id(
+    encode_buffer_encode_packet_id(
         encode_buffer, (LMQTT_TYPE_UNSUBSCRIBE << 4) | 0x02,
         subscribe_calc_remaining_length(subscribe, 0), value->packet_id);
 }
@@ -598,15 +591,14 @@ LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_topic(
         buf_len, bytes_written, encode_buffer);
 }
 
-LMQTT_STATIC lmqtt_encode_result_t subscribe_build_qos(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
+LMQTT_STATIC void subscribe_build_qos(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
     lmqtt_subscribe_t *subscribe = value->value;
 
     encode_buffer->buf[0] = LMQTT_QOS_TO_SUBSCRIBE_REQUESTED_QOS(
         subscribe->internal.current->requested_qos);
     encode_buffer->buf_len = 1;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t subscribe_encode_qos(
@@ -651,8 +643,8 @@ LMQTT_STATIC long publish_calc_remaining_length(lmqtt_publish_t *publish)
         (long) publish->payload.len;
 }
 
-LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
+LMQTT_STATIC void publish_build_fixed_header(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
     int i;
     size_t v;
@@ -671,7 +663,6 @@ LMQTT_STATIC lmqtt_encode_result_t publish_build_fixed_header(
     type |= publish->internal.encode_count > 0 ? 0x08 : 0x00;
     encode_buffer->buf[0] = type;
     encode_buffer->buf_len = 1 + v;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t publish_encode_fixed_header(
@@ -692,8 +683,8 @@ LMQTT_STATIC lmqtt_encode_result_t publish_encode_topic(
         bytes_written, encode_buffer);
 }
 
-LMQTT_STATIC lmqtt_encode_result_t publish_build_packet_id(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
+LMQTT_STATIC void publish_build_packet_id(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
     int i;
     lmqtt_publish_t *publish = value->value;
@@ -703,7 +694,6 @@ LMQTT_STATIC lmqtt_encode_result_t publish_build_packet_id(
             LMQTT_PACKET_ID_SIZE - i - 1);
 
     encode_buffer->buf_len = LMQTT_PACKET_ID_SIZE;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t publish_encode_packet_id(
@@ -738,10 +728,10 @@ int lmqtt_publish_validate(lmqtt_publish_t *publish)
  * (puback) PUBLIC functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_encode_result_t puback_build(lmqtt_store_value_t *value,
+LMQTT_STATIC void puback_build(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer)
 {
-    return encode_buffer_encode_packet_id(encode_buffer,
+    encode_buffer_encode_packet_id(encode_buffer,
         LMQTT_TYPE_PUBACK << 4, LMQTT_PACKET_ID_SIZE, value->packet_id);
 }
 
@@ -757,10 +747,10 @@ LMQTT_STATIC lmqtt_encode_result_t puback_encode_fixed_header(
  * (pubrec) PUBLIC functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_encode_result_t pubrec_build(lmqtt_store_value_t *value,
+LMQTT_STATIC void pubrec_build(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer)
 {
-    return encode_buffer_encode_packet_id(encode_buffer,
+    encode_buffer_encode_packet_id(encode_buffer,
         LMQTT_TYPE_PUBREC << 4, LMQTT_PACKET_ID_SIZE, value->packet_id);
 }
 
@@ -776,11 +766,11 @@ LMQTT_STATIC lmqtt_encode_result_t pubrec_encode_fixed_header(
  * (pubrel) PUBLIC functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_encode_result_t pubrel_build(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer)
+LMQTT_STATIC void pubrel_build(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer)
 {
-    return encode_buffer_encode_packet_id(encode_buffer, (LMQTT_TYPE_PUBREL <<
-        4) | 0x02, LMQTT_PACKET_ID_SIZE, value->packet_id);
+    encode_buffer_encode_packet_id(encode_buffer, (LMQTT_TYPE_PUBREL << 4) |
+        0x02, LMQTT_PACKET_ID_SIZE, value->packet_id);
 }
 
 LMQTT_STATIC lmqtt_encode_result_t pubrel_encode_fixed_header(
@@ -795,11 +785,11 @@ LMQTT_STATIC lmqtt_encode_result_t pubrel_encode_fixed_header(
  * (pubcomp) PUBLIC functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_encode_result_t pubcomp_build(lmqtt_store_value_t *value,
+LMQTT_STATIC void pubcomp_build(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer)
 {
-    return encode_buffer_encode_packet_id(encode_buffer,
-        LMQTT_TYPE_PUBCOMP << 4, LMQTT_PACKET_ID_SIZE, value->packet_id);
+    encode_buffer_encode_packet_id(encode_buffer, LMQTT_TYPE_PUBCOMP << 4,
+        LMQTT_PACKET_ID_SIZE, value->packet_id);
 }
 
 LMQTT_STATIC lmqtt_encode_result_t pubcomp_encode_fixed_header(
@@ -814,7 +804,7 @@ LMQTT_STATIC lmqtt_encode_result_t pubcomp_encode_fixed_header(
  * (pingreq) PUBLIC functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_encode_result_t pingreq_build(lmqtt_store_value_t *value,
+LMQTT_STATIC void pingreq_build(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer)
 {
     assert(sizeof(encode_buffer->buf) >= 2);
@@ -822,7 +812,6 @@ LMQTT_STATIC lmqtt_encode_result_t pingreq_build(lmqtt_store_value_t *value,
     encode_buffer->buf[0] = LMQTT_TYPE_PINGREQ << 4;
     encode_buffer->buf[1] = 0;
     encode_buffer->buf_len = 2;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t pingreq_encode_fixed_header(
@@ -837,7 +826,7 @@ LMQTT_STATIC lmqtt_encode_result_t pingreq_encode_fixed_header(
  * (disconnect) PUBLIC functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_encode_result_t disconnect_build(lmqtt_store_value_t *value,
+LMQTT_STATIC void disconnect_build(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer)
 {
     assert(sizeof(encode_buffer->buf) >= 2);
@@ -845,7 +834,6 @@ LMQTT_STATIC lmqtt_encode_result_t disconnect_build(lmqtt_store_value_t *value,
     encode_buffer->buf[0] = LMQTT_TYPE_DISCONNECT << 4;
     encode_buffer->buf[1] = 0;
     encode_buffer->buf_len = 2;
-    return LMQTT_ENCODE_FINISHED;
 }
 
 LMQTT_STATIC lmqtt_encode_result_t disconnect_encode_fixed_header(

@@ -27,8 +27,7 @@ START_TEST(should_encode_fixed_header_with_empty_payload_and_qos_0)
     INIT_TOPIC("x");
     publish.qos = LMQTT_QOS_0;
 
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    publish_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(2,    encode_buffer.buf_len);
     ck_assert_uint_eq(0x30, encode_buffer.buf[0]);
@@ -42,8 +41,7 @@ START_TEST(should_encode_fixed_header_with_empty_payload_and_qos_2)
     INIT_TOPIC("x");
     publish.qos = LMQTT_QOS_2;
 
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    publish_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(2,    encode_buffer.buf_len);
     ck_assert_uint_eq(0x34, encode_buffer.buf[0]);
@@ -58,8 +56,7 @@ START_TEST(should_encode_fixed_header_with_large_payload)
 
     publish.payload.len = 2097152 - 5;
 
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    publish_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(5,    encode_buffer.buf_len);
     ck_assert_uint_eq(0x32, encode_buffer.buf[0]);
@@ -77,8 +74,7 @@ START_TEST(should_encode_retain_flag)
 
     publish.retain = 1;
 
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    publish_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(0x33, encode_buffer.buf[0]);
 }
@@ -91,8 +87,7 @@ START_TEST(should_encode_qos)
 
     publish.qos = LMQTT_QOS_2;
 
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    publish_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(0x34, encode_buffer.buf[0]);
 }
@@ -105,8 +100,7 @@ START_TEST(should_encode_dup)
 
     publish.internal.encode_count++;
 
-    res = publish_build_fixed_header(&value, &encode_buffer);
-    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    publish_build_fixed_header(&value, &encode_buffer);
 
     ck_assert_uint_eq(0x3a, encode_buffer.buf[0]);
 }

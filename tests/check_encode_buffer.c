@@ -12,7 +12,7 @@
     memset(&value, 0, sizeof(value)); \
     value.value = &cnt
 
-static lmqtt_encode_result_t test_builder(lmqtt_store_value_t *value,
+static void test_builder(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer)
 {
     int i;
@@ -21,14 +21,6 @@ static lmqtt_encode_result_t test_builder(lmqtt_store_value_t *value,
     for (i = 0; i < cnt; i++)
         encode_buffer->buf[i] = i + 1;
     encode_buffer->buf_len = cnt;
-
-    return LMQTT_ENCODE_FINISHED;
-}
-
-static lmqtt_encode_result_t test_builder_failure(lmqtt_store_value_t *value,
-    lmqtt_encode_buffer_t *encode_buffer)
-{
-    return LMQTT_ENCODE_ERROR;
 }
 
 START_TEST(should_encode_with_sufficient_buffer)
@@ -124,19 +116,6 @@ START_TEST(should_not_build_twice)
 }
 END_TEST
 
-START_TEST(should_handle_build_failure)
-{
-    PREPARE;
-
-    res = encode_buffer_encode(&encode_buffer, &value, test_builder_failure, 0,
-        buf, sizeof(buf), &bytes_w);
-
-    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
-    ck_assert_int_eq(0, bytes_w);
-    ck_assert_int_eq(LMQTT_ERROR_ENCODE_INTERNAL, encode_buffer.error);
-}
-END_TEST
-
 START_TCASE("Encode buffer")
 {
     ADD_TEST(should_encode_with_sufficient_buffer);
@@ -144,6 +123,5 @@ START_TCASE("Encode buffer")
     ADD_TEST(should_encode_with_insufficient_buffer);
     ADD_TEST(should_encode_at_zero_length_buffer);
     ADD_TEST(should_not_build_twice);
-    ADD_TEST(should_handle_build_failure);
 }
 END_TCASE

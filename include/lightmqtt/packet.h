@@ -91,7 +91,7 @@ typedef struct _lmqtt_encode_buffer_t {
     int os_error;
 } lmqtt_encode_buffer_t;
 
-typedef lmqtt_encode_result_t (*encode_buffer_builder_t)(lmqtt_store_value_t *,
+typedef void (*encode_buffer_builder_t)(lmqtt_store_value_t *,
     lmqtt_encode_buffer_t *);
 
 typedef struct _lmqtt_fixed_header_t {

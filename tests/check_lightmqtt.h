@@ -128,15 +128,15 @@ lmqtt_decode_result_t string_put(lmqtt_string_t *str, unsigned char *buf,
 lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header,
     unsigned char b);
 
-lmqtt_encode_result_t connect_build_fixed_header(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
+void connect_build_fixed_header(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_encode_result_t connect_encode_fixed_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
     size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written);
 
-lmqtt_encode_result_t connect_build_variable_header(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
+void connect_build_variable_header(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_encode_result_t connect_encode_variable_header(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
@@ -150,8 +150,8 @@ lmqtt_encode_result_t connect_encode_payload_user_name(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
     size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written);
 
-lmqtt_encode_result_t publish_build_fixed_header(
-    lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer);
+void publish_build_fixed_header(lmqtt_store_value_t *value,
+    lmqtt_encode_buffer_t *encode_buffer);
 
 lmqtt_encode_result_t publish_encode_topic(
     lmqtt_store_value_t *value, lmqtt_encode_buffer_t *encode_buffer,
