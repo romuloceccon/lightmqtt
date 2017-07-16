@@ -1,37 +1,12 @@
 #include "check_lightmqtt.h"
 
-typedef struct {
-    unsigned char buf[10];
-    size_t len;
-    size_t pos;
-} test_write_buffer_t;
-
-lmqtt_io_result_t test_write(void *data, void *buf, size_t len, size_t *bytes_w,
-    int *os_error)
-{
-    test_write_buffer_t *buffer = data;
-    unsigned char *buf_c = buf;
-    int i;
-
-    *bytes_w = 0;
-
-    for (i = 0; i < len; i++) {
-        if (buffer->pos >= buffer->len)
-            break;
-        buffer->buf[buffer->pos++] = buf_c[i];
-        *bytes_w += 1;
-    }
-
-    return *bytes_w > 0 || len == 0 ? LMQTT_IO_SUCCESS : LMQTT_IO_WOULD_BLOCK;
-}
-
-START_TEST(should_put_chars)
+START_TEST(should_write_chars_to_buffer)
 {
     char buf[3];
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
 
     memset(buf, 0, sizeof(buf));
     memset(&str, 0, sizeof(str));
@@ -39,182 +14,221 @@ START_TEST(should_put_chars)
     str.buf = buf;
     str.len = sizeof(buf);
 
-    res = string_put(&str, (unsigned char *) "ab", 2, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
+    res = string_write(&str, (unsigned char *) "ab", 2, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
     ck_assert_int_eq(2, cnt);
-    res = string_put(&str, (unsigned char *) "c", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
+    ck_assert_int_eq(0, os_error);
+    res = string_write(&str, (unsigned char *) "c", 1, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
     ck_assert_int_eq(1, cnt);
+    ck_assert_int_eq(0, os_error);
     ck_assert_int_eq('a', buf[0]);
     ck_assert_int_eq('b', buf[1]);
     ck_assert_int_eq('c', buf[2]);
 }
 END_TEST
 
-START_TEST(should_put_chars_with_callback)
+START_TEST(should_write_chars_to_nonblocking_callback)
 {
-    test_write_buffer_t buf;
+    test_buffer_t buf;
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
 
     memset(&buf, 0, sizeof(buf));
     memset(&str, 0, sizeof(str));
-    str.write = &test_write;
+    str.write = &test_buffer_write;
     str.data = &buf;
-    str.len = 3;
-    buf.len = 3;
+    str.len = buf.len = buf.available_len = 3;
 
-    res = string_put(&str, (unsigned char *) "ab", 2, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
-    res = string_put(&str, (unsigned char *) "c", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
-    ck_assert_int_eq('a', buf.buf[0]);
-    ck_assert_int_eq('b', buf.buf[1]);
-    ck_assert_int_eq('c', buf.buf[2]);
+    res = string_write(&str, (unsigned char *) "ab", 2, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    res = string_write(&str, (unsigned char *) "c", 1, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    ck_assert_int_eq('a', (char) buf.buf[0]);
+    ck_assert_int_eq('b', (char) buf.buf[1]);
+    ck_assert_int_eq('c', (char) buf.buf[2]);
 }
 END_TEST
 
-START_TEST(should_put_chars_with_blocking_decode)
+START_TEST(should_write_chars_to_blocking_callback)
 {
-    test_write_buffer_t buf;
+    test_buffer_t buf;
     lmqtt_string_t str;
-    lmqtt_string_t *blk = &str;
-    int res;
-    size_t cnt;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
 
     memset(&buf, 0, sizeof(buf));
     memset(&str, 0, sizeof(str));
-    str.write = &test_write;
+    str.write = &test_buffer_write;
     str.data = &buf;
-    str.len = 2;
-    buf.len = 1;
+    str.len = buf.len = 4;
+    buf.available_len = 2;
 
-    res = string_put(&str, (unsigned char *) "a", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
-    ck_assert_ptr_eq(NULL, blk);
-    res = string_put(&str, (unsigned char *) "b", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_WOULD_BLOCK, res);
-    ck_assert_ptr_eq(&str, blk);
-}
-END_TEST
-
-START_TEST(should_put_remaining_chars_after_blocking_decode)
-{
-    test_write_buffer_t buf;
-    lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt;
-
-    memset(&buf, 0, sizeof(buf));
-    memset(&str, 0, sizeof(str));
-    str.write = &test_write;
-    str.data = &buf;
-    str.len = 3;
-    buf.len = 1;
-
-    res = string_put(&str, (unsigned char *) "ab", 2, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
-    ck_assert_int_eq(1, cnt);
-
-    buf.len = 3;
-
-    res = string_put(&str, (unsigned char *) "bc", 2, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
+    res = string_write(&str, (unsigned char *) "abcd", 4, &cnt, &os_error);
     ck_assert_int_eq(2, cnt);
-    ck_assert_int_eq('a', buf.buf[0]);
-    ck_assert_int_eq('b', buf.buf[1]);
-    ck_assert_int_eq('c', buf.buf[2]);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+
+    res = string_write(&str, (unsigned char *) "cd", 2, &cnt, &os_error);
+    ck_assert_int_eq(0, cnt);
+    ck_assert_int_eq(LMQTT_STRING_WOULD_BLOCK, res);
+
+    buf.available_len = 4;
+    res = string_write(&str, (unsigned char *) "cd", 2, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+
+    ck_assert_int_eq('a', (char) buf.buf[0]);
+    ck_assert_int_eq('b', (char) buf.buf[1]);
+    ck_assert_int_eq('c', (char) buf.buf[2]);
+    ck_assert_int_eq('d', (char) buf.buf[3]);
 }
 END_TEST
 
-START_TEST(should_put_single_char_after_blocking_decode)
-{
-    test_write_buffer_t buf;
-    lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt;
-
-    memset(&buf, 0, sizeof(buf));
-    memset(&str, 0, sizeof(str));
-    str.write = &test_write;
-    str.data = &buf;
-    str.len = 3;
-    buf.len = 1;
-
-    res = string_put(&str, (unsigned char *) "abc", 3, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
-    ck_assert_int_eq(1, cnt);
-
-    buf.len = 3;
-
-    res = string_put(&str, (unsigned char *) "b", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_CONTINUE, res);
-    ck_assert_int_eq(1, cnt);
-}
-END_TEST
-
-START_TEST(should_put_chars_with_decode_error)
+START_TEST(should_write_chars_to_failing_callback)
 {
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
 
     memset(&str, 0, sizeof(str));
     str.write = &test_buffer_io_fail;
     str.len = 2;
 
-    res = string_put(&str, (unsigned char *) "a", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    res = string_write(&str, (unsigned char *) "a", 1, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_OS_ERROR, res);
+    ck_assert_int_eq(0, cnt);
+    ck_assert_int_eq(1, os_error);
 }
 END_TEST
 
-START_TEST(should_not_overflow_buffer_with_single_char)
+START_TEST(should_not_write_chars_with_invalid_object)
 {
-    char buf[2];
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
 
-    memset(buf, 0x7c, sizeof(buf));
+    memset(&str, 0, sizeof(str));
+    str.len = 2;
+
+    res = string_write(&str, (unsigned char *) "a", 1, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_INVALID_OBJECT, res);
+    ck_assert_int_eq(0, cnt);
+    ck_assert_int_eq(0, os_error);
+}
+END_TEST
+
+START_TEST(should_read_chars_from_buffer)
+{
+    char buf[3];
+    lmqtt_string_t str;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
+
+    memset(buf, 0, sizeof(buf));
     memset(&str, 0, sizeof(str));
 
-    str.buf = buf;
-    str.len = 1;
+    str.buf = "abc";
+    str.len = strlen(str.buf);
 
-    res = string_put(&str, (unsigned char *) "a", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
-    res = string_put(&str, (unsigned char *) "b", 1, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
-    ck_assert_int_eq(0, cnt);
+    res = string_read(&str, (unsigned char *) &buf[0], 2, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    ck_assert_int_eq(2, cnt);
+    ck_assert_int_eq(0, os_error);
+    res = string_read(&str, (unsigned char *) &buf[2], 1, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    ck_assert_int_eq(1, cnt);
+    ck_assert_int_eq(0, os_error);
     ck_assert_int_eq('a', buf[0]);
-    ck_assert_int_eq(0x7c, buf[1]);
+    ck_assert_int_eq('b', buf[1]);
+    ck_assert_int_eq('c', buf[2]);
 }
 END_TEST
 
-START_TEST(should_not_overflow_buffer_with_multiple_chars)
+START_TEST(should_read_chars_from_nonblocking_callback)
 {
-    char buf[2];
+    char buf[3];
+    test_buffer_t src;
     lmqtt_string_t str;
-    lmqtt_string_t *blk;
-    int res;
-    size_t cnt = 0xcccccccc;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
 
-    memset(buf, 0x7c, sizeof(buf));
+    memset(&src, 0, sizeof(src));
+    memset(&str, 0, sizeof(str));
+    strcpy((char *) src.buf, "abc");
+    str.read = &test_buffer_read;
+    str.data = &src;
+    str.len = src.len = src.available_len = 3;
+
+    res = string_read(&str, (unsigned char *) &buf[0], 2, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    res = string_read(&str, (unsigned char *) &buf[2], 1, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    ck_assert_int_eq('a', buf[0]);
+    ck_assert_int_eq('b', buf[1]);
+    ck_assert_int_eq('c', buf[2]);
+}
+END_TEST
+
+START_TEST(should_read_chars_from_null_buffer_with_zero_length)
+{
+    unsigned char buf[10];
+    lmqtt_string_t str;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
+
     memset(&str, 0, sizeof(str));
 
-    str.buf = buf;
-    str.len = 1;
-
-    res = string_put(&str, (unsigned char *) "ab", 2, &cnt, &blk);
-    ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    res = string_read(&str, buf, 0, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
     ck_assert_int_eq(0, cnt);
-    ck_assert_int_eq(0x7c, buf[0]);
+    ck_assert_int_eq(0, os_error);
+}
+END_TEST
+
+START_TEST(should_read_chars_from_failing_callback_with_zero_length)
+{
+    unsigned char buf[10];
+    lmqtt_string_t str;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
+
+    memset(&str, 0, sizeof(str));
+    str.read = &test_buffer_io_fail;
+
+    res = string_read(&str, buf, 0, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
+    ck_assert_int_eq(0, cnt);
+    ck_assert_int_eq(0, os_error);
+}
+END_TEST
+
+START_TEST(should_not_read_chars_from_string_with_both_buffer_and_callback)
+{
+    char buf[3];
+    test_buffer_t src;
+    lmqtt_string_t str;
+    lmqtt_string_result_t res;
+    size_t cnt = 0xcccc;
+    int os_error = 0xcccc;
+
+    memset(&src, 0, sizeof(src));
+    memset(&str, 0, sizeof(str));
+    str.buf = "abc";
+    strcpy((char *) src.buf, str.buf);
+    str.read = &test_buffer_read;
+    str.data = &src;
+    str.len = src.len = src.available_len = 3;
+
+    res = string_read(&str, (unsigned char *) &buf[0], 2, &cnt, &os_error);
+    ck_assert_int_eq(LMQTT_STRING_INVALID_OBJECT, res);
 }
 END_TEST
 
@@ -302,19 +316,52 @@ START_TEST(should_encode_string_with_read_error)
 }
 END_TEST
 
+START_TEST(should_reset_start_position_before_encoding_first_char)
+{
+    char buf[6];
+    char *src = "abcd";
+    lmqtt_string_t str;
+    lmqtt_encode_buffer_t enc_buf;
+    int res;
+    size_t bytes_w = (size_t) -1;
+
+    memset(buf, 0, sizeof(buf));
+    memset(&str, 0, sizeof(str));
+    memset(&enc_buf, 0, sizeof(enc_buf));
+    str.buf = src;
+    str.len = strlen(src);
+
+    res = string_encode(&str, 1, 1, 0, (unsigned char *) buf, sizeof(buf),
+        &bytes_w, &enc_buf);
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+
+    res = string_encode(&str, 1, 1, 0, (unsigned char *) buf, sizeof(buf),
+        &bytes_w, &enc_buf);
+    ck_assert_int_eq(LMQTT_ENCODE_FINISHED, res);
+    ck_assert_int_eq(6, bytes_w);
+    ck_assert_int_eq('a', buf[2]);
+    ck_assert_int_eq('d', buf[5]);
+}
+END_TEST
+
 START_TCASE("String")
 {
-    ADD_TEST(should_put_chars);
-    ADD_TEST(should_put_chars_with_callback);
-    ADD_TEST(should_put_chars_with_blocking_decode);
-    ADD_TEST(should_put_remaining_chars_after_blocking_decode);
-    ADD_TEST(should_put_single_char_after_blocking_decode);
-    ADD_TEST(should_put_chars_with_decode_error);
-    ADD_TEST(should_not_overflow_buffer_with_single_char);
-    ADD_TEST(should_not_overflow_buffer_with_multiple_chars);
+    ADD_TEST(should_write_chars_to_buffer);
+    ADD_TEST(should_write_chars_to_nonblocking_callback);
+    ADD_TEST(should_write_chars_to_blocking_callback);
+    ADD_TEST(should_write_chars_to_failing_callback);
+    ADD_TEST(should_not_write_chars_with_invalid_object);
+
+    ADD_TEST(should_read_chars_from_buffer);
+    ADD_TEST(should_read_chars_from_nonblocking_callback);
+    ADD_TEST(should_read_chars_from_null_buffer_with_zero_length);
+    ADD_TEST(should_read_chars_from_failing_callback_with_zero_length);
+    ADD_TEST(should_not_read_chars_from_string_with_both_buffer_and_callback);
+
     ADD_TEST(should_encode_non_empty_string_on_zero_length_buffer);
     ADD_TEST(should_encode_empty_string_on_zero_length_buffer);
     ADD_TEST(should_encode_string_with_blocking_read);
     ADD_TEST(should_encode_string_with_read_error);
+    ADD_TEST(should_reset_start_position_before_encoding_first_char);
 }
 END_TCASE

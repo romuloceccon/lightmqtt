@@ -58,6 +58,13 @@ typedef enum {
     LMQTT_ALLOCATE_ERROR
 } lmqtt_allocate_result_t;
 
+typedef enum {
+    LMQTT_STRING_SUCCESS = 140,
+    LMQTT_STRING_WOULD_BLOCK,
+    LMQTT_STRING_OS_ERROR,
+    LMQTT_STRING_INVALID_OBJECT
+} lmqtt_string_result_t;
+
 typedef struct _lmqtt_id_set_t {
     lmqtt_packet_id_t *items;
     size_t capacity;

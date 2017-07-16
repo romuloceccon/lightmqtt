@@ -23,7 +23,7 @@
     memset(&read_buf.buf, STR_CB_PLACEHOLDER, sizeof(read_buf.buf)); \
     value.value = &connect
 
-static lmqtt_io_result_t string_read(void *data, void *buf, size_t buf_len,
+static lmqtt_io_result_t test_string_read(void *data, void *buf, size_t buf_len,
     size_t *bytes_written, int *os_error)
 {
     test_buffer_t *test_buffer = (test_buffer_t *) data;
@@ -39,14 +39,7 @@ static lmqtt_io_result_t string_read(void *data, void *buf, size_t buf_len,
         LMQTT_IO_WOULD_BLOCK : LMQTT_IO_SUCCESS;
 }
 
-static lmqtt_io_result_t string_read_fail_again(void *data, void *buf,
-    size_t buf_len, size_t *bytes_written, int *os_error)
-{
-    *bytes_written = 1;
-    return LMQTT_IO_WOULD_BLOCK;
-}
-
-static lmqtt_io_result_t string_read_fail_error(void *data, void *buf,
+static lmqtt_io_result_t test_string_read_fail_error(void *data, void *buf,
     size_t buf_len, size_t *bytes_written, int *os_error)
 {
     *bytes_written = 1;
@@ -168,6 +161,7 @@ START_TEST(should_encode_client_id_starting_at_offset)
 
     connect.client_id.len = 128;
     connect.client_id.buf = str;
+    connect.client_id.internal.pos = 28;
     str[28] += 1;
     str[28 + 100 - 1] += 1;
 
@@ -189,6 +183,7 @@ START_TEST(should_encode_client_id_longer_than_buffer_size_with_offset)
 
     connect.client_id.len = 256;
     connect.client_id.buf = str;
+    connect.client_id.internal.pos = 50;
     str[50]  += 1;
     str[50 + sizeof(buf) - 1] += 1;
 
@@ -294,7 +289,7 @@ START_TEST(should_encode_user_name_with_callback)
 
     connect.user_name.len = 10;
     connect.user_name.data = &read_buf;
-    connect.user_name.read = string_read;
+    connect.user_name.read = test_string_read;
 
     read_buf.len = 10;
     read_buf.available_len = 10;
@@ -318,7 +313,7 @@ START_TEST(should_encode_user_name_with_read_buf_longer_than_buffer_size)
 
     connect.user_name.len = sizeof(buf);
     connect.user_name.data = &read_buf;
-    connect.user_name.read = string_read;
+    connect.user_name.read = test_string_read;
 
     read_buf.len = sizeof(buf);
     read_buf.available_len = sizeof(buf);
@@ -350,7 +345,7 @@ START_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size)
 
     connect.user_name.len = 10;
     connect.user_name.data = &read_buf;
-    connect.user_name.read = string_read;
+    connect.user_name.read = test_string_read;
 
     read_buf.len = 10;
     read_buf.available_len = 5;
@@ -391,7 +386,7 @@ START_TEST(should_fail_if_read_buf_returns_fewer_bytes_than_expected)
 
     connect.user_name.len = 10;
     connect.user_name.data = &read_buf;
-    connect.user_name.read = string_read;
+    connect.user_name.read = test_string_read;
 
     read_buf.len = 5;
     read_buf.available_len = 5;
@@ -410,29 +405,13 @@ START_TEST(should_fail_if_read_buf_returns_fewer_bytes_than_expected)
 }
 END_TEST
 
-START_TEST(should_fail_if_read_buf_returns_again_with_non_zero_byte_count)
-{
-    PREPARE;
-
-    connect.user_name.len = 10;
-    connect.user_name.data = &read_buf;
-    connect.user_name.read = string_read_fail_again;
-
-    res = connect_encode_payload_user_name(&value, &encode_buffer, 0, buf,
-        sizeof(buf), &bytes_w);
-
-    ck_assert_int_eq(LMQTT_ENCODE_ERROR, res);
-    ck_assert_int_eq(3, bytes_w);
-}
-END_TEST
-
 START_TEST(should_fail_if_read_buf_returns_error_with_non_zero_byte_count)
 {
     PREPARE;
 
     connect.user_name.len = 10;
     connect.user_name.data = &read_buf;
-    connect.user_name.read = string_read_fail_error;
+    connect.user_name.read = test_string_read_fail_error;
 
     res = connect_encode_payload_user_name(&value, &encode_buffer, 0, buf,
         sizeof(buf), &bytes_w);
@@ -461,7 +440,6 @@ START_TCASE("Encode connect payload")
     ADD_TEST(should_encode_user_name_with_read_buf_longer_than_buffer_size);
     ADD_TEST(should_encode_user_name_with_fewer_bytes_available_than_string_size);
     ADD_TEST(should_fail_if_read_buf_returns_fewer_bytes_than_expected);
-    ADD_TEST(should_fail_if_read_buf_returns_again_with_non_zero_byte_count);
     ADD_TEST(should_fail_if_read_buf_returns_error_with_non_zero_byte_count);
 }
 END_TCASE

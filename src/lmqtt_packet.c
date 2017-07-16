@@ -174,22 +174,56 @@ LMQTT_STATIC lmqtt_encode_result_t encode_buffer_encode_packet_id(
  * lmqtt_string_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC lmqtt_io_result_t string_fetch(lmqtt_string_t *str,
-    size_t offset, unsigned char *buf, size_t buf_len, size_t *bytes_written,
-    int *os_error)
+typedef lmqtt_io_result_t (*lmqtt_string_callback_t)(void *, void *, size_t,
+    size_t *, int *);
+
+static lmqtt_string_result_t string_move(lmqtt_string_t *str,
+    unsigned char *buf, size_t buf_len, lmqtt_string_callback_t callback,
+    unsigned char *dst, unsigned char *src, size_t *bytes_moved, int *os_error)
 {
-    if (str->read != 0) {
-        /* `offset` is not used with the callback. We're actually trusting the
-         * encoding functions and the callback work the same way, i.e. in each
-         * call the offset is equal to the previous offset plus the previous
-         * read byte count. Maybe `offset` could be eliminated and those
-         * expectations documented? */
-        return str->read(str->data, buf, buf_len, bytes_written, os_error);
+    *bytes_moved = 0;
+    *os_error = 0;
+
+    if (callback && str->buf) {
+        return LMQTT_STRING_INVALID_OBJECT;
+    } else if (buf_len == 0) {
+        return LMQTT_STRING_SUCCESS;
+    } else if (callback) {
+        /* TODO: we are trusting the callback will never return a nonzero bytes
+           moved count with LMQTT_STRING_WOULD_BLOCK; perhaps we should validate
+           this and return something like LMQTT_STRING_INVALID_CALLBACK? */
+        switch (callback(str->data, buf, buf_len, bytes_moved, os_error)) {
+            case LMQTT_IO_SUCCESS:
+                return LMQTT_STRING_SUCCESS;
+            case LMQTT_IO_WOULD_BLOCK:
+                return LMQTT_STRING_WOULD_BLOCK;
+            default:
+                return LMQTT_STRING_OS_ERROR;
+        }
+    } else if (str->buf) {
+        assert(str->internal.pos + buf_len <= str->len);
+
+        memcpy(dst, src, buf_len);
+        *bytes_moved = buf_len;
+        str->internal.pos += buf_len;
+        return LMQTT_STRING_SUCCESS;
     }
 
-    memcpy(buf, str->buf + offset, buf_len);
-    *bytes_written = buf_len;
-    return LMQTT_IO_SUCCESS;
+    return LMQTT_STRING_INVALID_OBJECT;
+}
+
+LMQTT_STATIC lmqtt_string_result_t string_read(lmqtt_string_t *str,
+    unsigned char *buf, size_t buf_len, size_t *bytes_read, int *os_error)
+{
+    return string_move(str, buf, buf_len, str->read, buf,
+        (unsigned char *) &str->buf[str->internal.pos], bytes_read, os_error);
+}
+
+LMQTT_STATIC lmqtt_string_result_t string_write(lmqtt_string_t *str,
+    unsigned char *buf, size_t buf_len, size_t *bytes_written, int *os_error)
+{
+    return string_move(str, buf, buf_len, str->write, (unsigned char *)
+        &str->buf[str->internal.pos], buf, bytes_written, os_error);
 }
 
 LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
@@ -203,7 +237,7 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     int i;
 
     size_t read_cnt;
-    int read_res;
+    lmqtt_string_result_t read_res;
     long remaining;
 
     *bytes_written = 0;
@@ -238,18 +272,20 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
 
     if (len > (long) (buf_len - pos))
         len = (long) (buf_len - pos);
+    if (offset_str == 0)
+        memset(&str->internal, 0, sizeof(str->internal));
 
-    read_res = string_fetch(str, offset_str, buf + pos, (size_t) len,
-        &read_cnt, &encode_buffer->os_error);
+    read_res = string_read(str, buf + pos, (size_t) len, &read_cnt,
+        &encode_buffer->os_error);
     *bytes_written += read_cnt;
     assert((long) read_cnt <= remaining);
 
-    if (read_res == LMQTT_IO_WOULD_BLOCK && read_cnt == 0) {
+    if (read_res == LMQTT_STRING_WOULD_BLOCK) {
         encode_buffer->blocking_str = str;
         result = LMQTT_ENCODE_WOULD_BLOCK;
-    } else if (read_res == LMQTT_IO_SUCCESS && (long) read_cnt >= remaining) {
+    } else if (read_res == LMQTT_STRING_SUCCESS && (long) read_cnt >= remaining) {
         result = LMQTT_ENCODE_FINISHED;
-    } else if (read_res == LMQTT_IO_SUCCESS && read_cnt > 0) {
+    } else if (read_res == LMQTT_STRING_SUCCESS && read_cnt > 0) {
         result = LMQTT_ENCODE_CONTINUE;
     } else {
         encode_buffer->error = LMQTT_ERROR_ENCODE_STRING;
@@ -257,39 +293,6 @@ LMQTT_STATIC lmqtt_encode_result_t string_encode(lmqtt_string_t *str,
     }
 
     return result;
-}
-
-LMQTT_STATIC lmqtt_decode_result_t string_put(lmqtt_string_t *str,
-    unsigned char *buf, size_t buf_len, size_t *bytes_written,
-    lmqtt_string_t **blocking_str)
-{
-    *bytes_written = 0;
-    *blocking_str = NULL;
-
-    if (str->internal.pos + buf_len > str->len)
-        return LMQTT_DECODE_ERROR;
-
-    if (str->write) {
-        int os_error = 0;
-
-        switch(str->write(str->data, buf, buf_len, bytes_written, &os_error)) {
-            case LMQTT_IO_SUCCESS:
-                str->internal.pos += *bytes_written;
-                break;
-            case LMQTT_IO_WOULD_BLOCK:
-                *blocking_str = str;
-                return LMQTT_DECODE_WOULD_BLOCK;
-            default:
-                return LMQTT_DECODE_ERROR;
-        }
-    } else {
-        memcpy(&str->buf[str->internal.pos], buf, buf_len);
-        *bytes_written = buf_len;
-        str->internal.pos += buf_len;
-    }
-
-    return str->internal.pos < str->len ? LMQTT_DECODE_CONTINUE :
-        LMQTT_DECODE_FINISHED;
 }
 
 LMQTT_STATIC long string_calc_field_length(lmqtt_string_t *str)
@@ -1110,7 +1113,7 @@ lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
  * lmqtt_rx_buffer_t PRIVATE functions
  ******************************************************************************/
 
-LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
+LMQTT_STATIC int rx_buffer_allocate_write(lmqtt_rx_buffer_t *state, long when,
     lmqtt_message_on_publish_allocate_t allocate, lmqtt_string_t *str,
     size_t len, lmqtt_decode_bytes_t *bytes)
 {
@@ -1118,7 +1121,7 @@ LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
     lmqtt_publish_t *publish = &state->internal.publish;
     lmqtt_message_callbacks_t *message = state->message_callbacks;
     /* We may receive a buffer longer than what should be written with
-       string_put(), in the case of a topic followed by the packet id and
+       string_write(), in the case of a topic followed by the packet id and
        payload, or a payload followed by data from other packets; therefore the
        actual value should be capped before continuing */
     size_t max_len = len - (rem_pos - when);
@@ -1138,8 +1141,18 @@ LMQTT_STATIC int rx_buffer_allocate_put(lmqtt_rx_buffer_t *state, long when,
     }
 
     if (!state->internal.ignore_publish) {
-        return LMQTT_DECODE_ERROR != string_put(str, bytes->buf, buf_len,
-            bytes->bytes_written, &state->internal.blocking_str);
+        int os_error;
+        state->internal.blocking_str = NULL;
+        switch (string_write(str, bytes->buf, buf_len, bytes->bytes_written,
+                &os_error)) {
+            case LMQTT_STRING_SUCCESS:
+                return 1;
+            case LMQTT_STRING_WOULD_BLOCK:
+                state->internal.blocking_str = str;
+                return 1;
+            default:
+                return 0;
+        }
     }
     *bytes->bytes_written += buf_len;
     return 1;
@@ -1216,7 +1229,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
             state->internal.ignore_publish = 1;
 
         if (rem_pos <= p_start) {
-            if (!rx_buffer_allocate_put(state, s_len + 1,
+            if (!rx_buffer_allocate_write(state, s_len + 1,
                     message->on_publish_allocate_topic,
                     &state->internal.publish.topic, t_len, bytes)) {
                 rx_buffer_deallocate_publish(state);
@@ -1227,7 +1240,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
                     p_start) * 8));
             *bytes_w += 1;
         } else {
-            if (!rx_buffer_allocate_put(state, p_start + p_len + 1,
+            if (!rx_buffer_allocate_write(state, p_start + p_len + 1,
                     message->on_publish_allocate_payload,
                     &state->internal.publish.payload,
                     rem_len - p_len - p_start, bytes)) {

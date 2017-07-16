@@ -113,6 +113,12 @@ lmqtt_encode_result_t encode_buffer_encode(
     encode_buffer_builder_t builder, size_t offset, unsigned char *buf,
     size_t buf_len, size_t *bytes_written);
 
+lmqtt_string_result_t string_read(lmqtt_string_t *str,
+    unsigned char *buf, size_t buf_len, size_t *bytes_read, int *os_error);
+
+lmqtt_string_result_t string_write(lmqtt_string_t *str,
+    unsigned char *buf, size_t buf_len, size_t *bytes_written, int *os_error);
+
 lmqtt_encode_result_t string_encode(lmqtt_string_t *str, int encode_len,
     int encode_if_empty, size_t offset, unsigned char *buf, size_t buf_len,
     size_t *bytes_written, lmqtt_encode_buffer_t *encode_buffer);

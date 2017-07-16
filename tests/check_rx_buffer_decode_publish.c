@@ -66,12 +66,13 @@ static void test_on_publish_deallocate(void *data, lmqtt_publish_t *publish)
 static lmqtt_io_result_t test_write_fail(void *data, void *buf, size_t len,
     size_t *bytes_w, int *os_error)
 {
-    lmqtt_string_t *str = data;
-    if (str->internal.pos >= 1) {
+    int *write_count = data;
+    if (*write_count >= 1) {
         *bytes_w = 0;
         return LMQTT_IO_ERROR;
     } else {
         *bytes_w = len;
+        *write_count += len;
         return LMQTT_IO_SUCCESS;
     }
 }
@@ -80,7 +81,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_topic_fail(void *data,
     lmqtt_publish_t *publish, size_t len)
 {
     publish->topic.len = len;
-    publish->topic.data = &publish->topic;
+    publish->topic.data = data;
     publish->topic.write = &test_write_fail;
     allocate_topic_count++;
     return LMQTT_ALLOCATE_SUCCESS;
@@ -494,9 +495,12 @@ END_TEST
 
 START_TEST(should_deallocate_publish_if_decode_fails)
 {
+    int write_count = 0;
     init_state();
 
     state.internal.header.qos = 1;
+    /* write callback will fail while writing the second byte of the topic */
+    message_callbacks.on_publish_data = &write_count;
     message_callbacks.on_publish_allocate_topic =
         &test_on_publish_allocate_topic_fail;
     state.internal.header.remaining_length = 10;

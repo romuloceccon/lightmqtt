@@ -188,6 +188,7 @@ START_TEST(should_encode_payload_from_offset)
 
     publish.payload.buf = "payload";
     publish.payload.len = strlen(publish.payload.buf);
+    publish.payload.internal.pos = 5;
 
     res = publish_encode_payload(&value, &encode_buffer, 5, buf,
         sizeof(buf), &bytes_w);
