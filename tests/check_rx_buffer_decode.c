@@ -424,50 +424,6 @@ START_TEST(should_decode_pubrec)
 }
 END_TEST
 
-START_TEST(should_fail_if_decoder_does_not_finish_when_expected)
-{
-    PREPARE;
-
-    buf[0] = 0x90;
-    buf[1] = 3;
-    buf[2] = 0x01;
-    buf[3] = 0x02;
-
-    STORE_APPEND_MARK(LMQTT_KIND_SUBSCRIBE, 0x0102);
-    set_packet_result(0, LMQTT_DECODE_FINISHED, 2);
-
-    res = lmqtt_rx_buffer_decode(&state, buf, 5, &bytes_r);
-
-    ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(4, bytes_r);
-
-    ck_assert_int_eq(0, client.packets[0].packet_id);
-    ck_assert_int_eq(1, client.packets[0].pos);
-}
-END_TEST
-
-START_TEST(should_fail_if_decoder_finishes_before_expected)
-{
-    PREPARE;
-
-    buf[0] = 0x90;
-    buf[1] = 4;
-    buf[2] = 0x01;
-    buf[3] = 0x02;
-
-    STORE_APPEND_MARK(LMQTT_KIND_SUBSCRIBE, 0x0102);
-    set_packet_result(0, LMQTT_DECODE_FINISHED, 1);
-
-    res = lmqtt_rx_buffer_decode(&state, buf, 6, &bytes_r);
-
-    ck_assert_int_eq(LMQTT_IO_ERROR, res);
-    ck_assert_int_eq(4, bytes_r);
-
-    ck_assert_int_eq(0, client.packets[0].packet_id);
-    ck_assert_int_eq(1, client.packets[0].pos);
-}
-END_TEST
-
 START_TEST(should_not_fail_if_last_processed_buffer_has_multiple_bytes)
 {
     PREPARE;
@@ -586,8 +542,6 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_decode_rx_buffer_with_packet_id);
     ADD_TEST(should_decode_rx_buffer_after_packet_id);
     ADD_TEST(should_decode_pubrec);
-    ADD_TEST(should_fail_if_decoder_does_not_finish_when_expected);
-    ADD_TEST(should_fail_if_decoder_finishes_before_expected);
     ADD_TEST(should_not_fail_if_last_processed_buffer_has_multiple_bytes);
     ADD_TEST(should_fail_if_connack_has_no_corresponding_connect);
     ADD_TEST(should_fail_if_suback_has_no_corresponding_subscribe);
