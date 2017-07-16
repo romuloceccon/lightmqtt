@@ -425,21 +425,6 @@ START_TEST(should_track_connect_packet)
 }
 END_TEST
 
-START_TEST(should_fail_if_finder_is_null)
-{
-    PREPARE;
-
-    encoders[0] = (lmqtt_encoder_t) encode_test_0_9;
-    lmqtt_store_append(&store, 0, &value);
-
-    test_finder_func = NULL;
-
-    res = lmqtt_tx_buffer_encode(&state, buf, sizeof(buf), &bytes_w);
-
-    ck_assert_int_eq(LMQTT_IO_ERROR, res);
-}
-END_TEST
-
 START_TEST(should_clear_encoder_state_after_reset)
 {
     PREPARE;
@@ -483,7 +468,6 @@ START_TCASE("Tx buffer encode")
     ADD_TEST(should_close_tx_buffer_on_disconnect);
     ADD_TEST(should_not_process_packets_after_disconnect);
     ADD_TEST(should_track_connect_packet);
-    ADD_TEST(should_fail_if_finder_is_null);
     ADD_TEST(should_clear_encoder_state_after_reset);
 }
 END_TCASE

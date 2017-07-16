@@ -1029,9 +1029,7 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
 
     while (!state->closed && lmqtt_store_peek(state->store, &kind, &value)) {
         lmqtt_encoder_finder_t finder = tx_buffer_finder_by_kind(kind);
-
-        if (!finder)
-            return tx_buffer_fail(state, LMQTT_ERROR_ENCODE_INTERNAL, 0);
+        assert(finder);
 
         while (1) {
             int result;
