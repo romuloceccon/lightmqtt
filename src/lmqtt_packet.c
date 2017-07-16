@@ -1091,9 +1091,51 @@ lmqtt_string_t *lmqtt_tx_buffer_get_blocking_str(lmqtt_tx_buffer_t *state)
  * lmqtt_rx_buffer_t PRIVATE functions
  ******************************************************************************/
 
+static
+lmqtt_message_on_publish_allocate_t rx_buffer_publish_part_topic_get_allocate(
+    lmqtt_message_callbacks_t *message)
+{
+    return message->on_publish_allocate_topic;
+}
+
+static lmqtt_string_t *rx_buffer_publish_part_topic_get_string(
+    lmqtt_rx_buffer_t *state)
+{
+    return &state->internal.publish.topic;
+}
+
+static
+lmqtt_message_on_publish_allocate_t rx_buffer_publish_part_payload_get_allocate(
+    lmqtt_message_callbacks_t *message)
+{
+    return message->on_publish_allocate_payload;
+}
+
+static lmqtt_string_t *rx_buffer_publish_part_payload_get_string(
+    lmqtt_rx_buffer_t *state)
+{
+    return &state->internal.publish.payload;
+}
+
+struct _lmqtt_publish_part_t {
+    lmqtt_message_on_publish_allocate_t (*get_allocate)(
+        lmqtt_message_callbacks_t *);
+    lmqtt_string_t *(*get_string)(lmqtt_rx_buffer_t *);
+};
+
+static struct _lmqtt_publish_part_t rx_buffer_publish_part_topic = {
+    &rx_buffer_publish_part_topic_get_allocate,
+    &rx_buffer_publish_part_topic_get_string
+};
+
+static struct _lmqtt_publish_part_t rx_buffer_publish_part_payload = {
+    &rx_buffer_publish_part_payload_get_allocate,
+    &rx_buffer_publish_part_payload_get_string
+};
+
 LMQTT_STATIC int rx_buffer_allocate_write(lmqtt_rx_buffer_t *state, long when,
-    lmqtt_message_on_publish_allocate_t allocate, lmqtt_string_t *str,
-    size_t len, lmqtt_decode_bytes_t *bytes)
+    struct _lmqtt_publish_part_t *publish_part, size_t len,
+    lmqtt_decode_bytes_t *bytes)
 {
     const long rem_pos = state->internal.remain_buf_pos + 1;
     lmqtt_publish_t *publish = &state->internal.publish;
@@ -1104,6 +1146,10 @@ LMQTT_STATIC int rx_buffer_allocate_write(lmqtt_rx_buffer_t *state, long when,
        actual value should be capped before continuing */
     size_t max_len = len - (rem_pos - when);
     size_t buf_len = bytes->buf_len > max_len ? max_len : bytes->buf_len;
+
+    lmqtt_message_on_publish_allocate_t allocate =
+        publish_part->get_allocate(message);
+    lmqtt_string_t *str = publish_part->get_string(state);
 
     if (!state->internal.ignore_publish && rem_pos == when && allocate) {
         switch (allocate(message->on_publish_data, publish, len)) {
@@ -1208,8 +1254,7 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
 
         if (rem_pos <= p_start) {
             if (!rx_buffer_allocate_write(state, s_len + 1,
-                    message->on_publish_allocate_topic,
-                    &state->internal.publish.topic, t_len, bytes)) {
+                    &rx_buffer_publish_part_topic, t_len, bytes)) {
                 rx_buffer_deallocate_publish(state);
                 return LMQTT_DECODE_ERROR;
             }
@@ -1219,9 +1264,8 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
             *bytes_w += 1;
         } else {
             if (!rx_buffer_allocate_write(state, p_start + p_len + 1,
-                    message->on_publish_allocate_payload,
-                    &state->internal.publish.payload,
-                    rem_len - p_len - p_start, bytes)) {
+                    &rx_buffer_publish_part_payload, rem_len - p_len - p_start,
+                    bytes)) {
                 rx_buffer_deallocate_publish(state);
                 return LMQTT_DECODE_ERROR;
             }
