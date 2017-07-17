@@ -2,6 +2,8 @@
 
 #define PREPARE \
     int res; \
+    lmqtt_error_t error; \
+    int os_error = 0xcccc; \
     lmqtt_rx_buffer_t state; \
     lmqtt_subscribe_t subscribe; \
     lmqtt_subscription_t subscriptions[10]; \
@@ -22,6 +24,7 @@
         bytes.bytes_written = &cnt; \
         res = rx_buffer_decode_suback(&state, &bytes); \
         ck_assert_uint_eq((exp_cnt), cnt); \
+        error = lmqtt_rx_buffer_get_error(&state, &os_error); \
     } while(0)
 
 #define DECODE_SUBACK_OK(b) DECODE_SUBACK((b), 1)
@@ -38,6 +41,7 @@ START_TEST(should_decode_invalid_suback_return_code)
     DECODE_SUBACK_ERR(3);
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_SUBACK_INVALID_RETURN_CODE, error);
 }
 END_TEST
 
@@ -78,6 +82,7 @@ START_TEST(should_validate_suback_payload_len)
 
     DECODE_SUBACK_ERR(0);
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_SUBACK_COUNT_MISMATCH, error);
 }
 END_TEST
 

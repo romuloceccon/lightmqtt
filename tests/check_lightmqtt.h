@@ -126,7 +126,7 @@ lmqtt_decode_result_t string_put(lmqtt_string_t *str, unsigned char *buf,
     size_t buf_len, size_t *bytes_written, lmqtt_string_t **blocking_str);
 
 lmqtt_decode_result_t fixed_header_decode(lmqtt_fixed_header_t *header,
-    unsigned char b);
+    unsigned char b, lmqtt_error_t *error);
 
 void connect_build_fixed_header(lmqtt_store_value_t *value,
     lmqtt_encode_buffer_t *encode_buffer);

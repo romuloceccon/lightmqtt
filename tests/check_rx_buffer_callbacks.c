@@ -12,6 +12,8 @@
     lmqtt_message_callbacks_t message_callbacks; \
     void *callbacks_data = 0; \
     int kind; \
+    lmqtt_error_t error = 0xcccc; \
+    int os_error = 0xcccc; \
     lmqtt_store_value_t value; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     lmqtt_packet_id_t id_set_items[ID_SET_SIZE]; \
@@ -374,6 +376,9 @@ START_TEST(should_not_call_null_decode_bytes)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 3, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_ptr_eq(0, callbacks_data);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_NONZERO_REMAINING_LENGTH, error);
 }
 END_TEST
 

@@ -10,6 +10,8 @@
     size_t bytes_r = BYTES_R_PLACEHOLDER; \
     int res; \
     int data = 0; \
+    lmqtt_error_t error; \
+    int os_error = 0xcccc; \
     lmqtt_store_value_t value; \
     lmqtt_store_entry_t entries[ENTRY_COUNT]; \
     memset(&client, 0, sizeof(client)); \
@@ -65,18 +67,29 @@ lmqtt_decode_result_t rx_buffer_decode_type_mock(
 {
     test_packet_t *packet = &client.packets[client.current_packet];
     size_t cnt = packet->bytes_per_call;
+    lmqtt_decode_result_t result;
 
     *bytes->bytes_written = 0;
     assert(bytes->buf_len >= 1);
 
-    if (packet->pos >= packet->bytes_to_read)
+    if (packet->pos >= packet->bytes_to_read) {
+        state->internal.error = LMQTT_ERROR_DECODE_NONZERO_REMAINING_LENGTH;
+        state->internal.os_error = 0;
         return LMQTT_DECODE_ERROR;
+    }
 
     memcpy(&packet->buf[packet->pos], bytes->buf, cnt);
     packet->pos += cnt;
     *bytes->bytes_written += cnt;
-    return packet->pos >= packet->bytes_to_read ?
+    result = packet->pos >= packet->bytes_to_read ?
         packet->result : LMQTT_DECODE_CONTINUE;
+
+    if (result == LMQTT_DECODE_ERROR) {
+        /* pick a random error code to satisfy rx_buffer_decode assertions */
+        state->internal.error = LMQTT_ERROR_DECODE_NONZERO_REMAINING_LENGTH;
+        state->internal.os_error = 0;
+    }
+    return result;
 }
 
 void set_packet_result(int i, lmqtt_decode_result_t result,
@@ -168,6 +181,10 @@ START_TEST(should_decode_rx_buffer_with_invalid_header)
     ck_assert_int_eq(0, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].pos);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_FIXED_HEADER_INVALID_TYPE, error);
+    ck_assert_int_eq(0, os_error);
 }
 END_TEST
 
@@ -319,6 +336,9 @@ START_TEST(should_decode_rx_buffer_with_disallowed_null_data)
     ck_assert_int_eq(2, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].pos);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_RESPONSE_TOO_SHORT, error);
 }
 END_TEST
 
@@ -354,6 +374,10 @@ START_TEST(should_decode_rx_buffer_with_invalid_response_packet)
     ck_assert_int_eq(2, bytes_r);
 
     ck_assert_int_eq(0, client.packets[0].pos);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_FIXED_HEADER_SERVER_SPECIFIC, error);
+    ck_assert_int_eq(0, os_error);
 }
 END_TEST
 
@@ -461,6 +485,9 @@ START_TEST(should_fail_if_connack_has_no_corresponding_connect)
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_int_eq(2, bytes_r);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_NO_CORRESPONDING_REQUEST, error);
 }
 END_TEST
 
@@ -480,6 +507,9 @@ START_TEST(should_fail_if_suback_has_no_corresponding_subscribe)
 
     ck_assert_int_eq(LMQTT_IO_ERROR, res);
     ck_assert_int_eq(3, bytes_r);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_NO_CORRESPONDING_REQUEST, error);
 }
 END_TEST
 
@@ -498,6 +528,28 @@ START_TEST(should_decode_pubrel_without_corresponding_pubrec)
     ck_assert_int_eq(4, bytes_r);
 
     ck_assert_int_eq(0x0102, client.packets[0].packet_id);
+}
+END_TEST
+
+START_TEST(should_fail_if_id_set_has_no_room_for_outgoing_pubrec)
+{
+    int i;
+    PREPARE;
+
+    for (i = 0; i < ENTRY_COUNT; i++)
+        STORE_APPEND_MARK(LMQTT_KIND_SUBSCRIBE, i + 1);
+
+    buf[0] = 0x62;
+    buf[1] = 2;
+    buf[2] = 0x01;
+    buf[3] = 0x02;
+
+    res = lmqtt_rx_buffer_decode(&state, buf, 4, &bytes_r);
+
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBREL_ID_SET_FULL, error);
 }
 END_TEST
 
@@ -546,6 +598,7 @@ START_TCASE("Rx buffer decode")
     ADD_TEST(should_fail_if_connack_has_no_corresponding_connect);
     ADD_TEST(should_fail_if_suback_has_no_corresponding_subscribe);
     ADD_TEST(should_decode_pubrel_without_corresponding_pubrec);
+    ADD_TEST(should_fail_if_id_set_has_no_room_for_outgoing_pubrec);
     ADD_TEST(should_finish_failed_buffer);
 }
 END_TCASE
