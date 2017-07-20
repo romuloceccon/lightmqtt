@@ -75,8 +75,8 @@ typedef struct _lmqtt_string_t {
     long len;
     char *buf;
     void *data;
-    lmqtt_read_t read;
-    lmqtt_write_t write;
+    lmqtt_io_callback_t read;
+    lmqtt_io_callback_t write;
     struct {
         long pos;
     } internal;

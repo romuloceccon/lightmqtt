@@ -3,44 +3,33 @@
 #include <string.h>
 
 /******************************************************************************
- * lmqtt_input_t
+ * lmqtt_io_t
  ******************************************************************************/
 
-typedef struct _lmqtt_input_t {
-    lmqtt_read_t read;
+typedef struct _lmqtt_io_t {
+    lmqtt_io_callback_t callback;
     void *data;
     int os_error;
-} lmqtt_input_t;
+} lmqtt_io_t;
 
-LMQTT_STATIC lmqtt_io_result_t input_read(lmqtt_input_t *input,
-    unsigned char *buf, size_t *buf_pos, size_t buf_len, size_t *cnt)
+LMQTT_STATIC lmqtt_io_result_t io_read(lmqtt_io_t *io, unsigned char *buf,
+    size_t *buf_pos, size_t buf_len, size_t *cnt)
 {
     lmqtt_io_result_t result;
 
-    result = input->read(input->data, &buf[*buf_pos], buf_len - *buf_pos, cnt,
-        &input->os_error);
+    result = io->callback(io->data, &buf[*buf_pos], buf_len - *buf_pos, cnt,
+        &io->os_error);
     *buf_pos += *cnt;
 
     return result;
 }
 
-/******************************************************************************
- * lmqtt_output_t
- ******************************************************************************/
-
-typedef struct _lmqtt_output_t {
-    lmqtt_write_t write;
-    void *data;
-    int os_error;
-} lmqtt_output_t;
-
-LMQTT_STATIC lmqtt_io_result_t output_write(lmqtt_output_t *output,
-    unsigned char *buf, size_t *buf_pos, size_t *cnt)
+LMQTT_STATIC lmqtt_io_result_t io_write(lmqtt_io_t *io, unsigned char *buf,
+    size_t *buf_pos, size_t *cnt)
 {
     lmqtt_io_result_t result;
 
-    result = output->write(output->data, buf, *buf_pos, cnt,
-        &output->os_error);
+    result = io->callback(io->data, buf, *buf_pos, cnt, &io->os_error);
     memmove(&buf[0], &buf[*cnt], *buf_pos - *cnt);
     *buf_pos -= *cnt;
 
@@ -117,8 +106,8 @@ LMQTT_STATIC void client_set_current_store(lmqtt_client_t *client,
 }
 
 LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
-    lmqtt_input_t *input, lmqtt_io_status_t reader_block,
-    lmqtt_output_t *output, lmqtt_io_status_t writer_block,
+    lmqtt_io_t *input, lmqtt_io_status_t reader_block,
+    lmqtt_io_t *output, lmqtt_io_status_t writer_block,
     unsigned char *buf, size_t *buf_pos, size_t buf_len)
 {
     int read_allowed = 1;
@@ -134,14 +123,14 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
 
     while (1) {
         read_allowed = read_allowed && *buf_pos < buf_len &&
-            (res_rd = input_read(input, buf, buf_pos, buf_len,
+            (res_rd = io_read(input, buf, buf_pos, buf_len,
                 &cnt_rd)) == LMQTT_IO_SUCCESS && cnt_rd > 0;
 
         if (client_is_error(client, res_rd))
             return LMQTT_IO_STATUS_ERROR;
 
         write_allowed = write_allowed && *buf_pos > 0 &&
-            (res_wr = output_write(output, buf, buf_pos,
+            (res_wr = io_write(output, buf, buf_pos,
                 &cnt_wr)) == LMQTT_IO_SUCCESS && cnt_wr > 0;
 
         if (client_is_error(client, res_wr))
@@ -187,13 +176,13 @@ LMQTT_STATIC lmqtt_io_result_t client_encode_wrapper(void *data, void *buf,
 
 LMQTT_STATIC lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 {
-    lmqtt_input_t input;
-    lmqtt_output_t output;
+    lmqtt_io_t input;
+    lmqtt_io_t output;
 
-    input.read = client->callbacks.read;
+    input.callback = client->callbacks.read;
     input.data = client->callbacks.data;
     input.os_error = 0;
-    output.write = &client_decode_wrapper;
+    output.callback = &client_decode_wrapper;
     output.data = &client->rx_state;
     output.os_error = 0;
 
@@ -205,13 +194,13 @@ LMQTT_STATIC lmqtt_io_status_t client_process_input(lmqtt_client_t *client)
 
 LMQTT_STATIC lmqtt_io_status_t client_process_output(lmqtt_client_t *client)
 {
-    lmqtt_input_t input;
-    lmqtt_output_t output;
+    lmqtt_io_t input;
+    lmqtt_io_t output;
 
-    input.read = &client_encode_wrapper;
+    input.callback = &client_encode_wrapper;
     input.data = &client->tx_state;
     input.os_error = 0;
-    output.write = client->callbacks.write;
+    output.callback = client->callbacks.write;
     output.data = client->callbacks.data;
     output.os_error = 0;
 

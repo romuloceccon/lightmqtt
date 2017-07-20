@@ -61,10 +61,8 @@ typedef enum {
     LMQTT_ERROR_DECODE_PUBREL_ID_SET_FULL
 } lmqtt_error_t;
 
-typedef lmqtt_io_result_t (*lmqtt_read_t)(void *, void *, size_t, size_t *,
-    int *);
-typedef lmqtt_io_result_t (*lmqtt_write_t)(void *, void *, size_t, size_t *,
-    int *);
+typedef lmqtt_io_result_t (*lmqtt_io_callback_t)(void *, void *, size_t,
+    size_t *, int *);
 
 #ifdef  __cplusplus
 }

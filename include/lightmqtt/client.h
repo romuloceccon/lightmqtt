@@ -41,8 +41,8 @@ extern "C" {
 
 typedef struct _lmqtt_client_callbacks_t {
     void *data;
-    lmqtt_read_t read;
-    lmqtt_write_t write;
+    lmqtt_io_callback_t read;
+    lmqtt_io_callback_t write;
     lmqtt_get_time_t get_time;
 } lmqtt_client_callbacks_t;
 

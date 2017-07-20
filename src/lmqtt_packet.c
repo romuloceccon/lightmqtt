@@ -163,11 +163,8 @@ LMQTT_STATIC void encode_buffer_encode_packet_id(
  * lmqtt_string_t PRIVATE functions
  ******************************************************************************/
 
-typedef lmqtt_io_result_t (*lmqtt_string_callback_t)(void *, void *, size_t,
-    size_t *, int *);
-
 static lmqtt_string_result_t string_move(lmqtt_string_t *str,
-    unsigned char *buf, size_t buf_len, lmqtt_string_callback_t callback,
+    unsigned char *buf, size_t buf_len, lmqtt_io_callback_t callback,
     unsigned char *dst, unsigned char *src, size_t *bytes_moved, int *os_error)
 {
     *bytes_moved = 0;
