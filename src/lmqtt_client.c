@@ -11,7 +11,8 @@ typedef struct _lmqtt_io_t {
     void *data;
     lmqtt_io_status_t block_status;
     int os_error;
-    int allowed;
+    int available;
+    int stale;
     lmqtt_io_result_t result;
     size_t count;
 } lmqtt_io_t;
@@ -23,14 +24,25 @@ static void io_initialize(lmqtt_io_t *io, lmqtt_io_callback_t callback,
     io->data = data;
     io->block_status = block_status;
     io->os_error = 0;
-    io->allowed = 1;
+    io->available = 1;
+    io->stale = 1;
     io->result = LMQTT_IO_SUCCESS;
     io->count = -1;
+}
+
+static int io_is_available(lmqtt_io_t *io)
+{
+    return io->available;
 }
 
 static int io_is_eof(lmqtt_io_t *io)
 {
     return io->result == LMQTT_IO_SUCCESS && io->count == 0;
+}
+
+static int io_is_stale(lmqtt_io_t *io)
+{
+    return io->stale;
 }
 
 static void io_append(lmqtt_io_t *io, unsigned char *buf, size_t *buf_pos)
@@ -48,14 +60,17 @@ static int io_exec(lmqtt_io_t *io, unsigned char *buf, size_t *buf_pos,
     void (*after_exec)(lmqtt_io_t *, unsigned char *, size_t *),
     size_t left, size_t right)
 {
-    io->allowed = io->allowed && left < right;
+    io->available = io->available && left < right;
 
-    if (io->allowed) {
+    if (io->available) {
         io->result = io->callback(io->data, &buf[left], right - left,
             &io->count, &io->os_error);
         after_exec(io, buf, buf_pos);
 
-        io->allowed = io->result == LMQTT_IO_SUCCESS && io->count > 0;
+        io->available = io->result == LMQTT_IO_SUCCESS && io->count > 0;
+
+        if (io->available)
+            io->stale = 0;
     }
 
     return io->result != LMQTT_IO_ERROR;
@@ -115,28 +130,21 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     lmqtt_io_t *input, lmqtt_io_t *output, unsigned char *buf, size_t *buf_pos,
     size_t buf_len)
 {
-    int stale = 1;
-
     if (client->failed)
         return LMQTT_IO_STATUS_ERROR;
 
-    while (1) {
+    while (io_is_available(input) || io_is_available(output)) {
         if (!io_exec(input, buf, buf_pos, &io_append, *buf_pos, buf_len) ||
                 !io_exec(output, buf, buf_pos, &io_shift, 0, *buf_pos)) {
             client_set_state_failed(client);
             return LMQTT_IO_STATUS_ERROR;
         }
-
-        if (!input->allowed && !output->allowed)
-            break;
-
-        stale = 0;
     }
 
     /* Even when processing a CONNACK this will touch the correct store, because
        client->current_store will be updated during the callback called from
        lmqtt_rx_buffer_decode(). */
-    if (!stale)
+    if (!io_is_stale(input) || !io_is_stale(output))
         lmqtt_store_touch(client->current_store);
 
     if (io_is_eof(input) || io_is_eof(output)) {
