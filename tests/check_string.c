@@ -88,13 +88,16 @@ END_TEST
 
 START_TEST(should_write_chars_to_failing_callback)
 {
+    test_buffer_t dst;
     lmqtt_string_t str;
     lmqtt_string_result_t res;
     size_t cnt = 0xcccc;
     int os_error = 0xcccc;
 
+    memset(&dst, 0, sizeof(dst));
     memset(&str, 0, sizeof(str));
     str.write = &test_buffer_io_fail;
+    str.data = &dst;
     str.len = 2;
 
     res = string_write(&str, (unsigned char *) "a", 1, &cnt, &os_error);
@@ -194,14 +197,17 @@ END_TEST
 
 START_TEST(should_read_chars_from_failing_callback_with_zero_length)
 {
+    test_buffer_t src;
     unsigned char buf[10];
     lmqtt_string_t str;
     lmqtt_string_result_t res;
     size_t cnt = 0xcccc;
     int os_error = 0xcccc;
 
+    memset(&src, 0, sizeof(src));
     memset(&str, 0, sizeof(str));
     str.read = &test_buffer_io_fail;
+    str.data = &src;
 
     res = string_read(&str, buf, 0, &cnt, &os_error);
     ck_assert_int_eq(LMQTT_STRING_SUCCESS, res);
@@ -298,15 +304,18 @@ END_TEST
 
 START_TEST(should_encode_string_with_read_error)
 {
+    test_buffer_t src;
     unsigned char buf[64];
     lmqtt_string_t str;
     lmqtt_encode_buffer_t enc_buf;
     int res;
     size_t bytes_w = (size_t) -1;
 
+    memset(&src, 0, sizeof(src));
     memset(&str, 0, sizeof(str));
     memset(&enc_buf, 0, sizeof(enc_buf));
     str.read = &test_buffer_io_fail;
+    str.data = &src;
     str.len = 10;
 
     res = string_encode(&str, 0, 0, 0, buf, sizeof(buf), &bytes_w, &enc_buf);

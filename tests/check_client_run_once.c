@@ -10,13 +10,6 @@ static lmqtt_store_entry_t entries[16];
 static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
-static lmqtt_io_result_t test_read_blocked(void *data, void *buf,
-    size_t buf_len, size_t *bytes_read, int *os_error)
-{
-    *bytes_read = 0;
-    return LMQTT_IO_WOULD_BLOCK;
-}
-
 static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     int *connected = (int *) data;
@@ -166,6 +159,7 @@ END_TEST
 
 START_TEST(should_run_with_data_blocked_for_read)
 {
+    test_buffer_t client_src;
     lmqtt_string_t dummy;
     lmqtt_client_t client;
     lmqtt_string_t *str_rd = &dummy, *str_wr = &dummy;
@@ -174,10 +168,12 @@ START_TEST(should_run_with_data_blocked_for_read)
 
     do_client_initialize(&client);
 
+    memset(&client_src, 0, sizeof(client_src));
     memset(&connect, 0, sizeof(connect));
     connect.clean_session = 1;
-    connect.client_id.len = 10;
-    connect.client_id.read = test_read_blocked;
+    connect.client_id.len = client_src.len = 10;
+    connect.client_id.read = &test_buffer_read;
+    connect.client_id.data = &client_src;
 
     lmqtt_client_connect(&client, &connect);
 
@@ -246,6 +242,7 @@ END_TEST
 
 START_TEST(should_run_with_read_error)
 {
+    test_buffer_t client_src;
     lmqtt_client_t client;
     lmqtt_string_t *str_rd, *str_wr;
     lmqtt_connect_t connect;
@@ -253,10 +250,12 @@ START_TEST(should_run_with_read_error)
 
     do_client_initialize(&client);
 
+    memset(&client_src, 0, sizeof(client_src));
     memset(&connect, 0, sizeof(connect));
     connect.clean_session = 1;
-    connect.client_id.len = 10;
+    connect.client_id.len = client_src.len = 10;
     connect.client_id.read = &test_buffer_io_fail;
+    connect.client_id.data = &client_src;
 
     lmqtt_client_connect(&client, &connect);
 

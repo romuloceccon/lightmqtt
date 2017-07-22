@@ -36,6 +36,7 @@ lmqtt_io_result_t test_buffer_write(void *data, void *buf, size_t buf_len,
 lmqtt_io_result_t test_buffer_io_fail(void *data, void *buf, size_t buf_len,
     size_t *byte_cnt, int *os_error)
 {
+    ((test_buffer_t *) data)->call_count += 1;
     *byte_cnt = 0;
     *os_error = 1;
     return LMQTT_IO_ERROR;
