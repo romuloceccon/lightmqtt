@@ -94,6 +94,9 @@ typedef struct _lmqtt_client_t {
     lmqtt_client_callbacks_t callbacks;
     lmqtt_message_callbacks_t message_callbacks;
 
+    lmqtt_error_t error;
+    int os_error;
+
     struct {
         int (*connect)(struct _lmqtt_client_t *, lmqtt_connect_t *);
         int (*subscribe)(struct _lmqtt_client_t *, lmqtt_subscribe_t *);

@@ -13,6 +13,11 @@
 
 #define RX_4TH (RX_BUFFER_SIZE / 4)
 
+static int buffer_fail;
+static lmqtt_error_t error_decode;
+static lmqtt_error_t error_encode;
+static int error_os_decode;
+static int error_os_encode;
 static lmqtt_client_t client;
 static test_buffer_t test_src;
 static test_buffer_t test_dst;
@@ -23,15 +28,37 @@ static lmqtt_store_entry_t entries[ENTRY_COUNT];
 lmqtt_io_result_t lmqtt_rx_buffer_decode_mock(lmqtt_rx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_read)
 {
+    if (buffer_fail)
+        return LMQTT_IO_ERROR;
+
     return test_buffer_move(&test_dst,
         &test_dst.buf[test_dst.pos], buf, buf_len, bytes_read);
+}
+
+lmqtt_error_t lmqtt_rx_buffer_get_error_mock(lmqtt_rx_buffer_t *state,
+    int *os_error)
+{
+    ck_assert_ptr_eq(&client.rx_state, state);
+    *os_error = error_os_decode;
+    return error_decode;
 }
 
 lmqtt_io_result_t lmqtt_tx_buffer_encode_mock(lmqtt_tx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_written)
 {
+    if (buffer_fail)
+        return LMQTT_IO_ERROR;
+
     return test_buffer_move(&test_src, buf, &test_src.buf[test_src.pos],
         buf_len, bytes_written);
+}
+
+lmqtt_error_t lmqtt_tx_buffer_get_error_mock(lmqtt_tx_buffer_t *state,
+    int *os_error)
+{
+    ck_assert_ptr_eq(&client.tx_state, state);
+    *os_error = error_os_encode;
+    return error_encode;
 }
 
 static void prepare_all()
@@ -42,6 +69,12 @@ static void prepare_all()
     memset(&test_src, 0, sizeof(test_src));
     memset(&test_dst, 0, sizeof(test_dst));
     memset(entries, 0, sizeof(entries));
+
+    error_decode = 0;
+    error_encode = 0;
+    error_os_decode = 0;
+    error_os_encode = 0;
+    buffer_fail = 0;
 
     client.connect_store.get_time = &test_time_get;
     client.connect_store.entries = &client.connect_store_entry;
@@ -443,10 +476,83 @@ START_TEST(should_touch_store_when_decode_unblocks)
 }
 END_TEST
 
+START_TEST(should_not_set_error_if_decode_does_not_fail)
+{
+    prepare_read();
+
+    test_src.available_len = 5;
+    error_decode = LMQTT_ERROR_DECODE_PUBLISH_TOPIC_WRITE_FAILED;
+    error_os_decode = 123;
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_input(&client));
+    ck_assert_int_eq(0, client.error);
+    ck_assert_int_eq(0, client.os_error);
+}
+END_TEST
+
+START_TEST(should_set_error_if_read_fails)
+{
+    prepare_read();
+
+    test_dst.available_len = 5;
+    client.callbacks.read = &test_buffer_io_fail;
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
+    ck_assert_int_eq(LMQTT_ERROR_CONNECTION_READ, client.error);
+    ck_assert_int_eq(1, client.os_error);
+}
+END_TEST
+
+START_TEST(should_set_error_if_write_fails)
+{
+    prepare_write();
+
+    test_src.available_len = 5;
+    client.callbacks.write = &test_buffer_io_fail;
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_output(&client));
+    ck_assert_int_eq(LMQTT_ERROR_CONNECTION_WRITE, client.error);
+    ck_assert_int_eq(1, client.os_error);
+}
+END_TEST
+
+START_TEST(should_set_error_if_decode_fails)
+{
+    prepare_read();
+
+    test_src.available_len = 5;
+    buffer_fail = 1;
+    error_decode = LMQTT_ERROR_DECODE_PUBLISH_TOPIC_WRITE_FAILED;
+    error_os_decode = 123;
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBLISH_TOPIC_WRITE_FAILED,
+        client.error);
+    ck_assert_int_eq(123, client.os_error);
+}
+END_TEST
+
+START_TEST(should_set_error_if_encode_fails)
+{
+    prepare_write();
+
+    test_dst.available_len = 5;
+    buffer_fail = 1;
+    error_encode = LMQTT_ERROR_ENCODE_STRING;
+    error_os_encode = 456;
+
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_output(&client));
+    ck_assert_int_eq(LMQTT_ERROR_ENCODE_STRING, client.error);
+    ck_assert_int_eq(456, client.os_error);
+}
+END_TEST
+
 START_TCASE("Client buffers")
 {
     lmqtt_rx_buffer_decode = &lmqtt_rx_buffer_decode_mock;
+    lmqtt_rx_buffer_get_error = &lmqtt_rx_buffer_get_error_mock;
     lmqtt_tx_buffer_encode = &lmqtt_tx_buffer_encode_mock;
+    lmqtt_tx_buffer_get_error = &lmqtt_tx_buffer_get_error_mock;
 
     ADD_TEST(should_process_input_without_data);
     ADD_TEST(should_process_input_with_complete_read_and_complete_decode);
@@ -463,5 +569,11 @@ START_TCASE("Client buffers")
     ADD_TEST(should_touch_store_after_read);
     ADD_TEST(should_not_touch_store_if_read_blocks);
     ADD_TEST(should_touch_store_when_decode_unblocks);
+
+    ADD_TEST(should_not_set_error_if_decode_does_not_fail);
+    ADD_TEST(should_set_error_if_read_fails);
+    ADD_TEST(should_set_error_if_write_fails);
+    ADD_TEST(should_set_error_if_decode_fails);
+    ADD_TEST(should_set_error_if_encode_fails);
 }
 END_TCASE

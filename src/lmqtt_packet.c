@@ -1015,11 +1015,16 @@ void lmqtt_tx_buffer_finish(lmqtt_tx_buffer_t *state)
     state->closed = 1;
 }
 
-lmqtt_error_t lmqtt_tx_buffer_get_error(lmqtt_tx_buffer_t *state, int *os_error)
+lmqtt_error_t lmqtt_tx_buffer_get_error_impl(lmqtt_tx_buffer_t *state,
+    int *os_error)
 {
     *os_error = state->internal.os_error;
     return state->internal.error;
 }
+
+/* Enable mocking of lmqtt_tx_buffer_get_error() */
+lmqtt_error_t (*lmqtt_tx_buffer_get_error)(lmqtt_tx_buffer_t *, int *) =
+    &lmqtt_tx_buffer_get_error_impl;
 
 static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_written)
@@ -1618,11 +1623,16 @@ void lmqtt_rx_buffer_finish(lmqtt_rx_buffer_t *state)
     rx_buffer_call_callback(state);
 }
 
-lmqtt_error_t lmqtt_rx_buffer_get_error(lmqtt_rx_buffer_t *state, int *os_error)
+lmqtt_error_t lmqtt_rx_buffer_get_error_impl(lmqtt_rx_buffer_t *state,
+    int *os_error)
 {
     *os_error = state->internal.os_error;
     return state->internal.error;
 }
+
+/* Enable mocking of lmqtt_rx_buffer_get_error() */
+lmqtt_error_t (*lmqtt_rx_buffer_get_error)(lmqtt_rx_buffer_t *, int *) =
+    &lmqtt_rx_buffer_get_error_impl;
 
 static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
     unsigned char *buf, size_t buf_len, size_t *bytes_read)

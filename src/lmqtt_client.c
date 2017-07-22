@@ -12,8 +12,6 @@ typedef lmqtt_io_result_t (*lmqtt_transfer_wrapper_t)(lmqtt_client_t *,
 typedef struct _lmqtt_transfer_t {
     lmqtt_transfer_wrapper_t transfer_wrapper;
     lmqtt_io_status_t block_status;
-    lmqtt_error_t error;
-    int os_error;
     int available;
     int stale;
     lmqtt_io_result_t result;
@@ -25,8 +23,6 @@ static void transfer_initialize(lmqtt_transfer_t *transfer,
 {
     transfer->transfer_wrapper = transfer_wrapper;
     transfer->block_status = block_status;
-    transfer->error = 0;
-    transfer->os_error = 0;
     transfer->available = 1;
     transfer->stale = 1;
     transfer->result = LMQTT_IO_SUCCESS;
@@ -66,12 +62,14 @@ static int transfer_exec(lmqtt_transfer_t *transfer, lmqtt_client_t *client,
     void (*after_exec)(lmqtt_transfer_t *, unsigned char *, size_t *),
     size_t left, size_t right)
 {
+    lmqtt_error_t error = 0;
+    int os_error = 0;
+
     transfer->available = transfer->available && left < right;
 
     if (transfer->available) {
-        transfer->result = transfer->transfer_wrapper(
-            client, &buf[left], right - left, &transfer->count,
-            &transfer->error, &transfer->os_error);
+        transfer->result = transfer->transfer_wrapper(client, &buf[left],
+            right - left, &transfer->count, &error, &os_error);
         after_exec(transfer, buf, buf_pos);
 
         transfer->available = transfer->result == LMQTT_IO_SUCCESS &&
@@ -81,7 +79,13 @@ static int transfer_exec(lmqtt_transfer_t *transfer, lmqtt_client_t *client,
             transfer->stale = 0;
     }
 
-    return transfer->result != LMQTT_IO_ERROR;
+    if (transfer->result == LMQTT_IO_ERROR) {
+        client->error = error;
+        client->os_error = os_error;
+        return 0;
+    }
+
+    return 1;
 }
 
 /******************************************************************************
@@ -173,30 +177,44 @@ static lmqtt_io_result_t client_wrapper_decode(lmqtt_client_t *client,
     unsigned char *buf, size_t buf_len, size_t *cnt, lmqtt_error_t *error,
     int *os_error)
 {
-    return lmqtt_rx_buffer_decode(&client->rx_state, buf, buf_len, cnt);
+    lmqtt_io_result_t result = lmqtt_rx_buffer_decode(&client->rx_state, buf,
+        buf_len, cnt);
+
+    *error = lmqtt_rx_buffer_get_error(&client->rx_state, os_error);
+    return result;
 }
 
 static lmqtt_io_result_t client_wrapper_encode(lmqtt_client_t *client,
     unsigned char *buf, size_t buf_len, size_t *cnt, lmqtt_error_t *error,
     int *os_error)
 {
-    return lmqtt_tx_buffer_encode(&client->tx_state, buf, buf_len, cnt);
+    lmqtt_io_result_t result = lmqtt_tx_buffer_encode(&client->tx_state, buf,
+        buf_len, cnt);
+
+    *error = lmqtt_tx_buffer_get_error(&client->tx_state, os_error);
+    return result;
 }
 
 static lmqtt_io_result_t client_wrapper_read(lmqtt_client_t *client,
     unsigned char *buf, size_t buf_len, size_t *cnt, lmqtt_error_t *error,
     int *os_error)
 {
-    return client->callbacks.read(client->callbacks.data, buf, buf_len, cnt,
-        os_error);
+    lmqtt_io_result_t result = client->callbacks.read(client->callbacks.data,
+        buf, buf_len, cnt, os_error);
+
+    *error = LMQTT_ERROR_CONNECTION_READ;
+    return result;
 }
 
 static lmqtt_io_result_t client_wrapper_write(lmqtt_client_t *client,
     unsigned char *buf, size_t buf_len, size_t *cnt, lmqtt_error_t *error,
     int *os_error)
 {
-    return client->callbacks.write(client->callbacks.data, buf, buf_len, cnt,
-        os_error);
+    lmqtt_io_result_t result = client->callbacks.write(client->callbacks.data,
+        buf, buf_len, cnt, os_error);
+
+    *error = LMQTT_ERROR_CONNECTION_WRITE;
+    return result;
 }
 
 LMQTT_STATIC lmqtt_io_status_t client_process_input(lmqtt_client_t *client)

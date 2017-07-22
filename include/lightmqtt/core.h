@@ -58,7 +58,11 @@ typedef enum {
     /* [OS error] error writing publish payload using callback */
     LMQTT_ERROR_DECODE_PUBLISH_PAYLOAD_WRITE_FAILED,
     /* id set has no space available to respond incoming PUBREL with PUBCOMP */
-    LMQTT_ERROR_DECODE_PUBREL_ID_SET_FULL
+    LMQTT_ERROR_DECODE_PUBREL_ID_SET_FULL,
+    /* [OS error] error reading from connection socket */
+    LMQTT_ERROR_CONNECTION_READ,
+    /* [OS error] error writing to connection socket */
+    LMQTT_ERROR_CONNECTION_WRITE
 } lmqtt_error_t;
 
 typedef lmqtt_io_result_t (*lmqtt_io_callback_t)(void *, void *, size_t,
