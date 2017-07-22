@@ -270,7 +270,8 @@ START_TEST(should_run_with_read_error)
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
     ck_assert(!LMQTT_IS_QUEUEABLE(res));
-    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+    ck_assert_int_eq(LMQTT_ERROR_ENCODE_STRING, LMQTT_ERROR_NUM(res));
+    ck_assert_int_eq(1, lmqtt_client_get_os_error(&client));
 }
 END_TEST
 
@@ -503,7 +504,7 @@ START_TEST(should_run_after_timeout)
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
     ck_assert(!LMQTT_IS_QUEUEABLE(res));
-    ck_assert_int_eq(0, LMQTT_ERROR_NUM(res));
+    ck_assert_int_eq(LMQTT_ERROR_TIMEOUT, LMQTT_ERROR_NUM(res));
 
     ck_assert_int_eq(-1, test_socket_shift(&ts));
 }

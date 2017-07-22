@@ -62,7 +62,11 @@ typedef enum {
     /* [OS error] error reading from connection socket */
     LMQTT_ERROR_CONNECTION_READ,
     /* [OS error] error writing to connection socket */
-    LMQTT_ERROR_CONNECTION_WRITE
+    LMQTT_ERROR_CONNECTION_WRITE,
+    /* time without any I/O exceeded configured timeout */
+    LMQTT_ERROR_TIMEOUT,
+    /* client has already been finalized by user */
+    LMQTT_ERROR_CLOSED
 } lmqtt_error_t;
 
 typedef lmqtt_io_result_t (*lmqtt_io_callback_t)(void *, void *, size_t,

@@ -1,6 +1,7 @@
 #include <lightmqtt/client.h>
 #include <lightmqtt/types.h>
 #include <string.h>
+#include <assert.h>
 
 /******************************************************************************
  * lmqtt_transfer_t
@@ -145,7 +146,7 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
     lmqtt_transfer_t *input, lmqtt_transfer_t *output, unsigned char *buf,
     size_t *buf_pos, size_t buf_len)
 {
-    if (client->failed)
+    if (client->error)
         return LMQTT_IO_STATUS_ERROR;
 
     while (transfer_is_available(input) || transfer_is_available(output)) {
@@ -248,7 +249,7 @@ LMQTT_STATIC lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
     size_t cnt;
     long s, ns;
 
-    if (client->failed)
+    if (client->error)
         return LMQTT_IO_STATUS_ERROR;
 
     if (!lmqtt_store_get_timeout(client->current_store, &cnt, &s, &ns) ||
@@ -256,6 +257,8 @@ LMQTT_STATIC lmqtt_io_status_t client_keep_alive(lmqtt_client_t *client)
         return LMQTT_IO_STATUS_READY;
 
     if (cnt > 0) {
+        client->error = LMQTT_ERROR_TIMEOUT;
+        client->os_error = 0;
         client_set_state_failed(client);
         return LMQTT_IO_STATUS_ERROR;
     }
@@ -462,8 +465,9 @@ LMQTT_STATIC int client_do_disconnect(lmqtt_client_t *client)
 
 LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client)
 {
+    client->error = 0;
+    client->os_error = 0;
     client->closed = 1;
-    client->failed = 0;
 
     lmqtt_store_touch(&client->connect_store);
     client_set_current_store(client, &client->connect_store);
@@ -481,8 +485,9 @@ LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client)
 
 LMQTT_STATIC void client_set_state_connecting(lmqtt_client_t *client)
 {
+    client->error = 0;
+    client->os_error = 0;
     client->closed = 0;
-    client->failed = 0;
 
     lmqtt_rx_buffer_reset(&client->rx_state);
     lmqtt_tx_buffer_reset(&client->tx_state);
@@ -494,8 +499,9 @@ LMQTT_STATIC void client_set_state_connecting(lmqtt_client_t *client)
 
 LMQTT_STATIC void client_set_state_connected(lmqtt_client_t *client)
 {
+    client->error = 0;
+    client->os_error = 0;
     client->closed = 0;
-    client->failed = 0;
 
     client_set_current_store(client, &client->main_store);
     client_cleanup_stores(client, !client->clean_session);
@@ -511,8 +517,8 @@ LMQTT_STATIC void client_set_state_connected(lmqtt_client_t *client)
 
 LMQTT_STATIC void client_set_state_failed(lmqtt_client_t *client)
 {
+    assert(client->error);
     client->closed = 1;
-    client->failed = 1;
 
     client->internal.connect = client_do_connect_fail;
     client->internal.subscribe = client_do_subscribe_fail;
@@ -532,7 +538,8 @@ LMQTT_STATIC int client_process_buffer(lmqtt_client_t *client,
         return 0;
     }
     if (res == LMQTT_IO_STATUS_ERROR) {
-        *return_val = LMQTT_RES_ERROR;
+        assert(client->error);
+        *return_val = client->error & LMQTT_RES_ERROR;
         return 0;
     }
 
@@ -575,12 +582,14 @@ void lmqtt_client_initialize(lmqtt_client_t *client, lmqtt_client_callbacks_t
 
 void lmqtt_client_reset(lmqtt_client_t *client)
 {
-    if (client->closed && client->failed)
+    if (client->closed && client->error && client->error != LMQTT_ERROR_CLOSED)
         client_set_state_initial(client);
 }
 
 void lmqtt_client_finalize(lmqtt_client_t *client)
 {
+    client->error = LMQTT_ERROR_CLOSED;
+    client->os_error = 0;
     client_set_state_failed(client);
 
     lmqtt_rx_buffer_finish(&client->rx_state);
@@ -655,6 +664,11 @@ void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
     client->connect_store.timeout = secs;
 }
 
+int lmqtt_client_get_os_error(lmqtt_client_t *client)
+{
+    return client->os_error;
+}
+
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 {
     size_t cnt;
@@ -670,7 +684,8 @@ int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     if (client_keep_alive(client) == LMQTT_IO_STATUS_ERROR) {
         *str_rd = NULL;
         *str_wr = NULL;
-        return LMQTT_RES_ERROR;
+        assert(client->error);
+        return client->error & LMQTT_RES_ERROR;
     }
 
     do {

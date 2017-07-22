@@ -33,7 +33,8 @@
     (((res) & LMQTT_RES_EOF_WR) == LMQTT_RES_EOF_WR)
 #define LMQTT_IS_QUEUEABLE(res) \
     (((res) & LMQTT_RES_QUEUEABLE) != 0)
-#define LMQTT_ERROR_NUM(res) (0)
+#define LMQTT_ERROR_NUM(res) \
+    ((res) & LMQTT_RES_ERROR)
 
 #ifdef  __cplusplus
 extern "C" {
@@ -75,7 +76,6 @@ typedef struct _lmqtt_client_t {
     void *on_publish_data;
 
     int closed;
-    int failed;
     int clean_session;
 
     lmqtt_rx_buffer_t rx_state;
@@ -133,6 +133,7 @@ void lmqtt_client_set_message_callbacks(lmqtt_client_t *client,
 
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
     unsigned short secs);
+int lmqtt_client_get_os_error(lmqtt_client_t *client);
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
 int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     lmqtt_string_t **str_wr);

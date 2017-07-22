@@ -255,7 +255,9 @@ START_TEST(should_initialize_client)
     ck_assert(&test_socket_write == client.callbacks.write);
     ck_assert(&test_time_get == client.main_store.get_time);
     ck_assert(&test_time_get == client.connect_store.get_time);
-    ck_assert_int_eq(0, client.failed);
+    ck_assert_int_eq(1, client.closed);
+    ck_assert_int_eq(0, client.error);
+    ck_assert_int_eq(0, client.os_error);
     ck_assert_ptr_eq(&client.connect_store, client.rx_state.store);
     ck_assert_ptr_eq(&client.connect_store, client.tx_state.store);
     ck_assert_int_eq(5, client.connect_store.last_touch.secs);
@@ -772,6 +774,9 @@ START_TEST(should_fail_client_after_pingreq_timeout)
 
     test_time_set(20, 0);
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_keep_alive(&client));
+    ck_assert_int_eq(LMQTT_ERROR_TIMEOUT, client.error);
+    ck_assert_int_eq(0, client.os_error);
+
     ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_output(&client));
     ck_assert_int_eq(-1, test_socket_shift(&ts));
 }
@@ -1161,6 +1166,8 @@ START_TEST(should_not_reconnect_after_finalize)
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
     lmqtt_client_finalize(&client);
+    ck_assert_int_eq(LMQTT_ERROR_CLOSED, client.error);
+    ck_assert_int_eq(0, client.os_error);
 
     memset(&connect, 0, sizeof(connect));
     connect.clean_session = 1;
@@ -1208,6 +1215,19 @@ START_TEST(should_touch_store_on_reset)
     ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
     /* 1 second passed since reset; remaining timeout should be 2 */
     ck_assert_int_eq(2, secs);
+}
+END_TEST
+
+START_TEST(should_not_reset_finalized_client)
+{
+    lmqtt_client_t client;
+
+    do_init_connect_process(&client, 5, 3);
+    lmqtt_client_finalize(&client);
+
+    lmqtt_client_reset(&client);
+    ck_assert_int_eq(LMQTT_ERROR_CLOSED, client.error);
+    ck_assert_int_eq(1, client.closed);
 }
 END_TEST
 
@@ -1369,6 +1389,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_reconnect_after_finalize);
     ADD_TEST(should_reconnect_after_reset);
     ADD_TEST(should_touch_store_on_reset);
+    ADD_TEST(should_not_reset_finalized_client);
 
     ADD_TEST(should_wait_connack_to_resend_packets_from_previous_connection);
     ADD_TEST(should_wait_connack_to_send_unsent_packets_from_previous_connection);
