@@ -1218,6 +1218,35 @@ START_TEST(should_touch_store_on_reset)
 }
 END_TEST
 
+START_TEST(should_reset_after_eof)
+{
+    lmqtt_client_t client;
+    long secs, nsecs;
+
+    test_time_set(10, 0);
+    do_init_connect_connack_process(&client, 5, 3);
+
+    /* remote closes the connection */
+    ts.read_buf.len = ts.read_buf.available_len = ts.test_pos_read;
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+    ck_assert_int_eq(1, client.closed);
+
+    test_time_set(12, 0);
+    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+
+    lmqtt_client_reset(&client);
+    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+
+    memset(&connect, 0, sizeof(connect));
+    connect.client_id.buf = "test";
+    connect.client_id.len = 4;
+    ck_assert_int_eq(1, lmqtt_client_connect(&client, &connect));
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    /* time should be counted from the moment lmqtt_client_reset was called */
+    ck_assert_int_eq(3, secs);
+}
+END_TEST
+
 START_TEST(should_not_reset_finalized_client)
 {
     lmqtt_client_t client;
@@ -1389,6 +1418,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_reconnect_after_finalize);
     ADD_TEST(should_reconnect_after_reset);
     ADD_TEST(should_touch_store_on_reset);
+    ADD_TEST(should_reset_after_eof);
     ADD_TEST(should_not_reset_finalized_client);
 
     ADD_TEST(should_wait_connack_to_resend_packets_from_previous_connection);

@@ -87,6 +87,7 @@ void run(const char *address, unsigned short port)
             }
 
             fprintf(stderr, "socket opened\n");
+            lmqtt_client_reset(&client);
             lmqtt_client_connect(&client, &connect_data);
         }
 
@@ -95,7 +96,6 @@ void run(const char *address, unsigned short port)
         if (LMQTT_IS_ERROR(res)) {
             fprintf(stderr, "client error: %d\n", LMQTT_ERROR_NUM(res));
             fail_connection(5);
-            lmqtt_client_reset(&client);
             continue;
         }
 
