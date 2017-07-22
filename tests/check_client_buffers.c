@@ -2,54 +2,6 @@
 
 #define BYTE_AT(p) ((p) % 199 + 1)
 
-#define PREPARE_READ \
-    do { \
-        int i; \
-        memset(&client, 0, sizeof(client)); \
-        memset(&test_src, 0, sizeof(test_src)); \
-        memset(&test_dst, 0, sizeof(test_dst)); \
-        memset(entries, 0, sizeof(entries)); \
-        client.callbacks.data = &test_src; \
-        client.callbacks.read = test_buffer_read; \
-        client.read_buf = rx_buffer; \
-        client.read_buf_capacity = RX_BUFFER_SIZE; \
-        client.connect_store.get_time = &test_time_get; \
-        client.connect_store.entries = &client.connect_store_entry; \
-        client.connect_store.capacity = 1; \
-        client.main_store.get_time = &test_time_get; \
-        client.main_store.entries = entries; \
-        client.main_store.capacity = ENTRY_COUNT; \
-        client.current_store = &client.main_store; \
-        test_src.len = sizeof(test_src.buf); \
-        test_dst.len = sizeof(test_dst.buf); \
-        for (i = 0; i < test_src.len; i++) \
-            test_src.buf[i] = BYTE_AT(i); \
-    } while (0)
-
-#define PREPARE_WRITE \
-    do { \
-        int i; \
-        memset(&client, 0, sizeof(client)); \
-        memset(&test_dst, 0, sizeof(test_dst)); \
-        memset(&test_src, 0, sizeof(test_src)); \
-        memset(entries, 0, sizeof(entries)); \
-        client.callbacks.data = &test_dst; \
-        client.callbacks.write = test_buffer_write; \
-        client.write_buf = tx_buffer; \
-        client.write_buf_capacity = TX_BUFFER_SIZE; \
-        client.connect_store.get_time = &test_time_get; \
-        client.connect_store.entries = &client.connect_store_entry; \
-        client.connect_store.capacity = 1; \
-        client.main_store.get_time = &test_time_get; \
-        client.main_store.entries = entries; \
-        client.main_store.capacity = ENTRY_COUNT; \
-        client.current_store = &client.main_store; \
-        test_src.len = sizeof(test_src.buf); \
-        test_dst.len = sizeof(test_dst.buf); \
-        for (i = 0; i < test_src.len; i++) \
-            test_src.buf[i] = BYTE_AT(i); \
-    } while (0)
-
 #define RX_BUFFER_SIZE 512
 #define TX_BUFFER_SIZE 512
 #define ENTRY_COUNT 1
@@ -61,6 +13,7 @@
 
 #define RX_4TH (RX_BUFFER_SIZE / 4)
 
+static lmqtt_client_t client;
 static test_buffer_t test_src;
 static test_buffer_t test_dst;
 static unsigned char rx_buffer[RX_BUFFER_SIZE];
@@ -89,12 +42,55 @@ static lmqtt_io_result_t read_test_buf_fail(void *data, void *buf,
     return LMQTT_IO_ERROR;
 }
 
+static void prepare_all()
+{
+    int i;
+
+    memset(&client, 0, sizeof(client));
+    memset(&test_src, 0, sizeof(test_src));
+    memset(&test_dst, 0, sizeof(test_dst));
+    memset(entries, 0, sizeof(entries));
+
+    client.connect_store.get_time = &test_time_get;
+    client.connect_store.entries = &client.connect_store_entry;
+    client.connect_store.capacity = 1;
+    client.main_store.get_time = &test_time_get;
+    client.main_store.entries = entries;
+    client.main_store.capacity = ENTRY_COUNT;
+    client.current_store = &client.main_store;
+
+    test_src.len = sizeof(test_src.buf);
+    test_dst.len = sizeof(test_dst.buf);
+
+    for (i = 0; i < test_src.len; i++)
+        test_src.buf[i] = BYTE_AT(i);
+}
+
+static void prepare_read()
+{
+    prepare_all();
+
+    client.callbacks.data = &test_src;
+    client.callbacks.read = test_buffer_read;
+    client.read_buf = rx_buffer;
+    client.read_buf_capacity = RX_BUFFER_SIZE;
+}
+
+static void prepare_write()
+{
+    prepare_all();
+
+    client.callbacks.data = &test_dst;
+    client.callbacks.write = test_buffer_write;
+    client.write_buf = tx_buffer;
+    client.write_buf_capacity = TX_BUFFER_SIZE;
+}
+
 START_TEST(should_process_input_without_data)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.len = 0;
     test_src.available_len = 0;
@@ -112,10 +108,9 @@ END_TEST
 
 START_TEST(should_process_input_with_complete_read_and_complete_decode)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.len = 5;
     test_src.available_len = test_src.len;
@@ -133,10 +128,9 @@ END_TEST
 
 START_TEST(should_consume_read_buffer_after_decode_blocks)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.available_len = 5 * RX_4TH;
     test_dst.available_len = 2 * RX_4TH;
@@ -180,10 +174,9 @@ END_TEST
 
 START_TEST(should_fill_read_buffer_if_decode_interrupts)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.available_len = test_src.len;
     test_dst.available_len = 2 * RX_4TH;
@@ -212,10 +205,9 @@ END_TEST
 
 START_TEST(should_process_remaining_input_from_previous_call)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.available_len = test_src.len;
     test_dst.available_len = RX_4TH / 2;
@@ -259,10 +251,9 @@ END_TEST
 
 START_TEST(should_decode_remaining_buffer_if_read_blocks)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.len = 5;
     test_src.available_len = 2;
@@ -278,10 +269,9 @@ END_TEST
 
 START_TEST(should_return_block_data_if_both_read_and_decode_block)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     test_src.available_len = 4;
     test_dst.available_len = 2;
@@ -296,10 +286,9 @@ END_TEST
 
 START_TEST(should_not_decode_remaining_buffer_if_read_fails)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_READ;
+    prepare_read();
 
     client.callbacks.read = read_test_buf_fail;
     test_src.available_len = test_src.len;
@@ -322,10 +311,9 @@ END_TEST
 
 START_TEST(should_encode_remaining_buffer_if_write_blocks)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_WRITE;
+    prepare_write();
 
     test_src.available_len = 20;
     test_dst.available_len = 2;
@@ -340,10 +328,9 @@ END_TEST
 
 START_TEST(should_write_remaining_buffer_if_encode_reaches_eof)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_WRITE;
+    prepare_write();
 
     test_src.len = 5;
     test_src.available_len = test_src.len;
@@ -361,10 +348,9 @@ END_TEST
 
 START_TEST(should_return_block_conn_if_both_encode_and_write_block)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_WRITE;
+    prepare_write();
 
     test_src.available_len = 4;
     test_dst.available_len = 2;
@@ -379,10 +365,9 @@ END_TEST
 
 START_TEST(should_return_eof_if_encode_blocks_and_write_closes)
 {
-    lmqtt_client_t client;
     lmqtt_io_status_t res;
 
-    PREPARE_WRITE;
+    prepare_write();
 
     test_src.available_len = 5 * RX_4TH;
     test_dst.len = 2 * RX_4TH;
@@ -398,9 +383,7 @@ END_TEST
 
 START_TEST(should_touch_store_after_read)
 {
-    lmqtt_client_t client;
-
-    PREPARE_READ;
+    prepare_read();
 
     test_src.len = 5;
     test_src.available_len = test_src.len;
@@ -415,9 +398,7 @@ END_TEST
 
 START_TEST(should_not_touch_store_if_read_blocks)
 {
-    lmqtt_client_t client;
-
-    PREPARE_READ;
+    prepare_read();
 
     test_src.len = 5;
     test_src.available_len = 1;
@@ -435,9 +416,7 @@ END_TEST
 
 START_TEST(should_touch_store_when_decode_unblocks)
 {
-    lmqtt_client_t client;
-
-    PREPARE_READ;
+    prepare_read();
 
     test_src.len = 5;
     test_src.available_len = 3;
