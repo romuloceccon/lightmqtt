@@ -142,23 +142,23 @@ START_TEST(should_consume_read_buffer_after_decode_blocks)
      * Each position in the drawing below represents LMQTT_RX_BUFFER_SIZE / 8
      * bytes. The flow of bytes between the buffers/streams is shown in 4 steps.
      *
-     * read buf (stream, open ended):
+     * read buf / test_src (stream, open ended):
      *   **: bytes which can be read without blocking
-     *   ++: bytes not yet available (reading would block)
+     *   ..: bytes read
      *
      * rx buf (fixed buf):
      *   **: bytes used
      *     : free space
      *
-     * decoded (stream, open ended):
+     * decoded / test_dst (stream, open ended):
      *   ..: bytes which could be written without blocking
-     *     : bytes not yet writable (writing would block)
+     *   **: bytes written
      *
      *     read buf         rx buf           decoded
-     * 1. |**********      |        |        |....
-     * 2. |**              |********|        |....
-     * 3. |**              |****    |        |****
-     * 4. |                |******  |        |****
+     * 1. |**********      |        |        |....      # initial
+     * 2. |**........      |********|        |....      # transf from test_src
+     * 3. |**........      |****    |        |****      # transf to test_dst
+     * 4. |..........      |******  |        |****      # consume test_src
      */
     ck_assert_int_eq(5 * RX_4TH, test_src.pos);
     ck_assert_int_eq(3, test_src.call_count);
@@ -186,10 +186,10 @@ START_TEST(should_fill_read_buffer_if_decode_interrupts)
 
     /*
      *     read buf           rx buf            decoded
-     * 1. |****************  |        |        |....
-     * 2. |********          |********|        |....
-     * 3. |********          |****    |        |****
-     * 4. |****              |********|        |****
+     * 1. |****************  |        |        |....     # initial
+     * 2. |********........  |********|        |....     # transf from test_src
+     * 3. |********........  |****    |        |****     # transf to test_dst
+     * 4. |****............  |********|        |****     # fill rx buf
      */
     ck_assert_int_eq(6 * RX_4TH, test_src.pos);
     ck_assert_int_eq(2, test_src.call_count);
@@ -214,10 +214,10 @@ START_TEST(should_process_remaining_input_from_previous_call)
 
     /*
      *     read buf           rx buf            decoded
-     * 1. |****************  |        |        |.
-     * 2. |********          |********|        |.
-     * 3. |********          |******* |        |*
-     * 4. |*******           |********|        |*
+     * 1. |****************  |        |        |.         # initial
+     * 2. |********........  |********|        |.         # transf from test_src
+     * 3. |********........  |******* |        |*         # transf to test_dst
+     * 4. |*******.........  |********|        |*         # fill rx buf
      */
     res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
@@ -232,10 +232,12 @@ START_TEST(should_process_remaining_input_from_previous_call)
     test_dst.available_len += RX_4TH / 2;
 
     /*
+     * More room available in test_dst:
+     *
      *     read buf           rx buf            decoded
-     * 1. |*******           |********|        |*.
-     * 2. |*******           |******* |        |**
-     * 3. |******            |********|        |**
+     * 1. |*******.........  |********|        |*.       # increase test_dst buf
+     * 2. |*******.........  |******* |        |**       # transf to test_dst
+     * 3. |******..........  |********|        |**       # fill rx buf
      */
     res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
@@ -259,6 +261,14 @@ START_TEST(should_decode_remaining_buffer_if_read_blocks)
     test_src.available_len = 2;
     test_dst.available_len = test_dst.len;
 
+    /*
+     * (Each char here is a single byte)
+     *
+     *     read buf        rx buf            decoded
+     * 1. |**             |           |     |..........   # initial
+     * 2. |..             |**         |     |..........   # transf from test_src
+     * 3. |..             |           |     |**........   # transf to test_dst
+     */
     res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, res);
 
@@ -276,6 +286,14 @@ START_TEST(should_return_block_data_if_both_read_and_decode_block)
     test_src.available_len = 4;
     test_dst.available_len = 2;
 
+    /*
+     * (Each char here is a single byte)
+     *
+     *     read buf        rx buf            decoded
+     * 1. |****           |           |     |..           # initial
+     * 2. |....           |****       |     |..           # transf from test_src
+     * 3. |....           |**         |     |**           # transf to test_dst
+     */
     res = client_process_input(&client);
     ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, res);
 
