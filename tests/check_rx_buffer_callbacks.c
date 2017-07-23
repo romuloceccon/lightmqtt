@@ -98,7 +98,7 @@ static lmqtt_allocate_result_t test_on_publish_allocate_payload_block(
 START_TEST(should_call_connack_callback)
 {
     lmqtt_connect_t connect;
-    char *buf = "\x20\x02\x00\x01";
+    char *buf = "\x20\x02\x00\x00";
 
     PREPARE;
 
@@ -112,7 +112,7 @@ START_TEST(should_call_connack_callback)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&connect, callbacks_data);
-    ck_assert_int_eq(1, connect.response.return_code);
+    ck_assert_int_eq(0, connect.response.return_code);
 }
 END_TEST
 

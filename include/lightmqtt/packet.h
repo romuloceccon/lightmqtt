@@ -5,14 +5,6 @@
 #include <lightmqtt/core.h>
 #include <lightmqtt/store.h>
 
-#define LMQTT_CONNACK_RC_ACCEPTED 0
-#define LMQTT_CONNACK_RC_UNACCEPTABLE_PROTOCOL_VERSION 1
-#define LMQTT_CONNACK_RC_IDENTIFIER_REJECTED 2
-#define LMQTT_CONNACK_RC_SERVER_UNAVAILABLE 3
-#define LMQTT_CONNACK_RC_BAD_USER_NAME_OR_PASSWORD 4
-#define LMQTT_CONNACK_RC_NOT_AUTHORIZED 5
-#define LMQTT_CONNACK_RC_MAX 5
-
 #ifdef  __cplusplus
 extern "C" {
 #endif

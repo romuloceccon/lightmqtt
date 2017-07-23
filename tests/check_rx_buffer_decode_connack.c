@@ -26,6 +26,7 @@
 
 #define DECODE_CONNACK_OK(b) DECODE_CONNACK((b), 1)
 #define DECODE_CONNACK_ERR(b) DECODE_CONNACK((b), 0)
+#define DECODE_CONNACK_FAIL(b) DECODE_CONNACK((b), 1)
 
 START_TEST(should_decode_connack_valid_first_byte)
 {
@@ -51,17 +52,31 @@ START_TEST(should_decode_connack_invalid_first_byte)
 }
 END_TEST
 
-START_TEST(should_decode_connack_valid_second_byte)
+START_TEST(should_decode_connack_valid_second_byte_success)
 {
     PREPARE;
 
     DECODE_CONNACK_OK(1);
     state.internal.remain_buf_pos++;
-    DECODE_CONNACK_OK(3);
+    DECODE_CONNACK_OK(0);
 
     ck_assert_int_eq(LMQTT_DECODE_FINISHED, res);
     ck_assert_int_eq(1, connect.response.session_present);
-    ck_assert_int_eq(3, connect.response.return_code);
+    ck_assert_int_eq(0, error);
+}
+END_TEST
+
+START_TEST(should_decode_connack_valid_second_byte_failure)
+{
+    PREPARE;
+
+    DECODE_CONNACK_OK(1);
+    state.internal.remain_buf_pos++;
+    DECODE_CONNACK_FAIL(5);
+
+    ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
+    ck_assert_int_eq(1, connect.response.session_present);
+    ck_assert_int_eq(LMQTT_ERROR_CONNACK_NOT_AUTHORIZED, error);
 }
 END_TEST
 
@@ -98,7 +113,7 @@ END_TEST
 START_TEST(should_decode_buffer_with_multiple_bytes)
 {
     size_t cnt;
-    const char *buf = "\x01\x03";
+    const char *buf = "\x01\x00";
     lmqtt_decode_bytes_t bytes;
 
     PREPARE;
@@ -125,7 +140,8 @@ START_TCASE("Rx buffer decode connack")
 {
     ADD_TEST(should_decode_connack_valid_first_byte);
     ADD_TEST(should_decode_connack_invalid_first_byte);
-    ADD_TEST(should_decode_connack_valid_second_byte);
+    ADD_TEST(should_decode_connack_valid_second_byte_success);
+    ADD_TEST(should_decode_connack_valid_second_byte_failure);
     ADD_TEST(should_decode_connack_invalid_second_byte);
     ADD_TEST(should_not_decode_third_byte);
     ADD_TEST(should_decode_buffer_with_multiple_bytes);

@@ -25,6 +25,9 @@ static char message_payload[256];
 
 void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
+    if (!succeeded)
+        return;
+
     memset(&subscribe, 0, sizeof(subscribe));
     memset(subscriptions, 0, sizeof(subscriptions));
     subscribe.count = 1;
@@ -38,7 +41,7 @@ void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 
 void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
-    if (strlen(msg) == 0)
+    if (!succeeded || strlen(msg) == 0)
         return;
 
     memset(&publish, 0, sizeof(publish));

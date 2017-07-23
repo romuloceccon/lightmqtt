@@ -294,18 +294,13 @@ LMQTT_STATIC int client_on_connack(void *data, lmqtt_connect_t *connect)
     if (client->closed) {
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 0);
-    } else if (connect->response.return_code == LMQTT_CONNACK_RC_ACCEPTED) {
+    } else {
         client->clean_session = connect->clean_session;
         client->main_store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
 
         if (client->on_connect)
             client->on_connect(client->on_connect_data, connect, 1);
-    } else {
-        client_set_state_initial(client);
-
-        if (client->on_connect)
-            client->on_connect(client->on_connect_data, connect, 0);
     }
 
     return 1;

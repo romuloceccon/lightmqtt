@@ -18,6 +18,9 @@ static char id[256];
 
 void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
+    if (!succeeded)
+        return;
+
     fprintf(stderr, "connected\n");
 }
 

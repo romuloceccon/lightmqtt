@@ -66,7 +66,17 @@ typedef enum {
     /* time without any I/O exceeded configured timeout */
     LMQTT_ERROR_TIMEOUT,
     /* client has already been finalized by user */
-    LMQTT_ERROR_CLOSED
+    LMQTT_ERROR_CLOSED,
+    /* CONNACK failed with return code 1 (unacceptable protocol version) */
+    LMQTT_ERROR_CONNACK_UNACCEPTABLE_PROTOCOL_VERSION,
+    /* CONNACK failed with return code 2 (identifier rejected) */
+    LMQTT_ERROR_CONNACK_IDENTIFIER_REJECTED,
+    /* CONNACK failed with return code 3 (server unavailable) */
+    LMQTT_ERROR_CONNACK_SERVER_UNAVAILABLE,
+    /* CONNACK failed with return code 4 (bad user name or password) */
+    LMQTT_ERROR_CONNACK_BAD_USER_NAME_OR_PASSWORD,
+    /* CONNACK failed with return code 5 (not authorized) */
+    LMQTT_ERROR_CONNACK_NOT_AUTHORIZED
 } lmqtt_error_t;
 
 typedef lmqtt_io_result_t (*lmqtt_io_callback_t)(void *, void *, size_t,

@@ -346,7 +346,7 @@ START_TEST(should_receive_connack_after_connect)
 }
 END_TEST
 
-START_TEST(should_call_connect_callback_on_connect_failure)
+START_TEST(should_not_call_connect_callback_on_connect_failure)
 {
     lmqtt_client_t client;
     lmqtt_connect_t connect;
@@ -361,13 +361,12 @@ START_TEST(should_call_connect_callback_on_connect_failure)
     lmqtt_client_connect(&client, &connect);
     client_process_output(&client);
 
-    cb_result.data = 0;
+    cb_result.data = NULL;
     test_socket_append(&ts, TEST_CONNACK_FAILURE);
-    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
-
-    ck_assert_ptr_eq(&connect, cb_result.data);
-    ck_assert_int_eq(0, cb_result.succeeded);
-    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
+    ck_assert_int_eq(LMQTT_ERROR_CONNACK_UNACCEPTABLE_PROTOCOL_VERSION,
+        client.error);
+    ck_assert_ptr_eq(NULL, cb_result.data);
 }
 END_TEST
 
@@ -948,20 +947,6 @@ START_TEST(should_close_encoder_after_socket_close)
 }
 END_TEST
 
-START_TEST(should_close_encoder_after_connect_failure)
-{
-    lmqtt_client_t client;
-
-    do_init_connect_process(&client, 5, 3);
-
-    test_socket_append(&ts, TEST_CONNACK_FAILURE);
-
-    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_DATA, client_process_output(&client));
-    ck_assert_int_eq(LMQTT_IO_STATUS_BLOCK_CONN, client_process_input(&client));
-    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
-}
-END_TEST
-
 START_TEST(should_reconnect_after_close)
 {
     lmqtt_client_t client;
@@ -1374,7 +1359,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_prepare_connect_twice);
     ADD_TEST(should_not_prepare_invalid_connect);
     ADD_TEST(should_receive_connack_after_connect);
-    ADD_TEST(should_call_connect_callback_on_connect_failure);
+    ADD_TEST(should_not_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);
     ADD_TEST(should_not_reset_while_connecting);
 
@@ -1406,7 +1391,6 @@ START_TCASE("Client commands")
 
     ADD_TEST(should_clean_pingreq_and_disconnect_packets_after_close);
     ADD_TEST(should_close_encoder_after_socket_close);
-    ADD_TEST(should_close_encoder_after_connect_failure);
     ADD_TEST(should_reconnect_after_close);
     ADD_TEST(should_reconnect_after_disconnect);
     ADD_TEST(should_reset_output_buffer_on_reconnect);

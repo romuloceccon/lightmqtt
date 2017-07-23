@@ -3,6 +3,10 @@
 #include <string.h>
 #include <assert.h>
 
+#define LMQTT_CONNACK_RETURN_CODE_MAX 5
+#define LMQTT_ERROR_CONNACK_BASE \
+    (LMQTT_ERROR_CONNACK_UNACCEPTABLE_PROTOCOL_VERSION - 1)
+
 #define LMQTT_FLAG_CLEAN_SESSION 0x02
 #define LMQTT_FLAG_WILL_FLAG 0x04
 #define LMQTT_FLAG_WILL_RETAIN 0x20
@@ -1238,14 +1242,19 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
             *bytes->bytes_written += 1;
             return LMQTT_DECODE_CONTINUE;
         case 1:
-            if (b > LMQTT_CONNACK_RC_MAX) {
+            if (b > LMQTT_CONNACK_RETURN_CODE_MAX) {
                 rx_buffer_fail(state,
                     LMQTT_ERROR_DECODE_CONNACK_INVALID_RETURN_CODE, 0);
                 return LMQTT_DECODE_ERROR;
+            } else if (b != 0) {
+                rx_buffer_fail(state, LMQTT_ERROR_CONNACK_BASE + b, 0);
+                *bytes->bytes_written += 1;
+                return LMQTT_DECODE_ERROR;
+            } else {
+                connect->response.return_code = b;
+                *bytes->bytes_written += 1;
+                return LMQTT_DECODE_FINISHED;
             }
-            connect->response.return_code = b;
-            *bytes->bytes_written += 1;
-            return LMQTT_DECODE_FINISHED;
         default:
             rx_buffer_fail(state, LMQTT_ERROR_DECODE_CONNACK_INVALID_LENGTH, 0);
             return LMQTT_DECODE_ERROR;
