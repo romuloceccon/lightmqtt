@@ -1251,7 +1251,6 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_connack(
                 *bytes->bytes_written += 1;
                 return LMQTT_DECODE_ERROR;
             } else {
-                connect->response.return_code = b;
                 *bytes->bytes_written += 1;
                 return LMQTT_DECODE_FINISHED;
             }

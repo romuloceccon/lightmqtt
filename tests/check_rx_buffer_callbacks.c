@@ -112,7 +112,6 @@ START_TEST(should_call_connack_callback)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&connect, callbacks_data);
-    ck_assert_int_eq(0, connect.response.return_code);
 }
 END_TEST
 

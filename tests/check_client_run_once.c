@@ -12,8 +12,7 @@ static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
 static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
-    int *connected = (int *) data;
-    *connected = (succeeded && connect->response.return_code == 0);
+    *((int *) data) = succeeded;
 }
 
 static void do_client_initialize(lmqtt_client_t *client)

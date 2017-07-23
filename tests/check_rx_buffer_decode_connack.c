@@ -90,7 +90,6 @@ START_TEST(should_decode_connack_invalid_second_byte)
 
     ck_assert_int_eq(LMQTT_DECODE_ERROR, res);
     ck_assert_int_eq(1, connect.response.session_present);
-    ck_assert_int_eq(0, connect.response.return_code);
     ck_assert_int_eq(LMQTT_ERROR_DECODE_CONNACK_INVALID_RETURN_CODE, error);
 }
 END_TEST

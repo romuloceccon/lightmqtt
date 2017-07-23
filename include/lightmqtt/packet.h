@@ -119,7 +119,6 @@ typedef struct _lmqtt_connect_t {
     lmqtt_string_t password;
     struct {
         unsigned char session_present;
-        unsigned char return_code;
     } response;
 } lmqtt_connect_t;
 
