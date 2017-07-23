@@ -52,8 +52,8 @@ void run(const char *address, unsigned short port)
     memset(&buffers, 0, sizeof(buffers));
 
     client_callbacks.data = &socket_fd;
-    client_callbacks.read = &socket_read;
-    client_callbacks.write = &socket_write;
+    client_callbacks.read = &file_read;
+    client_callbacks.write = &file_write;
     client_callbacks.get_time = &get_time;
 
     buffers.store_size = sizeof(entries);

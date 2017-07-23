@@ -36,6 +36,14 @@ Besides having the *-i* and *-t* arguments reversed, the second instance also
 passes a message (*test*) to be sent to the other side after the initialization
 is completed (that's required and won't work if given to the first instance).
 
+Instead of a string you can also give the program a file with *-f*. If the file
+is larger than the message buffer (`message_payload`, currently 256 bytes)
+`pingpong` will use temporary files, created via `mkostemp`, to transfer it.
+
+Try `pingpong` with a large file (tens of megabytes) and a fast, local broker
+(like [ActiveMQ Apollo](https://activemq.apache.org/apollo/)) and check how
+little CPU and memory it uses!
+
 ### `reconnect`
 
 `reconnect` maintains a connection to the broker using a given keep alive
