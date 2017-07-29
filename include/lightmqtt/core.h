@@ -76,7 +76,15 @@ typedef enum {
     /* CONNACK failed with return code 4 (bad user name or password) */
     LMQTT_ERROR_CONNACK_BAD_USER_NAME_OR_PASSWORD,
     /* CONNACK failed with return code 5 (not authorized) */
-    LMQTT_ERROR_CONNACK_NOT_AUTHORIZED
+    LMQTT_ERROR_CONNACK_NOT_AUTHORIZED,
+    /* CONNACK callback returned 0 */
+    LMQTT_ERROR_CALLBACK_CONNACK,
+    /* SUBACK callback returned 0 */
+    LMQTT_ERROR_CALLBACK_SUBACK,
+    /* UNSUBACK callback returned 0 */
+    LMQTT_ERROR_CALLBACK_UNSUBACK,
+    /* PUBLISH callback returned 0 */
+    LMQTT_ERROR_CALLBACK_PUBLISH
 } lmqtt_error_t;
 
 typedef lmqtt_io_result_t (*lmqtt_io_callback_t)(void *, void *, size_t,

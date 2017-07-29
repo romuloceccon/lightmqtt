@@ -177,6 +177,7 @@ struct _lmqtt_rx_buffer_decoder_t {
         lmqtt_decode_bytes_t *);
     lmqtt_decode_result_t (*decode_bytes)(struct _lmqtt_rx_buffer_t *,
         lmqtt_decode_bytes_t *);
+    lmqtt_error_t callback_error;
 };
 
 typedef int (*lmqtt_message_on_publish_t)(void *, lmqtt_publish_t *);

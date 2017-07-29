@@ -16,12 +16,13 @@ static unsigned short keep_alive;
 static unsigned short default_timeout;
 static char id[256];
 
-void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
+int on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     if (!succeeded)
-        return;
+        return 1;
 
     fprintf(stderr, "connected\n");
+    return 1;
 }
 
 void fail_connection(unsigned int secs)

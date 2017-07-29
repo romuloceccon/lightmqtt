@@ -26,6 +26,11 @@ int test_on_publish(void *data, lmqtt_publish_t *publish)
     return 1;
 }
 
+int test_on_publish_fail(void *data, lmqtt_publish_t *publish)
+{
+    return 0;
+}
+
 START_TEST(should_encode_connect)
 {
     char *expected_buffer;
@@ -237,6 +242,30 @@ START_TEST(should_encode_publish_with_qos_0)
     ck_assert_int_eq(0, lmqtt_store_shift(&store, &kind, &value_out));
     ck_assert_ptr_eq(NULL, value_out.value);
     ck_assert_ptr_eq(&publish, data);
+}
+END_TEST
+
+START_TEST(should_handle_publish_callback_failure_with_qos_0)
+{
+    lmqtt_publish_t publish;
+    lmqtt_error_t error;
+    int os_error = 0;
+
+    PREPARE;
+    memset(&publish, 0, sizeof(publish));
+    publish.topic.buf = "topic";
+    publish.topic.len = strlen(publish.topic.buf);
+
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish_fail;
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_0, &value);
+
+    res = lmqtt_tx_buffer_encode(&state, (unsigned char *) buf, sizeof(buf),
+        &bytes_written);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    error = lmqtt_tx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_CALLBACK_PUBLISH, error);
 }
 END_TEST
 
@@ -455,6 +484,7 @@ START_TCASE("Tx buffer finders")
     ADD_TEST(should_encode_subscribe_to_multiple_topics);
     ADD_TEST(should_encode_unsubscribe_to_multiple_topics);
     ADD_TEST(should_encode_publish_with_qos_0);
+    ADD_TEST(should_handle_publish_callback_failure_with_qos_0);
     ADD_TEST(should_encode_publish_with_qos_1);
     ADD_TEST(should_increment_publish_encode_count_after_encode);
     ADD_TEST(should_encode_puback);

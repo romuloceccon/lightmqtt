@@ -1057,8 +1057,11 @@ static lmqtt_io_result_t lmqtt_tx_buffer_encode_impl(lmqtt_tx_buffer_t *state,
                     if (kind == LMQTT_KIND_DISCONNECT) {
                         lmqtt_tx_buffer_finish(state);
                         break;
-                    } else if (value.callback) {
-                        value.callback(value.callback_data, value.value);
+                    } else if (value.callback &&
+                            !value.callback(value.callback_data, value.value)) {
+                        assert(kind == LMQTT_KIND_PUBLISH_0);
+                        return tx_buffer_fail(state,
+                            LMQTT_ERROR_CALLBACK_PUBLISH, 0);
                     }
                 } else {
                     lmqtt_store_mark_current(state->store);
@@ -1395,7 +1398,7 @@ static int rx_buffer_call_callback_impl(lmqtt_rx_buffer_t *state)
     if (value->callback)
         return value->callback(value->callback_data, value->value);
 
-    return 0;
+    return 1;
 }
 
 /* Enable mocking of rx_buffer_call_callback() */
@@ -1437,17 +1440,25 @@ LMQTT_STATIC int rx_buffer_is_packet_finished(lmqtt_rx_buffer_t *state)
 
 LMQTT_STATIC int rx_buffer_finish_packet(lmqtt_rx_buffer_t *state)
 {
-    int result;
+    if (state->internal.decoder->kind == LMQTT_KIND_PUBLISH_2) {
+        /* in the case of a PUBREC this is going to be called imediatelly after
+           removing the previous packet; therefore a failure in
+           lmqtt_store_append() should not be possible */
+        assert(lmqtt_store_append(state->store, LMQTT_KIND_PUBREL,
+            &state->internal.value));
+        lmqtt_rx_buffer_reset(state);
+        return 1;
+    }
 
-    if (state->internal.decoder->kind == LMQTT_KIND_PUBLISH_2)
-        result = lmqtt_store_append(state->store, LMQTT_KIND_PUBREL,
-            &state->internal.value);
-    else
-        result = rx_buffer_call_callback(state);
+    if (!rx_buffer_call_callback(state)) {
+        lmqtt_error_t error = state->internal.decoder->callback_error;
+        assert(error);
+        rx_buffer_fail(state, error, 0);
+        return 0;
+    }
 
     lmqtt_rx_buffer_reset(state);
-
-    return result;
+    return 1;
 }
 
 LMQTT_STATIC int rx_buffer_pop_packet_without_id(lmqtt_rx_buffer_t *state)
@@ -1530,7 +1541,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_connack = {
     &rx_buffer_pop_packet_without_id,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_decode_remaining_without_id,
-    &rx_buffer_decode_connack
+    &rx_buffer_decode_connack,
+    LMQTT_ERROR_CALLBACK_CONNACK
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_publish = {
     3, /* this should be 3 or 5 depending on QoS, but rx_buffer_decode_publish()
@@ -1539,7 +1551,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_publish = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_decode_remaining_without_id,
-    &rx_buffer_decode_publish
+    &rx_buffer_decode_publish,
+    0
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_puback = {
     2,
@@ -1547,7 +1560,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_puback = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
-    NULL
+    NULL,
+    LMQTT_ERROR_CALLBACK_PUBLISH
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrec = {
     2,
@@ -1555,7 +1569,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrec = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
-    NULL
+    NULL,
+    0
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrel = {
     2,
@@ -1563,7 +1578,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubrel = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pubrel,
     &rx_buffer_decode_remaining_with_id,
-    NULL
+    NULL,
+    0
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubcomp = {
     2,
@@ -1571,7 +1587,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pubcomp = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
-    NULL
+    NULL,
+    LMQTT_ERROR_CALLBACK_PUBLISH
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_suback = {
     3,
@@ -1579,7 +1596,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_suback = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
-    &rx_buffer_decode_suback
+    &rx_buffer_decode_suback,
+    LMQTT_ERROR_CALLBACK_SUBACK
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_unsuback = {
     2,
@@ -1587,7 +1605,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_unsuback = {
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_pop_packet_with_id,
     &rx_buffer_decode_remaining_with_id,
-    NULL
+    NULL,
+    LMQTT_ERROR_CALLBACK_UNSUBACK
 };
 static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pingresp = {
     0,
@@ -1595,7 +1614,8 @@ static const struct _lmqtt_rx_buffer_decoder_t rx_buffer_decoder_pingresp = {
     &rx_buffer_pop_packet_without_id,
     &rx_buffer_pop_packet_ignore,
     &rx_buffer_decode_remaining_without_id,
-    NULL
+    NULL,
+    0
 };
 
 static struct _lmqtt_rx_buffer_decoder_t const
@@ -1706,8 +1726,9 @@ static lmqtt_io_result_t lmqtt_rx_buffer_decode_impl(lmqtt_rx_buffer_t *state,
             }
         }
 
-        if (rx_buffer_is_packet_finished(state))
-            rx_buffer_finish_packet(state);
+        if (rx_buffer_is_packet_finished(state) &&
+                !rx_buffer_finish_packet(state))
+            return LMQTT_IO_ERROR;
     }
 
     if (*bytes_read > 0) {

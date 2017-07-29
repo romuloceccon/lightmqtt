@@ -42,6 +42,11 @@ static int test_on_connack(void *data, lmqtt_connect_t *connect)
     return 1;
 }
 
+static int test_on_connack_fail(void *data, lmqtt_connect_t *connect)
+{
+    return 0;
+}
+
 static int test_on_suback(void *data, lmqtt_subscribe_t *subscribe)
 {
     *((void **) data) = subscribe;
@@ -52,6 +57,11 @@ static int test_on_publish(void *data, lmqtt_publish_t *publish)
 {
     *((void **) data) = publish;
     return 1;
+}
+
+static int test_on_publish_fail(void *data, lmqtt_publish_t *publish)
+{
+    return 0;
 }
 
 static int test_on_pingresp(void *data, void *unused)
@@ -112,6 +122,28 @@ START_TEST(should_call_connack_callback)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&connect, callbacks_data);
+}
+END_TEST
+
+START_TEST(should_handle_connack_callback_failure)
+{
+    lmqtt_connect_t connect;
+    char *buf = "\x20\x02\x00\x00";
+
+    PREPARE;
+
+    memset(&connect, 0, sizeof(connect));
+
+    value.value = &connect;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_connack_fail;
+    lmqtt_store_append(&store, LMQTT_KIND_CONNECT, &value);
+    lmqtt_store_mark_current(&store);
+
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_CALLBACK_CONNACK, error);
 }
 END_TEST
 
@@ -188,6 +220,32 @@ START_TEST(should_call_publish_callback_with_qos_1)
 }
 END_TEST
 
+START_TEST(should_handle_publish_callback_failure_with_qos_1)
+{
+    lmqtt_publish_t publish;
+    char *buf = "\x40\x02\x05\x06";
+
+    PREPARE;
+
+    memset(&publish, 0, sizeof(publish));
+    publish.qos = LMQTT_QOS_1;
+    publish.topic.buf = "a";
+    publish.topic.len = 1;
+
+    value.packet_id = 0x0506;
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish_fail;
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value);
+    lmqtt_store_mark_current(&store);
+
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_CALLBACK_PUBLISH, error);
+}
+END_TEST
+
 START_TEST(should_call_publish_callback_with_qos_2)
 {
     lmqtt_publish_t publish;
@@ -215,6 +273,38 @@ START_TEST(should_call_publish_callback_with_qos_2)
     res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf_2, 4, &bytes_r);
     ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
     ck_assert_ptr_eq(&publish, callbacks_data);
+}
+END_TEST
+
+START_TEST(should_handle_publish_callback_failure_with_qos_2)
+{
+    lmqtt_publish_t publish;
+    char *buf_1 = "\x50\x02\x0a\x0b";
+    char *buf_2 = "\x70\x02\x0a\x0b";
+
+    PREPARE;
+
+    memset(&publish, 0, sizeof(publish));
+    publish.qos = LMQTT_QOS_2;
+    publish.topic.buf = "a";
+    publish.topic.len = 1;
+
+    value.packet_id = 0x0a0b;
+    value.value = &publish;
+    value.callback = (lmqtt_store_entry_callback_t) &test_on_publish_fail;
+    lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_2, &value);
+    lmqtt_store_mark_current(&store);
+
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf_1, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_SUCCESS, res);
+    ck_assert_ptr_eq(NULL, callbacks_data);
+
+    lmqtt_store_mark_current(&store);
+    res = lmqtt_rx_buffer_decode(&state, (unsigned char *) buf_2, 4, &bytes_r);
+    ck_assert_int_eq(LMQTT_IO_ERROR, res);
+
+    error = lmqtt_rx_buffer_get_error(&state, &os_error);
+    ck_assert_int_eq(LMQTT_ERROR_CALLBACK_PUBLISH, error);
 }
 END_TEST
 
@@ -384,10 +474,13 @@ END_TEST
 START_TCASE("Rx buffer callbacks")
 {
     ADD_TEST(should_call_connack_callback);
+    ADD_TEST(should_handle_connack_callback_failure);
     ADD_TEST(should_call_suback_callback);
     ADD_TEST(should_call_unsuback_callback);
     ADD_TEST(should_call_publish_callback_with_qos_1);
+    ADD_TEST(should_handle_publish_callback_failure_with_qos_1);
     ADD_TEST(should_call_publish_callback_with_qos_2);
+    ADD_TEST(should_handle_publish_callback_failure_with_qos_2);
     ADD_TEST(should_not_release_publish_with_qos_2_without_pubrec);
     ADD_TEST(should_call_pingresp_callback);
     ADD_TEST(should_call_message_received_callback);

@@ -10,9 +10,10 @@ static lmqtt_store_entry_t entries[16];
 static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
 
-static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
+static int on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     *((int *) data) = succeeded;
+    return 1;
 }
 
 static void do_client_initialize(lmqtt_client_t *client)

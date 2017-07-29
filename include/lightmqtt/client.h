@@ -58,10 +58,10 @@ typedef struct _lmqtt_client_buffers_t {
     void *id_set;
 } lmqtt_client_buffers_t;
 
-typedef void (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
-typedef void (*lmqtt_client_on_subscribe_t)(void *, lmqtt_subscribe_t *, int);
-typedef void (*lmqtt_client_on_unsubscribe_t)(void *, lmqtt_subscribe_t *, int);
-typedef void (*lmqtt_client_on_publish_t)(void *, lmqtt_publish_t *, int);
+typedef int (*lmqtt_client_on_connect_t)(void *, lmqtt_connect_t *, int);
+typedef int (*lmqtt_client_on_subscribe_t)(void *, lmqtt_subscribe_t *, int);
+typedef int (*lmqtt_client_on_unsubscribe_t)(void *, lmqtt_subscribe_t *, int);
+typedef int (*lmqtt_client_on_publish_t)(void *, lmqtt_publish_t *, int);
 
 struct _lmqtt_client_t;
 

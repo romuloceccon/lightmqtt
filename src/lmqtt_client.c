@@ -293,14 +293,14 @@ LMQTT_STATIC int client_on_connack(void *data, lmqtt_connect_t *connect)
 
     if (client->closed) {
         if (client->on_connect)
-            client->on_connect(client->on_connect_data, connect, 0);
+            return client->on_connect(client->on_connect_data, connect, 0);
     } else {
         client->clean_session = connect->clean_session;
         client->main_store.keep_alive = connect->keep_alive;
         client_set_state_connected(client);
 
         if (client->on_connect)
-            client->on_connect(client->on_connect_data, connect, 1);
+            return client->on_connect(client->on_connect_data, connect, 1);
     }
 
     return 1;
@@ -311,7 +311,7 @@ LMQTT_STATIC int client_on_suback(void *data, lmqtt_subscribe_t *subscribe)
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
     if (client->on_subscribe)
-        client->on_subscribe(client->on_subscribe_data, subscribe,
+        return client->on_subscribe(client->on_subscribe_data, subscribe,
             !client->closed);
 
     return 1;
@@ -322,7 +322,7 @@ LMQTT_STATIC int client_on_unsuback(void *data, lmqtt_subscribe_t *subscribe)
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
     if (client->on_unsubscribe)
-        client->on_unsubscribe(client->on_unsubscribe_data, subscribe,
+        return client->on_unsubscribe(client->on_unsubscribe_data, subscribe,
             !client->closed);
 
     return 1;
@@ -333,7 +333,7 @@ LMQTT_STATIC int client_on_publish(void *data, lmqtt_publish_t *publish)
     lmqtt_client_t *client = (lmqtt_client_t *) data;
 
     if (client->on_publish)
-        client->on_publish(client->on_publish_data, publish,
+        return client->on_publish(client->on_publish_data, publish,
             !client->closed);
 
     return 1;

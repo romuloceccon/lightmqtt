@@ -5,6 +5,7 @@
 typedef struct {
     void *data;
     int succeeded;
+    int callback_retval;
 } test_cb_result_t;
 
 #define RX_BUFFER_SIZE 512
@@ -18,11 +19,12 @@ static unsigned char rx_buffer[RX_BUFFER_SIZE];
 static unsigned char tx_buffer[TX_BUFFER_SIZE];
 static lmqtt_packet_id_t id_set_items[16];
 
-static void test_cb_result_set(void *cb_result, void *data, int succeeded)
+static int test_cb_result_set(void *cb_result, void *data, int succeeded)
 {
     test_cb_result_t *result = (test_cb_result_t *) cb_result;
     result->data = data;
     result->succeeded = succeeded;
+    return result->callback_retval;
 }
 
 static lmqtt_io_result_t test_write_block(void *data, void *buf, size_t len,
@@ -31,24 +33,24 @@ static lmqtt_io_result_t test_write_block(void *data, void *buf, size_t len,
     return LMQTT_IO_WOULD_BLOCK;
 }
 
-static void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
+static int on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
-    test_cb_result_set(data, connect, succeeded);
+    return test_cb_result_set(data, connect, succeeded);
 }
 
-static void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
+static int on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
-    test_cb_result_set(data, subscribe, succeeded);
+    return test_cb_result_set(data, subscribe, succeeded);
 }
 
-static void on_unsubscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
+static int on_unsubscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
-    test_cb_result_set(data, subscribe, succeeded);
+    return test_cb_result_set(data, subscribe, succeeded);
 }
 
-static void on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
+static int on_publish(void *data, lmqtt_publish_t *publish, int succeeded)
 {
-    test_cb_result_set(data, publish, succeeded);
+    return test_cb_result_set(data, publish, succeeded);
 }
 
 static int on_message_received(void *data, lmqtt_publish_t *publish)
@@ -320,7 +322,7 @@ START_TEST(should_receive_connack_after_connect)
 {
     lmqtt_client_t client;
     lmqtt_connect_t connect;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
 
     do_init(&client, 5);
 
@@ -350,7 +352,7 @@ START_TEST(should_not_call_connect_callback_on_connect_failure)
 {
     lmqtt_client_t client;
     lmqtt_connect_t connect;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
 
     do_init(&client, 5);
 
@@ -374,7 +376,7 @@ START_TEST(should_not_receive_connack_before_connect)
 {
     lmqtt_client_t client;
     lmqtt_connect_t connect;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
 
     do_init(&client, 5);
 
@@ -393,7 +395,7 @@ START_TEST(should_not_reset_while_connecting)
 {
     lmqtt_client_t client;
     lmqtt_connect_t connect;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
 
     do_init(&client, 5);
 
@@ -414,12 +416,29 @@ START_TEST(should_not_reset_while_connecting)
 }
 END_TEST
 
+START_TEST(should_fail_if_connack_callback_fails)
+{
+    lmqtt_client_t client;
+    test_cb_result_t cb_result = { 0, 0, 0 };
+
+    do_init(&client, 5);
+    lmqtt_client_set_on_connect(&client, on_connect, &cb_result);
+
+    do_connect_process(&client, 5);
+
+    test_socket_append(&ts, TEST_CONNACK_SUCCESS);
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
+
+    ck_assert_int_eq(LMQTT_ERROR_CALLBACK_CONNACK, client.error);
+}
+END_TEST
+
 START_TEST(should_subscribe)
 {
     lmqtt_client_t client;
     lmqtt_subscribe_t subscribe;
     lmqtt_subscription_t subscription;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
@@ -449,7 +468,7 @@ START_TEST(should_unsubscribe)
     lmqtt_client_t client;
     lmqtt_subscribe_t subscribe;
     lmqtt_subscription_t subscription;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
@@ -562,7 +581,7 @@ END_TEST
 START_TEST(should_publish_with_qos_0)
 {
     lmqtt_client_t client;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
     lmqtt_store_value_t value;
     int kind;
 
@@ -587,7 +606,7 @@ END_TEST
 START_TEST(should_publish_with_qos_1)
 {
     lmqtt_client_t client;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
     lmqtt_store_value_t value;
     int kind;
 
@@ -618,7 +637,7 @@ END_TEST
 START_TEST(should_publish_with_qos_2)
 {
     lmqtt_client_t client;
-    test_cb_result_t cb_result = { 0, 0 };
+    test_cb_result_t cb_result = { 0, 0, 1 };
     lmqtt_store_value_t value;
     int kind;
 
@@ -1064,9 +1083,9 @@ START_TEST(should_finalize_client)
     lmqtt_subscribe_t unsubscribe;
     lmqtt_publish_t publish;
     lmqtt_subscription_t subscription;
-    test_cb_result_t cb_result_1 = { 0, -1 };
-    test_cb_result_t cb_result_2 = { 0, -1 };
-    test_cb_result_t cb_result_3 = { 0, -1 };
+    test_cb_result_t cb_result_1 = { 0, -1, 1 };
+    test_cb_result_t cb_result_2 = { 0, -1, 1 };
+    test_cb_result_t cb_result_3 = { 0, -1, 1 };
 
     ck_assert_int_eq(1, do_init_connect_connack_process(&client, 5, 3));
 
@@ -1108,7 +1127,7 @@ END_TEST
 START_TEST(should_finalize_client_before_connack)
 {
     lmqtt_client_t client;
-    test_cb_result_t cb_result = { 0, -1 };
+    test_cb_result_t cb_result = { 0, -1, 1 };
 
     do_init(&client, 5);
 
@@ -1124,7 +1143,7 @@ END_TEST
 START_TEST(should_finalize_client_after_partial_decode)
 {
     lmqtt_client_t client;
-    test_cb_result_t cb_result = { 0, -1 };
+    test_cb_result_t cb_result = { 0, -1, 1 };
 
     do_init(&client, 5);
 
@@ -1287,7 +1306,7 @@ END_TEST
 START_TEST(should_not_resend_connect_from_previous_connection)
 {
     lmqtt_client_t client;
-    test_cb_result_t cb_result = { 0, -1 };
+    test_cb_result_t cb_result = { 0, -1, 1 };
     lmqtt_connect_t connect_2;
 
     do_init(&client, 3);
@@ -1362,6 +1381,7 @@ START_TCASE("Client commands")
     ADD_TEST(should_not_call_connect_callback_on_connect_failure);
     ADD_TEST(should_not_receive_connack_before_connect);
     ADD_TEST(should_not_reset_while_connecting);
+    ADD_TEST(should_fail_if_connack_callback_fails);
 
     ADD_TEST(should_subscribe);
     ADD_TEST(should_unsubscribe);

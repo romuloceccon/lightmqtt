@@ -23,10 +23,10 @@ static char payload[256];
 static char message_topic[256];
 static char message_payload[256];
 
-void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
+int on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
 {
     if (!succeeded)
-        return;
+        return 1;
 
     memset(&subscribe, 0, sizeof(subscribe));
     memset(subscriptions, 0, sizeof(subscriptions));
@@ -37,12 +37,13 @@ void on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
     subscriptions[0].topic.len = strlen(id);
 
     lmqtt_client_subscribe(&client, &subscribe);
+    return 1;
 }
 
-void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
+int on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
 {
     if (!succeeded || strlen(msg) == 0)
-        return;
+        return 1;
 
     memset(&publish, 0, sizeof(publish));
     publish.qos = LMQTT_QOS_2;
@@ -53,6 +54,7 @@ void on_subscribe(void *data, lmqtt_subscribe_t *subscribe, int succeeded)
     memcpy(payload, msg, publish.payload.len);
 
     lmqtt_client_publish(&client, &publish);
+    return 1;
 }
 
 int on_message(void *data, lmqtt_publish_t *message)
