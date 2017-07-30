@@ -23,6 +23,7 @@ static int deallocate_count;
 static char message_received[1000];
 static lmqtt_error_t error;
 static int os_error;
+static int on_publish_retval;
 
 static int test_on_publish(void *data, lmqtt_publish_t *publish)
 {
@@ -31,7 +32,7 @@ static int test_on_publish(void *data, lmqtt_publish_t *publish)
     sprintf(message_received, "topic: %.*s, payload: %.*s",
         (int) publish->topic.len, publish->topic.buf,
         (int) publish->payload.len, publish->payload.buf);
-    return 1;
+    return on_publish_retval;
 }
 
 static lmqtt_allocate_result_t test_on_publish_allocate_topic(void *data,
@@ -133,6 +134,7 @@ static void init_state()
     publish = NULL;
     error = 0xcccc;
     os_error = 0xcccc;
+    on_publish_retval = 1;
 }
 
 #define DECODE_PUBLISH(b, exp_res, exp_cnt) \
@@ -154,8 +156,8 @@ static void init_state()
 
 #define DECODE_PUBLISH_FINISHED(b) DECODE_PUBLISH((b), LMQTT_DECODE_FINISHED, 1)
 #define DECODE_PUBLISH_CONTINUE(b) DECODE_PUBLISH((b), LMQTT_DECODE_CONTINUE, 1)
-#define DECODE_PUBLISH_ERR_INV(b) DECODE_PUBLISH((b), LMQTT_DECODE_ERROR, 0)
-#define DECODE_PUBLISH_ERR_FULL(b) DECODE_PUBLISH((b), LMQTT_DECODE_ERROR, 1)
+#define DECODE_PUBLISH_ERR_0(b) DECODE_PUBLISH((b), LMQTT_DECODE_ERROR, 0)
+#define DECODE_PUBLISH_ERR_1(b) DECODE_PUBLISH((b), LMQTT_DECODE_ERROR, 1)
 
 #define DECODE_PUBLISH_MULTI(buf_p, len, exp_res, exp_cnt) \
     do { \
@@ -240,7 +242,7 @@ START_TEST(should_decode_empty_topic)
     state.internal.header.remaining_length = 10;
 
     DECODE_PUBLISH_CONTINUE(0);
-    DECODE_PUBLISH_ERR_INV(0);
+    DECODE_PUBLISH_ERR_0(0);
 
     ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBLISH_INVALID_LENGTH, error);
 }
@@ -299,7 +301,7 @@ START_TEST(should_decode_invalid_remaining_length)
     state.internal.header.remaining_length = 8;
 
     DECODE_PUBLISH_CONTINUE(0);
-    DECODE_PUBLISH_ERR_INV(5);
+    DECODE_PUBLISH_ERR_0(5);
 
     ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBLISH_INVALID_LENGTH, error);
 }
@@ -313,7 +315,7 @@ START_TEST(should_decode_malformed_publish_with_qos_2)
     state.internal.header.remaining_length = 4;
 
     DECODE_PUBLISH_CONTINUE(0);
-    DECODE_PUBLISH_ERR_INV(1);
+    DECODE_PUBLISH_ERR_0(1);
 }
 END_TEST
 
@@ -525,13 +527,35 @@ START_TEST(should_deallocate_publish_if_allocate_fails)
     state.internal.header.remaining_length = 10;
     DECODE_PUBLISH_CONTINUE(0);
     DECODE_PUBLISH_CONTINUE(3);
-    DECODE_PUBLISH_ERR_INV('T');
+    DECODE_PUBLISH_ERR_0('T');
 
     ck_assert_int_eq(1, allocate_topic_count);
     ck_assert_int_eq(0, allocate_payload_count);
     ck_assert_int_eq(1, deallocate_count);
 
     ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBLISH_TOPIC_ALLOCATE_FAILED, error);
+    ck_assert_int_eq(0, os_error);
+}
+END_TEST
+
+START_TEST(should_deallocate_publish_if_on_publish_fails)
+{
+    init_state();
+    on_publish_retval = 0;
+
+    state.internal.header.remaining_length = 6;
+    DECODE_PUBLISH_CONTINUE(0);
+    DECODE_PUBLISH_CONTINUE(1);
+    DECODE_PUBLISH_CONTINUE('T');
+    DECODE_PUBLISH_CONTINUE(0xcc);
+    DECODE_PUBLISH_CONTINUE(0xcc);
+    DECODE_PUBLISH_ERR_1('P');
+
+    ck_assert_int_eq(1, allocate_topic_count);
+    ck_assert_int_eq(1, allocate_payload_count);
+    ck_assert_int_eq(1, deallocate_count);
+
+    ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBLISH_MESSAGE_CALLBACK_FAILED, error);
     ck_assert_int_eq(0, os_error);
 }
 END_TEST
@@ -550,7 +574,7 @@ START_TEST(should_deallocate_publish_if_string_write_fails)
     DECODE_PUBLISH_CONTINUE(0);
     DECODE_PUBLISH_CONTINUE(3);
     DECODE_PUBLISH_CONTINUE('T');
-    DECODE_PUBLISH_ERR_INV('O');
+    DECODE_PUBLISH_ERR_0('O');
 
     ck_assert_str_eq("", message_received);
 
@@ -590,7 +614,7 @@ START_TEST(should_fail_if_id_set_is_full)
     DECODE_PUBLISH_CONTINUE('X');
     DECODE_PUBLISH_CONTINUE(0xff);
     DECODE_PUBLISH_CONTINUE(0xff);
-    DECODE_PUBLISH_ERR_FULL('X');
+    DECODE_PUBLISH_ERR_1('X');
 
     ck_assert_int_eq(LMQTT_ERROR_DECODE_PUBLISH_ID_SET_FULL, error);
 }
@@ -621,6 +645,7 @@ START_TCASE("Rx buffer decode publish")
     ADD_TEST(should_ignore_message_if_publish_callback_is_null);
     ADD_TEST(should_ignore_multiple_bytes_if_topic_or_payload_are_ignored);
     ADD_TEST(should_deallocate_publish_if_allocate_fails);
+    ADD_TEST(should_deallocate_publish_if_on_publish_fails);
     ADD_TEST(should_deallocate_publish_if_string_write_fails);
     ADD_TEST(should_fail_if_id_set_is_full);
 }

@@ -72,6 +72,7 @@ int on_message(void *data, lmqtt_publish_t *message)
     memcpy(payload, message->payload.buf, publish.payload.len);
 
     lmqtt_client_publish(&client, &publish);
+    return 1;
 }
 
 lmqtt_allocate_result_t on_message_allocate_topic(void *data,

@@ -1335,12 +1335,6 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
     if (qos != LMQTT_QOS_2 || !lmqtt_id_set_contains(&state->id_set, packet_id)) {
         if (qos == LMQTT_QOS_2 && !lmqtt_id_set_put(&state->id_set, packet_id)) {
             rx_buffer_deallocate_publish(state);
-            /* Here we return an error despite having already increased the
-               bytes_written count, unlike everywhere else. I don't know which
-               one is the "correct" behavior; so, unless some issue justifying
-               a specific one appears, let's leave it like that, since at this
-               point the connection failed and the user should reset the client
-               anyway. */
             rx_buffer_fail(state, LMQTT_ERROR_DECODE_PUBLISH_ID_SET_FULL, 0);
             return LMQTT_DECODE_ERROR;
         }
@@ -1348,8 +1342,13 @@ LMQTT_STATIC lmqtt_decode_result_t rx_buffer_decode_publish(
         publish->qos = qos;
         publish->retain = state->internal.header.retain;
 
-        if (!state->internal.ignore_publish && message->on_publish)
-            message->on_publish(message->on_publish_data, publish);
+        if (!state->internal.ignore_publish && message->on_publish &&
+                !message->on_publish(message->on_publish_data, publish)) {
+            rx_buffer_deallocate_publish(state);
+            rx_buffer_fail(state,
+                LMQTT_ERROR_DECODE_PUBLISH_MESSAGE_CALLBACK_FAILED, 0);
+            return LMQTT_DECODE_ERROR;
+        }
     }
 
     rx_buffer_deallocate_publish(state);
