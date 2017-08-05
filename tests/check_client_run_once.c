@@ -70,9 +70,10 @@ START_TEST(should_run_before_connect)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
-    ck_assert(LMQTT_IS_EOF(res)); /* encoder is closed; act like at eof */
+    ck_assert(LMQTT_SHOULD_CONNECT(res));
+    ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
-    ck_assert(LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
     ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
     ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
     ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
@@ -106,6 +107,7 @@ START_TEST(should_run_after_connect)
     ck_assert_int_eq(1, connected);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -142,6 +144,7 @@ START_TEST(should_run_with_output_blocked)
     ck_assert_int_eq(-2, test_socket_shift(&ts));
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -180,6 +183,7 @@ START_TEST(should_run_with_data_blocked_for_read)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -225,6 +229,7 @@ START_TEST(should_run_with_data_blocked_for_write)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -262,6 +267,7 @@ START_TEST(should_run_with_read_error)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -296,6 +302,7 @@ START_TEST(should_run_with_output_closed)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(LMQTT_IS_EOF_WR(res));
@@ -328,6 +335,7 @@ START_TEST(should_run_with_input_closed)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(LMQTT_IS_EOF(res));
     ck_assert(LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -374,6 +382,7 @@ START_TEST(should_run_with_queue_full)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -418,6 +427,7 @@ START_TEST(should_run_with_existing_session)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -458,6 +468,7 @@ START_TEST(should_run_with_keep_alive)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(!LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -496,6 +507,7 @@ START_TEST(should_run_after_timeout)
     res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
     ck_assert(LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
     ck_assert(!LMQTT_IS_EOF(res));
     ck_assert(!LMQTT_IS_EOF_RD(res));
     ck_assert(!LMQTT_IS_EOF_WR(res));
@@ -507,6 +519,60 @@ START_TEST(should_run_after_timeout)
     ck_assert_int_eq(LMQTT_ERROR_TIMEOUT, LMQTT_ERROR_NUM(res));
 
     ck_assert_int_eq(-1, test_socket_shift(&ts));
+}
+END_TEST
+
+START_TEST(should_run_after_error_with_reconnect_delay)
+{
+    test_buffer_t client_src;
+    lmqtt_client_t client;
+    lmqtt_string_t *str_rd, *str_wr;
+    lmqtt_connect_t connect;
+    int res;
+
+    do_client_initialize(&client);
+    lmqtt_client_set_reconnect_delay(&client, 10);
+
+    memset(&client_src, 0, sizeof(client_src));
+    memset(&connect, 0, sizeof(connect));
+    connect.clean_session = 1;
+    connect.client_id.len = client_src.len = 10;
+    connect.client_id.read = &test_buffer_io_fail;
+    connect.client_id.data = &client_src;
+
+    test_time_set(10, 0);
+    lmqtt_client_connect(&client, &connect);
+    lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    test_time_set(19, 0);
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(LMQTT_IS_ERROR(res));
+    ck_assert(!LMQTT_SHOULD_CONNECT(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
+    ck_assert_int_eq(LMQTT_ERROR_ENCODE_STRING, LMQTT_ERROR_NUM(res));
+    ck_assert_int_eq(1, lmqtt_client_get_os_error(&client));
+
+    test_time_set(21, 0);
+    res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
+
+    ck_assert(LMQTT_IS_ERROR(res));
+    ck_assert(LMQTT_SHOULD_CONNECT(res));
+    ck_assert(!LMQTT_IS_EOF(res));
+    ck_assert(!LMQTT_IS_EOF_RD(res));
+    ck_assert(!LMQTT_IS_EOF_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_CONN_WR(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_RD(res));
+    ck_assert(!LMQTT_WOULD_BLOCK_DATA_WR(res));
+    ck_assert(!LMQTT_IS_QUEUEABLE(res));
 }
 END_TEST
 
@@ -524,5 +590,6 @@ START_TCASE("Client run once")
     ADD_TEST(should_run_with_existing_session);
     ADD_TEST(should_run_with_keep_alive);
     ADD_TEST(should_run_after_timeout);
+    ADD_TEST(should_run_after_error_with_reconnect_delay);
 }
 END_TCASE

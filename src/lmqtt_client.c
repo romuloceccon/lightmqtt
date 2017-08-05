@@ -164,7 +164,7 @@ LMQTT_STATIC lmqtt_io_status_t client_buffer_transfer(lmqtt_client_t *client,
         lmqtt_store_touch(client->current_store);
 
     if (transfer_is_eof(input) || transfer_is_eof(output)) {
-        client_set_state_initial(client);
+        client_set_state_failed(client);
         return LMQTT_IO_STATUS_READY;
     }
 
@@ -285,6 +285,36 @@ LMQTT_STATIC int client_subscribe_with_kind(lmqtt_client_t *client,
     value.callback_data = client;
 
     return lmqtt_store_append(&client->main_store, kind, &value);
+}
+
+static int client_get_initial_timeout(lmqtt_client_t *client, long *secs,
+    long *nsecs)
+{
+    *secs = *nsecs = 0;
+    return 1;
+}
+
+static int client_get_current_store_timeout(lmqtt_client_t *client, long *secs,
+    long *nsecs)
+{
+    size_t cnt;
+    return lmqtt_store_get_timeout(client->current_store, &cnt, secs, nsecs);
+}
+
+static int client_get_reconnect_timeout(lmqtt_client_t *client, long *secs,
+    long *nsecs)
+{
+    return lmqtt_time_get_timeout_to(&client->close_time,
+        client->callbacks.get_time, client->reconnect_delay, secs, nsecs);
+}
+
+static int client_should_connect(lmqtt_client_t *client)
+{
+    long secs, nsecs;
+
+    return client->initialized ||
+        client->closed && client_get_reconnect_timeout(client, &secs, &nsecs) &&
+        secs == 0 && nsecs == 0;
 }
 
 LMQTT_STATIC int client_on_connack(void *data, lmqtt_connect_t *connect)
@@ -462,6 +492,7 @@ LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client)
 {
     client->error = 0;
     client->os_error = 0;
+    client->initialized = 1;
     client->closed = 1;
 
     lmqtt_store_touch(&client->connect_store);
@@ -476,12 +507,14 @@ LMQTT_STATIC void client_set_state_initial(lmqtt_client_t *client)
     client->internal.publish = client_do_publish_fail;
     client->internal.pingreq = client_do_pingreq_fail;
     client->internal.disconnect = client_do_disconnect_fail;
+    client->internal.get_timeout = &client_get_initial_timeout;
 }
 
 LMQTT_STATIC void client_set_state_connecting(lmqtt_client_t *client)
 {
     client->error = 0;
     client->os_error = 0;
+    client->initialized = 0;
     client->closed = 0;
 
     lmqtt_rx_buffer_reset(&client->rx_state);
@@ -490,12 +523,14 @@ LMQTT_STATIC void client_set_state_connecting(lmqtt_client_t *client)
     client->write_buf_pos = 0;
 
     client->internal.connect = client_do_connect_fail;
+    client->internal.get_timeout = &client_get_current_store_timeout;
 }
 
 LMQTT_STATIC void client_set_state_connected(lmqtt_client_t *client)
 {
     client->error = 0;
     client->os_error = 0;
+    client->initialized = 0;
     client->closed = 0;
 
     client_set_current_store(client, &client->main_store);
@@ -512,8 +547,12 @@ LMQTT_STATIC void client_set_state_connected(lmqtt_client_t *client)
 
 LMQTT_STATIC void client_set_state_failed(lmqtt_client_t *client)
 {
-    assert(client->error);
+    client->initialized = 0;
     client->closed = 1;
+    lmqtt_time_touch(&client->close_time, client->callbacks.get_time);
+
+    client_cleanup_stores(client, !client->clean_session);
+    lmqtt_tx_buffer_finish(&client->tx_state);
 
     client->internal.connect = client_do_connect_fail;
     client->internal.subscribe = client_do_subscribe_fail;
@@ -521,6 +560,7 @@ LMQTT_STATIC void client_set_state_failed(lmqtt_client_t *client)
     client->internal.publish = client_do_publish_fail;
     client->internal.pingreq = client_do_pingreq_fail;
     client->internal.disconnect = client_do_disconnect_fail;
+    client->internal.get_timeout = &client_get_reconnect_timeout;
 }
 
 LMQTT_STATIC int client_process_buffer(lmqtt_client_t *client,
@@ -659,6 +699,12 @@ void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
     client->connect_store.timeout = secs;
 }
 
+void lmqtt_client_set_reconnect_delay(lmqtt_client_t *client,
+    unsigned short secs)
+{
+    client->reconnect_delay = secs;
+}
+
 int lmqtt_client_get_os_error(lmqtt_client_t *client)
 {
     return client->os_error;
@@ -666,28 +712,31 @@ int lmqtt_client_get_os_error(lmqtt_client_t *client)
 
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs)
 {
-    size_t cnt;
-
-    return lmqtt_store_get_timeout(client->current_store, &cnt, secs, nsecs);
+    return client->internal.get_timeout(client, secs, nsecs);
 }
 
 int lmqtt_client_run_once(lmqtt_client_t *client, lmqtt_string_t **str_rd,
     lmqtt_string_t **str_wr)
 {
-    int result, has_cur_before, has_cur_after;
+    int has_cur_before, has_cur_after;
+    int result = 0;
 
-    if (client_keep_alive(client) == LMQTT_IO_STATUS_ERROR) {
-        *str_rd = NULL;
-        *str_wr = NULL;
-        assert(client->error);
-        return client->error & LMQTT_RES_ERROR;
+    *str_rd = NULL;
+    *str_wr = NULL;
+
+    if (client_should_connect(client)) {
+        result |= LMQTT_RES_SHOULD_CONNECT;
     }
 
-    do {
-        *str_rd = NULL;
-        *str_wr = NULL;
-        result = 0;
+    if (client_keep_alive(client) == LMQTT_IO_STATUS_ERROR) {
+        assert(client->error);
+        result |= client->error & LMQTT_RES_ERROR;
+    }
 
+    if (result)
+        return result;
+
+    do {
         if (!client_process_buffer(client, &client_process_output,
                 LMQTT_RES_WOULD_BLOCK_CONN_WR, LMQTT_RES_WOULD_BLOCK_DATA_RD,
                 &client->tx_state.internal.buffer.blocking_str,

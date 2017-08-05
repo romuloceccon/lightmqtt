@@ -208,6 +208,7 @@ static void check_resend_packets_with_clean_session(int first, int second)
 
     close_read_buf(&client);
 
+    lmqtt_client_reset(&client);
     do_connect(&client, 5, second);
     client_process_output(&client);
 
@@ -976,6 +977,7 @@ START_TEST(should_reconnect_after_close)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
     ts.read_buf.len = sizeof(ts.read_buf.buf);
+    lmqtt_client_reset(&client);
     ck_assert_int_eq(1, do_connect_connack_process(&client, 5));
 }
 END_TEST
@@ -990,6 +992,7 @@ START_TEST(should_reconnect_after_disconnect)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
     ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift(&ts));
 
+    lmqtt_client_reset(&client);
     ck_assert_int_eq(1, do_connect_connack_process(&client, 5));
 }
 END_TEST
@@ -1009,6 +1012,7 @@ START_TEST(should_reset_output_buffer_on_reconnect)
     ts.read_buf.len = 0;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
+    lmqtt_client_reset(&client);
     memset(&connect, 0, sizeof(connect));
     connect.client_id.buf = "test";
     connect.client_id.len = 4;
@@ -1037,6 +1041,7 @@ START_TEST(should_reset_input_buffer_on_reconnect)
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_output(&client));
     ck_assert_int_eq(TEST_DISCONNECT, test_socket_shift(&ts));
 
+    lmqtt_client_reset(&client);
     do_connect(&client, 5, 0);
     test_socket_append(&ts, TEST_CONNACK_SUCCESS);
 
@@ -1063,6 +1068,7 @@ START_TEST(should_reset_decoder_on_reconnect)
     ts.test_pos_read -= 1;
     ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
 
+    lmqtt_client_reset(&client);
     memset(&connect, 0, sizeof(connect));
     connect.client_id.buf = "test";
     connect.client_id.len = 4;
@@ -1205,14 +1211,15 @@ START_TEST(should_touch_store_on_reset)
     do_init_connect_process(&client, 5, 3);
 
     test_time_set(15, 0);
+    /* timeout */
     client_keep_alive(&client);
-    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
-    ck_assert_int_eq(0, secs);
+    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
 
     test_time_set(20, 0);
     lmqtt_client_reset(&client);
-    /* no CONNECT packet enqueued; should not return timeout */
-    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    /* no CONNECT packet enqueued; timeout should be zero */
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(0, secs);
     test_time_set(21, 0);
     /* should not touch store here */
     do_connect(&client, 5, 0);
@@ -1239,7 +1246,8 @@ START_TEST(should_reset_after_eof)
     ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
 
     lmqtt_client_reset(&client);
-    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(0, secs);
 
     memset(&connect, 0, sizeof(connect));
     connect.client_id.buf = "test";
@@ -1274,6 +1282,7 @@ START_TEST(should_wait_connack_to_resend_packets_from_previous_connection)
     ck_assert_int_eq(TEST_PUBLISH, test_socket_shift(&ts));
 
     ck_assert(close_read_buf(&client));
+    lmqtt_client_reset(&client);
     ck_assert(do_connect_process(&client, 5));
     ck_assert_int_eq(-1, test_socket_shift(&ts));
 
@@ -1292,6 +1301,7 @@ START_TEST(should_wait_connack_to_send_unsent_packets_from_previous_connection)
     do_init_connect_connack_process(&client, 5, 3);
     ck_assert(do_publish(&client, 1));
     ck_assert(close_read_buf(&client));
+    lmqtt_client_reset(&client);
     ck_assert(do_connect_process(&client, 5));
     ck_assert_int_eq(-1, test_socket_shift(&ts));
 
@@ -1319,6 +1329,7 @@ START_TEST(should_not_resend_connect_from_previous_connection)
     lmqtt_client_connect(&client, &connect_2);
 
     ck_assert(close_read_buf(&client));
+    lmqtt_client_reset(&client);
     ck_assert(do_connect_process(&client, 5));
 
     ck_assert_int_eq(-1, test_socket_shift(&ts));
@@ -1366,8 +1377,78 @@ START_TEST(should_not_preserve_clean_session_ids_after_reconnect)
 
     close_read_buf(&client);
 
+    lmqtt_client_reset(&client);
     check_connect_and_receive_message(&client, 0, 0x0304);
     ck_assert_str_eq("topic: X, payload: X", message_received);
+}
+END_TEST
+
+START_TEST(should_not_get_timeout_after_error)
+{
+    long secs = 0xcccccccc, nsecs = 0xcccccccc;
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_init_connect_process(&client, 5, 5);
+
+    test_socket_append(&ts, TEST_SUBACK_SUCCESS);
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
+
+    ck_assert_int_eq(0, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(0, secs);
+}
+END_TEST
+
+START_TEST(should_get_timeout_after_error_with_reconnect_delay)
+{
+    long secs = 0xcccccccc, nsecs = 0xcccccccc;
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_init(&client, 5);
+    lmqtt_client_set_reconnect_delay(&client, 7);
+    do_connect_process(&client, 5);
+    test_socket_append(&ts, TEST_SUBACK_SUCCESS);
+    ck_assert_int_eq(LMQTT_IO_STATUS_ERROR, client_process_input(&client));
+
+    test_time_set(13, 0);
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(4, secs);
+}
+END_TEST
+
+START_TEST(should_get_timeout_after_eof_with_reconnect_delay)
+{
+    long secs = 0xcccccccc, nsecs = 0xcccccccc;
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_init(&client, 5);
+    lmqtt_client_set_reconnect_delay(&client, 7);
+    do_connect_process(&client, 5);
+
+    ts.read_buf.len = ts.read_buf.available_len = ts.test_pos_read;
+    ck_assert_int_eq(LMQTT_IO_STATUS_READY, client_process_input(&client));
+
+    test_time_set(13, 0);
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(4, secs);
+}
+END_TEST
+
+START_TEST(should_get_timeout_after_initialize)
+{
+    long secs = 0xcccccccc, nsecs = 0xcccccccc;
+    lmqtt_client_t client;
+
+    test_time_set(10, 0);
+    do_init(&client, 5);
+    lmqtt_client_set_reconnect_delay(&client, 7);
+
+    /* CONNECT has not yet been sent; lmqtt_client_get_timeout() should return
+       a zero-timeout so that a subsequent call to select() doesn't block */
+    ck_assert_int_eq(1, lmqtt_client_get_timeout(&client, &secs, &nsecs));
+    ck_assert_int_eq(0, secs);
 }
 END_TEST
 
@@ -1433,5 +1514,10 @@ START_TCASE("Client commands")
 
     ADD_TEST(should_preserve_non_clean_session_ids_after_reconnect);
     ADD_TEST(should_not_preserve_clean_session_ids_after_reconnect);
+
+    ADD_TEST(should_not_get_timeout_after_error);
+    ADD_TEST(should_get_timeout_after_error_with_reconnect_delay);
+    ADD_TEST(should_get_timeout_after_eof_with_reconnect_delay);
+    ADD_TEST(should_get_timeout_after_initialize);
 }
 END_TCASE

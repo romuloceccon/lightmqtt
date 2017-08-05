@@ -82,6 +82,7 @@ static void prepare_all()
     client.main_store.get_time = &test_time_get;
     client.main_store.entries = entries;
     client.main_store.capacity = ENTRY_COUNT;
+    client.callbacks.get_time = &test_time_get;
     client.current_store = &client.main_store;
 
     test_src.len = sizeof(test_src.buf);

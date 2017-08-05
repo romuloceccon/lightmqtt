@@ -9,8 +9,9 @@
 #define LMQTT_RES_WOULD_BLOCK_CONN_WR 0x0200
 #define LMQTT_RES_WOULD_BLOCK_DATA_RD 0x0400
 #define LMQTT_RES_WOULD_BLOCK_DATA_WR 0x0800
-#define LMQTT_RES_EOF                 0x1000
-#define LMQTT_RES_QUEUEABLE           0x2000
+#define LMQTT_RES_SHOULD_CONNECT      0x1000
+#define LMQTT_RES_EOF                 0x2000
+#define LMQTT_RES_QUEUEABLE           0x4000
 
 #define LMQTT_RES_EOF_RD (LMQTT_RES_EOF | LMQTT_RES_WOULD_BLOCK_CONN_RD)
 #define LMQTT_RES_EOF_WR (LMQTT_RES_EOF | LMQTT_RES_WOULD_BLOCK_CONN_WR)
@@ -25,6 +26,8 @@
     (((res) & LMQTT_RES_WOULD_BLOCK_DATA_RD) != 0)
 #define LMQTT_WOULD_BLOCK_DATA_WR(res) \
     (((res) & LMQTT_RES_WOULD_BLOCK_DATA_WR) != 0)
+#define LMQTT_SHOULD_CONNECT(res) \
+    (((res) & LMQTT_RES_SHOULD_CONNECT) != 0)
 #define LMQTT_IS_EOF(res) \
     (((res) & LMQTT_RES_EOF) != 0)
 #define LMQTT_IS_EOF_RD(res) \
@@ -75,7 +78,9 @@ typedef struct _lmqtt_client_t {
     lmqtt_client_on_publish_t on_publish;
     void *on_publish_data;
 
+    int initialized;
     int closed;
+    lmqtt_time_t close_time;
     int clean_session;
 
     lmqtt_rx_buffer_t rx_state;
@@ -90,6 +95,7 @@ typedef struct _lmqtt_client_t {
     lmqtt_store_t connect_store;
     lmqtt_store_t *current_store;
     lmqtt_store_entry_t connect_store_entry;
+    unsigned short reconnect_delay;
 
     lmqtt_client_callbacks_t callbacks;
     lmqtt_message_callbacks_t message_callbacks;
@@ -104,6 +110,7 @@ typedef struct _lmqtt_client_t {
         int (*publish)(struct _lmqtt_client_t *, lmqtt_publish_t *);
         int (*pingreq)(struct _lmqtt_client_t *);
         int (*disconnect)(struct _lmqtt_client_t *);
+        int (*get_timeout)(struct _lmqtt_client_t *, long *, long *);
     } internal;
 } lmqtt_client_t;
 
@@ -132,6 +139,8 @@ void lmqtt_client_set_message_callbacks(lmqtt_client_t *client,
     lmqtt_message_callbacks_t *message_callbacks);
 
 void lmqtt_client_set_default_timeout(lmqtt_client_t *client,
+    unsigned short secs);
+void lmqtt_client_set_reconnect_delay(lmqtt_client_t *client,
     unsigned short secs);
 int lmqtt_client_get_os_error(lmqtt_client_t *client);
 int lmqtt_client_get_timeout(lmqtt_client_t *client, long *secs, long *nsecs);
