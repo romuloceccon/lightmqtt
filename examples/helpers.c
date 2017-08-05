@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdio.h>
 
 lmqtt_io_result_t get_time(long *secs, long *nsecs)
 {
@@ -27,7 +28,12 @@ lmqtt_io_result_t file_read(void *data, void *buf, size_t buf_len,
     int res;
 
     res = read(socket_fd, buf, buf_len);
+    fprintf(stderr, "read  %d: %d\n", socket_fd, res);
     if (res >= 0) {
+        int i;
+        for (i = 0; i < res; i++)
+            fprintf(stderr, "%02x ", ((unsigned char *) buf)[i]);
+        fprintf(stderr, "\n");
         *bytes_read = res;
         return LMQTT_IO_SUCCESS;
     }
@@ -49,7 +55,12 @@ lmqtt_io_result_t file_write(void *data, void *buf, size_t buf_len,
     int res;
 
     res = write(socket_fd, buf, buf_len);
+    fprintf(stderr, "write %d: %d\n", socket_fd, res);
     if (res >= 0) {
+        int i;
+        for (i = 0; i < res; i++)
+            fprintf(stderr, "%02x ", ((unsigned char *) buf)[i]);
+        fprintf(stderr, "\n");
         *bytes_written = res;
         return LMQTT_IO_SUCCESS;
     }

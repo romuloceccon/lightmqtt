@@ -155,7 +155,7 @@ lmqtt_allocate_result_t on_message_allocate_payload(void *data,
 
 void run(const char *address, unsigned short port)
 {
-    int socket_fd;
+    int socket_fd = -1;
     struct timeval timeout;
     struct timeval *timeout_ptr;
 
@@ -168,12 +168,6 @@ void run(const char *address, unsigned short port)
     lmqtt_client_callbacks_t client_callbacks;
     lmqtt_message_callbacks_t message_callbacks;
     lmqtt_client_buffers_t buffers;
-
-    socket_fd = socket_open(address, port);
-    if (socket_fd == -1) {
-        fprintf(stderr, "socket_open failed\n");
-        exit(1);
-    }
 
     memset(&connect_data, 0, sizeof(connect_data));
     memset(&client_callbacks, 0, sizeof(client_callbacks));
@@ -209,7 +203,7 @@ void run(const char *address, unsigned short port)
     lmqtt_client_set_reconnect_delay(&client, 5);
 
     connect_data.keep_alive = 20;
-    connect_data.clean_session = 0;
+    connect_data.clean_session = 1;
     connect_data.client_id.buf = id;
     connect_data.client_id.len = strlen(id);
 
@@ -223,6 +217,16 @@ void run(const char *address, unsigned short port)
 
         if (LMQTT_SHOULD_CONNECT(res)) {
             fprintf(stderr, "connecting...\n");
+
+            if (socket_fd != -1)
+                socket_close(socket_fd);
+
+            socket_fd = socket_open(address, port);
+            if (socket_fd == -1) {
+                fprintf(stderr, "socket_open failed\n");
+                exit(1);
+            }
+
             lmqtt_client_reset(&client);
             lmqtt_client_connect(&client, &connect_data);
             continue;
@@ -259,8 +263,10 @@ void run(const char *address, unsigned short port)
             timeout.tv_sec = secs;
             timeout.tv_usec = nsecs / 1000;
             timeout_ptr = &timeout;
+            fprintf(stderr, "select: %ld.%06ld\n", secs, nsecs / 1000);
         } else {
             timeout_ptr = NULL;
+            fprintf(stderr, "select: null\n");
         }
 
         if (select(max_fd, &read_set, &write_set, NULL, timeout_ptr) == -1) {
