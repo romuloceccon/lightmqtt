@@ -166,6 +166,27 @@ START_TEST(should_get_second_object_after_popping_first_one)
 }
 END_TEST
 
+START_TEST(should_get_last_object_after_popping_first_one)
+{
+    int i;
+    PREPARE;
+
+    for (i = 0; i < ENTRY_COUNT; i++) {
+        value_in.packet_id = 1 + i;
+        value_in.value = &data[i];
+        lmqtt_store_append(&store, LMQTT_KIND_PUBLISH_1, &value_in);
+        lmqtt_store_mark_current(&store);
+    }
+
+    lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, 1, &value_out);
+
+    res = lmqtt_store_pop_marked_by(&store, LMQTT_KIND_PUBLISH_1, ENTRY_COUNT,
+        &value_out);
+    ck_assert_int_eq(1, res);
+    ck_assert_ptr_eq(&data[ENTRY_COUNT - 1], value_out.value);
+}
+END_TEST
+
 START_TEST(should_get_first_object_after_popping_second_one)
 {
     PREPARE;
@@ -577,6 +598,7 @@ START_TCASE("Store")
     ADD_TEST(should_pop_object);
     ADD_TEST(should_not_pop_nonexistent_object);
     ADD_TEST(should_get_second_object_after_popping_first_one);
+    ADD_TEST(should_get_last_object_after_popping_first_one);
     ADD_TEST(should_get_first_object_after_popping_second_one);
     ADD_TEST(should_shift_object);
     ADD_TEST(should_shift_object_with_null_pointers);

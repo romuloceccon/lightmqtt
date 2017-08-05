@@ -32,7 +32,7 @@ LMQTT_STATIC int store_pop_at(lmqtt_store_t *store, size_t pos, int *kind,
     if (store->pos > pos)
         store->pos -= 1;
     memmove(&store->entries[pos], &store->entries[pos + 1],
-        sizeof(&store->entries[0]) * (store->capacity - pos - 1));
+        sizeof(store->entries[0]) * (store->capacity - pos - 1));
     return 1;
 }
 
