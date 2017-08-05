@@ -33,6 +33,7 @@ int on_connect(void *data, lmqtt_connect_t *connect, int succeeded)
     if (!succeeded)
         return 1;
 
+    fprintf(stderr, "connected\n");
     memset(&subscribe, 0, sizeof(subscribe));
     memset(subscriptions, 0, sizeof(subscriptions));
     subscribe.count = 1;
@@ -205,13 +206,12 @@ void run(const char *address, unsigned short port)
     lmqtt_client_set_on_publish(&client, on_publish, &client);
     lmqtt_client_set_message_callbacks(&client, &message_callbacks);
     lmqtt_client_set_default_timeout(&client, 10);
+    lmqtt_client_set_reconnect_delay(&client, 5);
 
     connect_data.keep_alive = 20;
-    connect_data.clean_session = 1;
+    connect_data.clean_session = 0;
     connect_data.client_id.buf = id;
     connect_data.client_id.len = strlen(id);
-
-    lmqtt_client_connect(&client, &connect_data);
 
     while (1) {
         long secs, nsecs;
@@ -221,14 +221,19 @@ void run(const char *address, unsigned short port)
         lmqtt_string_t *str_rd, *str_wr;
         int res = lmqtt_client_run_once(&client, &str_rd, &str_wr);
 
+        if (LMQTT_SHOULD_CONNECT(res)) {
+            fprintf(stderr, "connecting...\n");
+            lmqtt_client_reset(&client);
+            lmqtt_client_connect(&client, &connect_data);
+            continue;
+        }
+
         if (LMQTT_IS_ERROR(res)) {
             fprintf(stderr, "client error: %d\n", LMQTT_ERROR_NUM(res));
-            exit(1);
         }
 
         if (LMQTT_IS_EOF_RD(res)) {
             fprintf(stderr, "they disconnected\n");
-            exit(0);
         }
 
         if (LMQTT_IS_EOF_WR(res)) {
